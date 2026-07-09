@@ -7,7 +7,8 @@ import {
   TextInput, 
   ScrollView, 
   ActivityIndicator, 
-  Alert 
+  Alert,
+  Linking
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SQLite from 'expo-sqlite';
@@ -265,6 +266,29 @@ export default function App() {
     }
   };
 
+  // Helper to translate status to French
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'planned': return 'Planifié';
+      case 'in_progress': return 'En cours';
+      case 'completed': return 'Terminé';
+      case 'cancelled': return 'Annulé';
+      default: return status;
+    }
+  };
+
+  // Open GPS navigation to worksite address
+  const openGps = () => {
+    if (!activeMission || !activeMission.worksite || activeMission.worksite === 'N/A') {
+      Alert.alert('Chantier', 'Adresse du chantier indisponible.');
+      return;
+    }
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeMission.worksite)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Erreur', "Impossible d'ouvrir l'application de navigation GPS.");
+    });
+  };
+
   // Fetch server data and load to SQLite cache
   const fetchMissionsAndStock = async (currentTruck = truck, currentToken = token) => {
     if (isOffline || !currentTruck || !currentToken) return;
@@ -481,39 +505,54 @@ export default function App() {
   const endMission = async () => {
     if (!activeMission) return;
 
-    const payload = {
-      missionId: activeMission.id,
-      employeeId: employee.id,
-      timestamp: new Date().toISOString()
-    };
+    Alert.alert(
+      'Fin de mission',
+      'Attention vous allez finir la mission. Est-ce que le chantier est bien fini ?',
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Oui, terminer',
+          onPress: async () => {
+            const payload = {
+              missionId: activeMission.id,
+              employeeId: employee.id,
+              timestamp: new Date().toISOString()
+            };
 
-    if (!isOffline) {
-      try {
-        await fetch(`${serverUrl}/missions/${activeMission.id}/status/completed`, {
-          method: 'PATCH',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        await fetch(`${serverUrl}/timeclock`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ ...payload, type: 'mission_end' })
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      db.runSync("UPDATE cached_missions SET status = 'completed' WHERE id = ?", [activeMission.id]);
-      db.runSync(
-        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('end_mission', ?, ?)",
-        [JSON.stringify(payload), new Date().toISOString()]
-      );
-    }
-    
-    Alert.alert('Chantier', 'Mission clôturée avec succès.');
-    fetchMissionsAndStock();
+            if (!isOffline) {
+              try {
+                await fetch(`${serverUrl}/missions/${activeMission.id}/status/completed`, {
+                  method: 'PATCH',
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                await fetch(`${serverUrl}/timeclock`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({ ...payload, type: 'mission_end' })
+                });
+              } catch (e) {
+                console.error(e);
+              }
+            } else {
+              db.runSync("UPDATE cached_missions SET status = 'completed' WHERE id = ?", [activeMission.id]);
+              db.runSync(
+                "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('end_mission', ?, ?)",
+                [JSON.stringify(payload), new Date().toISOString()]
+              );
+            }
+            
+            Alert.alert('Chantier', 'Mission clôturée avec succès.');
+            fetchMissionsAndStock();
+          }
+        }
+      ]
+    );
   };
 
   // Adjust Truck sand stock
@@ -785,8 +824,15 @@ export default function App() {
       {/* SCREEN 2: SELECT TRUCK */}
       {currentScreen === 'select_truck' && (
         <ScrollView style={styles.dashboardContainer}>
-          <Text style={[styles.loginTitle, { textAlign: 'center', marginTop: 40 }]}>Sélectionner un véhicule</Text>
-          <Text style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 20 }}>Associez votre tablette à un camion.</Text>
+          <TouchableOpacity style={[styles.btnBack, { marginHorizontal: 16, marginTop: 16 }]} onPress={() => {
+            setToken('');
+            setEmployee(null);
+            setCurrentScreen('login');
+          }}>
+            <Text style={styles.btnBackText}>← Retour connexion</Text>
+          </TouchableOpacity>
+          <Text style={[styles.loginTitle, { textAlign: 'center', marginTop: 20 }]}>Sélectionner un véhicule</Text>
+          <Text style={{ color: '#94a3b8', textAlign: 'center', marginBottom: 20 }}>Associez votre tablette à un camion.</Text>
           
           <View style={{ gap: 12, paddingHorizontal: 16 }}>
             {trucksList.map(t => (
@@ -811,7 +857,12 @@ export default function App() {
               <Text style={styles.welcomeText}>Bonjour, {employee.firstName}</Text>
               <Text style={styles.truckText}>Véhicule : {truck.plateNumber}</Text>
             </View>
-            <TouchableOpacity style={styles.btnLogout} onPress={endDay}>
+            <TouchableOpacity style={styles.btnLogout} onPress={() => {
+              setToken('');
+              setEmployee(null);
+              setTruck(null);
+              setCurrentScreen('login');
+            }}>
               <Text style={styles.btnLogoutText}>Quitter</Text>
             </TouchableOpacity>
           </View>
@@ -833,28 +884,35 @@ export default function App() {
           {!dayStarted ? (
             <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
               <Icon name="clock" size={28} />
-              <Text style={styles.btnLargeText}>COMMENCER JOURNÉE (POINTAGE)</Text>
+              <Text style={styles.btnLargeText}>DÉBUT DE JOURNÉE</Text>
             </TouchableOpacity>
           ) : (
-            <View style={styles.actionsGrid}>
-              <TouchableOpacity 
-                style={styles.actionCard}
-                onPress={() => setCurrentScreen('stock')}
-              >
-                <Icon name="package" size={32} color="#f59e0b" />
-                <Text style={styles.actionCardTitle}>Gérer Sable</Text>
-                <Text style={styles.actionCardDesc}>{truck.currentStock} sacs à bord</Text>
-              </TouchableOpacity>
+            <View style={{ gap: 20 }}>
+              <View style={styles.actionsGrid}>
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => setCurrentScreen('stock')}
+                >
+                  <Icon name="package" size={32} color="#f59e0b" />
+                  <Text style={styles.actionCardTitle}>Gérer Sable</Text>
+                  <Text style={styles.actionCardDesc}>{truck.currentStock} sacs à bord</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.actionCard}
-                onPress={() => setCurrentScreen('mission_detail')}
-              >
-                <Icon name="truck" size={32} color="#3b82f6" />
-                <Text style={styles.actionCardTitle}>Mission Assignée</Text>
-                <Text style={styles.actionCardDesc}>
-                  {activeMission ? activeMission.title : 'Aucune mission pour aujourd\'hui'}
-                </Text>
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => setCurrentScreen('mission_detail')}
+                >
+                  <Icon name="truck" size={32} color="#3b82f6" />
+                  <Text style={styles.actionCardTitle}>Mission Assignée</Text>
+                  <Text style={styles.actionCardDesc}>
+                    {activeMission ? activeMission.title : 'Aucune mission pour aujourd\'hui'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.btnLargeDanger} onPress={endDay}>
+                <Icon name="clock" size={28} />
+                <Text style={styles.btnLargeText}>FIN DE JOURNÉE</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -893,7 +951,7 @@ export default function App() {
 
             <View style={styles.infoRow}>
               <Icon name="clock" size={18} color="#94a3b8" />
-              <Text style={styles.infoText}>Statut : {activeMission.status}</Text>
+              <Text style={styles.infoText}>Statut : {getStatusLabel(activeMission.status)}</Text>
             </View>
 
             {activeMission.notes ? (
@@ -902,6 +960,12 @@ export default function App() {
               </View>
             ) : null}
           </View>
+
+          {/* Navigation Button */}
+          <TouchableOpacity style={[styles.btnLargeSecondary, { marginBottom: 16 }]} onPress={openGps}>
+            <Icon name="mapPin" size={24} color="#3b82f6" />
+            <Text style={styles.btnLargeText}>OUVRIR GPS (NAVIGATION)</Text>
+          </TouchableOpacity>
 
           {/* Action buttons */}
           {activeMission.status === 'planned' && (
@@ -982,6 +1046,9 @@ export default function App() {
         <View style={styles.cameraContainer}>
           {useSimulatedCamera ? (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
+              <TouchableOpacity style={[styles.btnBack, { position: 'absolute', top: 40, left: 16 }]} onPress={() => setCurrentScreen('mission_detail')}>
+                <Text style={styles.btnBackText}>← Retour</Text>
+              </TouchableOpacity>
               <Icon name="camera" size={80} color="#94a3b8" />
               <Text style={{ fontSize: 18, color: '#f8fafc', marginVertical: 20 }}>Simulateur d'Appareil Photo Mobile</Text>
               <Text style={{ color: '#64748b', marginBottom: 30 }}>Cliché : Photo {cameraType === 'before' ? 'Avant' : 'Après'} sablage</Text>
@@ -1234,6 +1301,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
+  },
+  btnLargeDanger: {
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#ef4444',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4
   },
   btnLargeText: {
     color: '#fff',
