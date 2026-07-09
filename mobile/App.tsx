@@ -1,0 +1,1357 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  TouchableOpacity, 
+  TextInput, 
+  ScrollView, 
+  ActivityIndicator, 
+  Alert 
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import * as SQLite from 'expo-sqlite';
+import * as Location from 'expo-location';
+import { Camera, CameraView } from 'expo-camera';
+
+// Setup SQLite local database connection
+const db = SQLite.openDatabaseSync('edgs.db');
+
+// Simulated Lucide Icons for React Native (SVG/Custom representation to ensure 100% compile guarantee)
+const Icon = ({ name, color = '#f8fafc', size = 24 }: { name: string; color?: string; size?: number }) => {
+  const icons: Record<string, string> = {
+    truck: '🚛',
+    lock: '🔒',
+    clock: '🕒',
+    camera: '📷',
+    package: '📦',
+    mapPin: '📍',
+    alert: '⚠️',
+    sync: '🔄',
+    check: '✅',
+    user: '👤',
+    settings: '⚙️'
+  };
+  return <Text style={{ fontSize: size, color }}>{icons[name] || '•'}</Text>;
+};
+
+interface Mission {
+  id: string;
+  title: string;
+  client: string;
+  worksite: string;
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  scheduledDate: string;
+  notes?: string;
+}
+
+export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<'login' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera'>('login');
+  
+  // Configuration
+  const [serverUrl, setServerUrl] = useState('http://localhost:3000');
+  const [showConfig, setShowConfig] = useState(false);
+  
+  // Connection states
+  const [isOffline, setIsOffline] = useState(false);
+  const [syncQueue, setSyncQueue] = useState<any[]>([]);
+
+  // Auth & Session state
+  const [pin, setPin] = useState('');
+  const [employee, setEmployee] = useState<any>(null);
+  const [token, setToken] = useState<string | null>(null);
+  
+  // Fleet and Ops state
+  const [trucksList, setTrucksList] = useState<any[]>([]);
+  const [truck, setTruck] = useState<any>(null);
+  const [dayStarted, setDayStarted] = useState(false);
+  const [missionsList, setMissionsList] = useState<Mission[]>([]);
+  const [activeMission, setActiveMission] = useState<Mission | null>(null);
+
+  // Camera states
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [cameraType, setCameraType] = useState<'before' | 'after'>('before');
+  const [useSimulatedCamera, setUseSimulatedCamera] = useState(true);
+  const cameraRef = useRef<any>(null);
+
+  // Initialize SQLite schema
+  useEffect(() => {
+    try {
+      db.execSync(`
+        CREATE TABLE IF NOT EXISTS pending_sync (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          createdAt TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS cached_missions (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          clientName TEXT,
+          worksiteAddress TEXT,
+          status TEXT NOT NULL,
+          scheduledDate TEXT NOT NULL,
+          notes TEXT
+        );
+        CREATE TABLE IF NOT EXISTS cached_truck (
+          id TEXT PRIMARY KEY,
+          plateNumber TEXT NOT NULL,
+          currentStock INTEGER NOT NULL,
+          stockAlertThreshold INTEGER NOT NULL
+        );
+      `);
+      loadCachedData();
+    } catch (err) {
+      console.error('Error initializing SQLite:', err);
+    }
+  }, []);
+
+  // Request permissions
+  useEffect(() => {
+    (async () => {
+      const { status: cameraStatus } = await Camera.requestCameraPermissionsAsync();
+      setHasCameraPermission(cameraStatus === 'granted');
+      if (cameraStatus !== 'granted') {
+        setUseSimulatedCamera(true);
+      }
+      
+      await Location.requestForegroundPermissionsAsync();
+    })();
+  }, []);
+
+  // Load cached database values
+  const loadCachedData = () => {
+    try {
+      const cachedM: any[] = db.getAllSync('SELECT * FROM cached_missions');
+      const formattedMissions = cachedM.map(m => ({
+        id: m.id,
+        title: m.title,
+        client: m.clientName || 'N/A',
+        worksite: m.worksiteAddress || 'N/A',
+        status: m.status,
+        scheduledDate: m.scheduledDate,
+        notes: m.notes
+      }));
+      setMissionsList(formattedMissions);
+      
+      const inProgress = formattedMissions.find(m => m.status === 'in_progress');
+      const planned = formattedMissions.find(m => m.status === 'planned');
+      setActiveMission(inProgress || planned || formattedMissions[0] || null);
+
+      const cachedT: any[] = db.getAllSync('SELECT * FROM cached_truck LIMIT 1');
+      if (cachedT.length > 0) {
+        setTruck(cachedT[0]);
+      }
+
+      const pending: any[] = db.getAllSync('SELECT * FROM pending_sync');
+      setSyncQueue(pending);
+    } catch (e) {
+      console.error('Error reading SQLite Cache:', e);
+    }
+  };
+
+  // Replay Offline pending sync tasks when switching to Online
+  const syncOfflineData = async (currentToken = token) => {
+    try {
+      const pending: any[] = db.getAllSync('SELECT * FROM pending_sync ORDER BY id ASC');
+      if (pending.length === 0) return;
+
+      console.log(`Replaying ${pending.length} pending operations...`);
+      for (const op of pending) {
+        const payload = JSON.parse(op.payload);
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`
+        };
+
+        if (op.type === 'day_start' || op.type === 'day_end') {
+          await fetch(`${serverUrl}/timeclock`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              employeeId: payload.employeeId,
+              truckId: payload.truckId,
+              type: op.type,
+              timestamp: payload.timestamp,
+              isSyncedFromOffline: true
+            })
+          });
+        }
+
+        if (op.type === 'start_mission') {
+          await fetch(`${serverUrl}/missions/${payload.missionId}/status/in_progress`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+          });
+          await fetch(`${serverUrl}/timeclock`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              employeeId: payload.employeeId,
+              missionId: payload.missionId,
+              type: 'mission_start',
+              timestamp: payload.timestamp,
+              isSyncedFromOffline: true
+            })
+          });
+        }
+
+        if (op.type === 'end_mission') {
+          await fetch(`${serverUrl}/missions/${payload.missionId}/status/completed`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+          });
+          await fetch(`${serverUrl}/timeclock`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              employeeId: payload.employeeId,
+              missionId: payload.missionId,
+              type: 'mission_end',
+              timestamp: payload.timestamp,
+              isSyncedFromOffline: true
+            })
+          });
+        }
+
+        if (op.type === 'stock_movement') {
+          await fetch(`${serverUrl}/stock/movement`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              truckId: payload.truckId,
+              type: payload.type,
+              quantity: payload.quantity,
+              notes: 'Synchro Offline'
+            })
+          });
+        }
+
+        if (op.type === 'gps') {
+          await fetch(`${serverUrl}/gps/track`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              truckId: payload.truckId,
+              missionId: payload.missionId,
+              latitude: payload.latitude,
+              longitude: payload.longitude,
+              speed: payload.speed,
+              isSyncedFromOffline: true
+            })
+          });
+        }
+      }
+
+      db.execSync('DELETE FROM pending_sync');
+      setSyncQueue([]);
+      Alert.alert('Synchronisation', 'Toutes les opérations hors-ligne ont été synchronisées.');
+      loadCachedData();
+    } catch (e) {
+      console.error('Error during synchronization:', e);
+      Alert.alert('Erreur synchro', 'Certaines données n\'ont pas pu être retransmises.');
+    }
+  };
+
+  // Toggle offline simulator state
+  const toggleOffline = async () => {
+    const nextOffline = !isOffline;
+    setIsOffline(nextOffline);
+    if (!nextOffline) {
+      // Re-connected online, launch sync
+      await syncOfflineData();
+      fetchMissionsAndStock();
+    }
+  };
+
+  // Fetch server data and load to SQLite cache
+  const fetchMissionsAndStock = async (currentTruck = truck, currentToken = token) => {
+    if (isOffline || !currentTruck || !currentToken) return;
+    try {
+      const headers = { 'Authorization': `Bearer ${currentToken}` };
+      
+      // Fetch today's missions for truck
+      const resMissions = await fetch(`${serverUrl}/missions/today?truckId=${currentTruck.id}`, { headers });
+      if (resMissions.ok) {
+        const dataM = await resMissions.json();
+        
+        // Cache to SQLite
+        db.execSync('DELETE FROM cached_missions');
+        for (const m of dataM) {
+          db.runSync(
+            'INSERT OR REPLACE INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [m.id, m.title, m.client?.name || 'N/A', m.worksite?.address || 'N/A', m.status, m.scheduledDate, m.notes || '']
+          );
+        }
+      }
+
+      // Fetch truck stock
+      const resTruck = await fetch(`${serverUrl}/trucks/${currentTruck.id}`, { headers });
+      if (resTruck.ok) {
+        const dataT = await resTruck.json();
+        db.runSync(
+          'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold) VALUES (?, ?, ?, ?)',
+          [dataT.id, dataT.plateNumber, dataT.currentStock, dataT.stockAlertThreshold]
+        );
+      }
+
+      loadCachedData();
+    } catch (err) {
+      console.error('Error fetching data from API:', err);
+    }
+  };
+
+  // PIN Login flow
+  const handleKeyPress = async (num: string) => {
+    if (pin.length < 4) {
+      const newPin = pin + num;
+      setPin(newPin);
+      
+      if (newPin.length === 4) {
+        if (!isOffline) {
+          try {
+            const res = await fetch(`${serverUrl}/auth/pin`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pin: newPin }),
+            });
+
+            if (!res.ok) {
+              throw new Error('PIN incorrect');
+            }
+
+            const data = await res.json();
+            setToken(data.access_token);
+            setEmployee(data.employee);
+            setPin('');
+            
+            // Get trucks to select
+            const resTrucks = await fetch(`${serverUrl}/trucks`, {
+              headers: { 'Authorization': `Bearer ${data.access_token}` }
+            });
+            const dataTrucks = await resTrucks.json();
+            setTrucksList(dataTrucks);
+            setCurrentScreen('select_truck');
+          } catch (err) {
+            Alert.alert('Erreur', 'Code PIN incorrect ou serveur indisponible.');
+            setPin('');
+          }
+        } else {
+          // Offline local login bypass using seeder defaults
+          if (newPin === '1234') {
+            setEmployee({ id: 'offline-emp-id', firstName: 'Jean', lastName: 'Chauffeur' });
+            setPin('');
+            loadCachedData();
+            setCurrentScreen('dashboard');
+          } else {
+            Alert.alert('Erreur', 'PIN incorrect en mode hors-ligne (Chauffeur: 1234).');
+            setPin('');
+          }
+        }
+      }
+    }
+  };
+
+  const clearPin = () => setPin('');
+
+  // Choose truck from list
+  const handleSelectTruck = (selected: any) => {
+    setTruck(selected);
+    db.runSync(
+      'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold) VALUES (?, ?, ?, ?)',
+      [selected.id, selected.plateNumber, selected.currentStock, selected.stockAlertThreshold]
+    );
+    fetchMissionsAndStock(selected, token);
+    setCurrentScreen('dashboard');
+  };
+
+  // Start Day timeclock
+  const startDay = async () => {
+    setDayStarted(true);
+    const payload = {
+      employeeId: employee.id,
+      truckId: truck.id,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/timeclock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ...payload, type: 'day_start' })
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('day_start', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+      loadCachedData();
+    }
+    Alert.alert('Pointage', 'Début de journée enregistré.');
+  };
+
+  // End Day timeclock
+  const endDay = async () => {
+    setDayStarted(false);
+    const payload = {
+      employeeId: employee.id,
+      truckId: truck.id,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/timeclock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ...payload, type: 'day_end' })
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('day_end', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+      loadCachedData();
+    }
+    Alert.alert('Pointage', 'Fin de journée enregistrée.');
+    setCurrentScreen('login');
+    setEmployee(null);
+    setToken(null);
+  };
+
+  // Start active mission
+  const startMission = async () => {
+    if (!activeMission) return;
+    
+    const payload = {
+      missionId: activeMission.id,
+      employeeId: employee.id,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/missions/${activeMission.id}/status/in_progress`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        await fetch(`${serverUrl}/timeclock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ...payload, type: 'mission_start' })
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      // Local db cache update
+      db.runSync("UPDATE cached_missions SET status = 'in_progress' WHERE id = ?", [activeMission.id]);
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('start_mission', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+    }
+    
+    Alert.alert('Chantier', 'Mission démarrée avec succès.');
+    fetchMissionsAndStock();
+  };
+
+  // Complete active mission
+  const endMission = async () => {
+    if (!activeMission) return;
+
+    const payload = {
+      missionId: activeMission.id,
+      employeeId: employee.id,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/missions/${activeMission.id}/status/completed`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        await fetch(`${serverUrl}/timeclock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ...payload, type: 'mission_end' })
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      db.runSync("UPDATE cached_missions SET status = 'completed' WHERE id = ?", [activeMission.id]);
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('end_mission', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+    }
+    
+    Alert.alert('Chantier', 'Mission clôturée avec succès.');
+    fetchMissionsAndStock();
+  };
+
+  // Adjust Truck sand stock
+  const updateStock = async (diff: number) => {
+    const nextStock = Math.max(0, truck.currentStock + diff);
+    const type = diff > 0 ? 'load' : 'consume';
+    
+    const payload = {
+      truckId: truck.id,
+      type,
+      quantity: Math.abs(diff),
+      timestamp: new Date().toISOString()
+    };
+
+    // Update SQLite Cache
+    db.runSync("UPDATE cached_truck SET currentStock = ? WHERE id = ?", [nextStock, truck.id]);
+    setTruck({ ...truck, currentStock: nextStock });
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/stock/movement`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('stock_movement', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+      loadCachedData();
+    }
+  };
+
+  // Location interval loop (Simulation/Background tracking)
+  useEffect(() => {
+    let interval: any;
+    if (dayStarted && truck && activeMission && activeMission.status === 'in_progress') {
+      interval = setInterval(async () => {
+        try {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const gpsPoint = {
+            truckId: truck.id,
+            missionId: activeMission.id,
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+            speed: loc.coords.speed || 0,
+            accuracy: loc.coords.accuracy || 0
+          };
+
+          if (!isOffline) {
+            await fetch(`${serverUrl}/gps/track`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(gpsPoint)
+            });
+          } else {
+            db.runSync(
+              "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('gps', ?, ?)",
+              [JSON.stringify(gpsPoint), new Date().toISOString()]
+            );
+            loadCachedData();
+          }
+        } catch (e) {
+          console.log('Location track error:', e);
+        }
+      }, 20000); // 20 seconds loop for quick demonstration
+    }
+    return () => clearInterval(interval);
+  }, [dayStarted, truck, activeMission, isOffline, token, serverUrl]);
+
+  // Photo Capture
+  const handleCapturePhoto = async () => {
+    if (useSimulatedCamera) {
+      // Simulate base64 / uri
+      const payload = {
+        missionId: activeMission?.id,
+        employeeId: employee?.id,
+        type: cameraType,
+        uri: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=400&q=80',
+        timestamp: new Date().toISOString()
+      };
+
+      if (!isOffline) {
+        try {
+          const formData = new FormData();
+          formData.append('file', {
+            uri: payload.uri,
+            name: 'photo.jpg',
+            type: 'image/jpeg'
+          } as any);
+          formData.append('type', payload.type);
+          formData.append('employeeId', payload.employeeId || '');
+          formData.append('notes', 'Photo mobile en ligne');
+          
+          await fetch(`${serverUrl}/photos/mission/${payload.missionId}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        db.runSync(
+          "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('photo', ?, ?)",
+          [JSON.stringify(payload), new Date().toISOString()]
+        );
+        loadCachedData();
+      }
+      Alert.alert('Succès', 'Photo de chantier enregistrée.');
+      setCurrentScreen('mission_detail');
+    } else {
+      // Real camera capture
+      if (cameraRef.current) {
+        try {
+          const options = { quality: 0.5, base64: true };
+          const data = await cameraRef.current.takePictureAsync(options);
+          
+          const payload = {
+            missionId: activeMission?.id,
+            employeeId: employee?.id,
+            type: cameraType,
+            uri: data.uri,
+            timestamp: new Date().toISOString()
+          };
+
+          if (!isOffline) {
+            const formData = new FormData();
+            formData.append('file', {
+              uri: data.uri,
+              name: 'photo.jpg',
+              type: 'image/jpeg'
+            } as any);
+            formData.append('type', payload.type);
+            formData.append('employeeId', payload.employeeId || '');
+            
+            await fetch(`${serverUrl}/photos/mission/${payload.missionId}`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` },
+              body: formData
+            });
+          } else {
+            db.runSync(
+              "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('photo', ?, ?)",
+              [JSON.stringify(payload), new Date().toISOString()]
+            );
+            loadCachedData();
+          }
+          Alert.alert('Succès', 'Photo capturée.');
+          setCurrentScreen('mission_detail');
+        } catch (e) {
+          console.error(e);
+          Alert.alert('Erreur', 'Erreur de capture.');
+        }
+      }
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      
+      {/* Top Banner indicating Online/Offline Mode */}
+      <View style={[styles.banner, isOffline ? styles.bannerOffline : styles.bannerOnline]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="sync" size={16} />
+          <Text style={styles.bannerText}>
+            {isOffline ? 'Mode Hors Ligne (SQLite Actif)' : 'Mode En Ligne (Serveur Connecté)'}
+          </Text>
+        </View>
+        <TouchableOpacity style={styles.btnBanner} onPress={toggleOffline}>
+          <Text style={styles.btnBannerText}>{isOffline ? 'Se connecter' : 'Passer offline'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Configuration modal trigger */}
+      {currentScreen === 'login' && (
+        <View style={{ position: 'absolute', top: 90, right: 16, zIndex: 50 }}>
+          <TouchableOpacity onPress={() => setShowConfig(!showConfig)} style={{ backgroundColor: '#1e293b', padding: 8, borderRadius: 8 }}>
+            <Icon name="settings" size={24} />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Settings inputs */}
+      {showConfig && (
+        <View style={styles.configCard}>
+          <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 8 }}>Adresse EDGS API :</Text>
+          <TextInput 
+            style={styles.configInput}
+            value={serverUrl}
+            onChangeText={setServerUrl}
+            placeholder="http://localhost:3000"
+            placeholderTextColor="#64748b"
+          />
+          <TouchableOpacity style={styles.btnConfigClose} onPress={() => setShowConfig(false)}>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Valider</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* SCREEN 1: LOGIN */}
+      {currentScreen === 'login' && (
+        <View style={styles.loginContainer}>
+          <View style={styles.loginHeader}>
+            <Icon name="truck" size={48} color="#3b82f6" />
+            <Text style={styles.loginTitle}>EDGS Chauffeurs</Text>
+            <Text style={styles.loginSubtitle}>Saisissez votre code PIN (Défaut: 1234)</Text>
+          </View>
+
+          <View style={styles.dotsContainer}>
+            {[1, 2, 3, 4].map(idx => (
+              <View 
+                key={idx} 
+                style={[styles.dot, pin.length >= idx ? styles.dotFilled : styles.dotEmpty]} 
+              />
+            ))}
+          </View>
+
+          <View style={styles.keyboard}>
+            {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['C', '0', '⌫']].map((row, rIdx) => (
+              <View key={rIdx} style={styles.keyboardRow}>
+                {row.map(key => (
+                  <TouchableOpacity 
+                    key={key} 
+                    style={styles.key}
+                    onPress={() => {
+                      if (key === 'C') clearPin();
+                      else if (key === '⌫') setPin(pin.slice(0, -1));
+                      else handleKeyPress(key);
+                    }}
+                  >
+                    <Text style={styles.keyText}>{key}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* SCREEN 2: SELECT TRUCK */}
+      {currentScreen === 'select_truck' && (
+        <ScrollView style={styles.dashboardContainer}>
+          <Text style={[styles.loginTitle, { textAlign: 'center', marginTop: 40 }]}>Sélectionner un véhicule</Text>
+          <Text style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 20 }}>Associez votre tablette à un camion.</Text>
+          
+          <View style={{ gap: 12, paddingHorizontal: 16 }}>
+            {trucksList.map(t => (
+              <TouchableOpacity key={t.id} style={styles.truckItem} onPress={() => handleSelectTruck(t)}>
+                <Icon name="truck" size={32} color="#3b82f6" />
+                <View>
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>{t.plateNumber}</Text>
+                  <Text style={{ color: '#94a3b8' }}>{t.model}</Text>
+                </View>
+                <Text style={{ color: '#10b981', marginLeft: 'auto', fontWeight: '600' }}>{t.currentStock} sacs à bord</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* SCREEN 3: DASHBOARD */}
+      {currentScreen === 'dashboard' && employee && truck && (
+        <ScrollView style={styles.dashboardContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.welcomeText}>Bonjour, {employee.firstName}</Text>
+              <Text style={styles.truckText}>Véhicule : {truck.plateNumber}</Text>
+            </View>
+            <TouchableOpacity style={styles.btnLogout} onPress={endDay}>
+              <Text style={styles.btnLogoutText}>Quitter</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Stock warnings */}
+          {truck.currentStock <= truck.stockAlertThreshold && (
+            <View style={styles.alertCard}>
+              <Icon name="alert" size={24} color="#f59e0b" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.alertTitle}>Alerte Stock Bas</Text>
+                <Text style={styles.alertDesc}>
+                  Stock insuffisant ({truck.currentStock} sacs). Veuillez réapprovisionner.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Quick actions row */}
+          {!dayStarted ? (
+            <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
+              <Icon name="clock" size={28} />
+              <Text style={styles.btnLargeText}>COMMENCER JOURNÉE (POINTAGE)</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.actionsGrid}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => setCurrentScreen('stock')}
+              >
+                <Icon name="package" size={32} color="#f59e0b" />
+                <Text style={styles.actionCardTitle}>Gérer Sable</Text>
+                <Text style={styles.actionCardDesc}>{truck.currentStock} sacs à bord</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => setCurrentScreen('mission_detail')}
+              >
+                <Icon name="truck" size={32} color="#3b82f6" />
+                <Text style={styles.actionCardTitle}>Mission Assignée</Text>
+                <Text style={styles.actionCardDesc}>
+                  {activeMission ? activeMission.title : 'Aucune mission pour aujourd\'hui'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Sync status and SQLite logs */}
+          {syncQueue.length > 0 && (
+            <View style={styles.syncCard}>
+              <Icon name="sync" size={20} color="#3b82f6" />
+              <Text style={styles.syncText}>
+                {syncQueue.length} opérations en cache SQLite à synchroniser.
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      {/* SCREEN 4: MISSION DETAIL */}
+      {currentScreen === 'mission_detail' && activeMission && (
+        <ScrollView style={styles.dashboardContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+          <TouchableOpacity style={styles.btnBack} onPress={() => setCurrentScreen('dashboard')}>
+            <Text style={styles.btnBackText}>← Retour Dashboard</Text>
+          </TouchableOpacity>
+
+          <View style={styles.glassCard}>
+            <Text style={styles.missionTitle}>{activeMission.title}</Text>
+            
+            <View style={styles.infoRow}>
+              <Icon name="user" size={18} color="#94a3b8" />
+              <Text style={styles.infoText}>Client : {activeMission.client}</Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Icon name="mapPin" size={18} color="#94a3b8" />
+              <Text style={styles.infoText}>Chantier : {activeMission.worksite}</Text>
+            </View>
+
+            <View style={styles.infoRow}>
+              <Icon name="clock" size={18} color="#94a3b8" />
+              <Text style={styles.infoText}>Statut : {activeMission.status}</Text>
+            </View>
+
+            {activeMission.notes ? (
+              <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 12 }}>
+                <Text style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>Consignes: {activeMission.notes}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Action buttons */}
+          {activeMission.status === 'planned' && (
+            <TouchableOpacity style={styles.btnLargePrimary} onPress={startMission}>
+              <Text style={styles.btnLargeText}>COMMENCER CHANTIER</Text>
+            </TouchableOpacity>
+          )}
+
+          {activeMission.status === 'in_progress' && (
+            <View style={{ gap: 16 }}>
+              <TouchableOpacity 
+                style={styles.btnLargeSecondary} 
+                onPress={() => {
+                  setCameraType('before');
+                  setCurrentScreen('camera');
+                }}
+              >
+                <Icon name="camera" size={24} />
+                <Text style={styles.btnLargeText}>Photo Avant Travaux</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.btnLargeSecondary} 
+                onPress={() => {
+                  setCameraType('after');
+                  setCurrentScreen('camera');
+                }}
+              >
+                <Icon name="camera" size={24} />
+                <Text style={styles.btnLargeText}>Photo Après Travaux</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.btnLargeSuccess} onPress={endMission}>
+                <Icon name="check" size={24} />
+                <Text style={styles.btnLargeText}>TERMINER MISSION (CLÔTURE)</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {activeMission.status === 'completed' && (
+            <View style={styles.successCard}>
+              <Icon name="check" size={28} color="#10b981" />
+              <Text style={styles.successText}>Mission complétée avec succès !</Text>
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      {/* SCREEN 5: STOCK MANAGEMENT */}
+      {currentScreen === 'stock' && truck && (
+        <View style={styles.dashboardContainer}>
+          <TouchableOpacity style={styles.btnBack} onPress={() => setCurrentScreen('dashboard')}>
+            <Text style={styles.btnBackText}>← Retour</Text>
+          </TouchableOpacity>
+
+          <View style={styles.glassCard}>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 16 }}>Rechargement du sable</Text>
+            <Text style={{ fontSize: 36, fontWeight: '800', color: '#f59e0b', textAlign: 'center', marginVertical: 20 }}>
+              {truck.currentStock} sacs
+            </Text>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 20 }}>
+              <TouchableOpacity style={styles.btnCircle} onPress={() => updateStock(10)}>
+                <Text style={styles.btnCircleText}>+10</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.btnCircle} onPress={() => updateStock(-5)}>
+                <Text style={styles.btnCircleText}>-5</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={{ color: '#94a3b8', textAlign: 'center', fontSize: 13 }}>Les modifications mettent à jour la base SQLite locale immédiatement et se synchronisent en tâche de fond.</Text>
+          </View>
+        </View>
+      )}
+
+      {/* SCREEN 6: CAMERA SCREEN */}
+      {currentScreen === 'camera' && (
+        <View style={styles.cameraContainer}>
+          {useSimulatedCamera ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
+              <Icon name="camera" size={80} color="#94a3b8" />
+              <Text style={{ fontSize: 18, color: '#f8fafc', marginVertical: 20 }}>Simulateur d'Appareil Photo Mobile</Text>
+              <Text style={{ color: '#64748b', marginBottom: 30 }}>Cliché : Photo {cameraType === 'before' ? 'Avant' : 'Après'} sablage</Text>
+              
+              <TouchableOpacity style={styles.btnLargePrimary} onPress={handleCapturePhoto}>
+                <Text style={styles.btnLargeText}>SIMULER CLICHÉ PHOTO</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={{ marginTop: 20 }} onPress={() => setUseSimulatedCamera(false)}>
+                <Text style={{ color: '#3b82f6', textDecorationLine: 'underline' }}>Utiliser Caméra Physique</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <CameraView style={StyleSheet.absoluteFill} ref={cameraRef}>
+              <View style={styles.cameraOverlay}>
+                <TouchableOpacity style={styles.btnCapture} onPress={handleCapturePhoto}>
+                  <View style={styles.captureInner} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity style={styles.btnCancelCapture} onPress={() => setCurrentScreen('mission_detail')}>
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>Annuler</Text>
+                </TouchableOpacity>
+              </View>
+            </CameraView>
+          )}
+        </View>
+      )}
+
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    paddingTop: 40,
+  },
+  banner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  bannerOnline: {
+    backgroundColor: '#1e293b',
+  },
+  bannerOffline: {
+    backgroundColor: '#991b1b',
+  },
+  bannerText: {
+    color: '#f8fafc',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  btnBanner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  btnBannerText: {
+    color: '#f8fafc',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  configCard: {
+    backgroundColor: '#1e293b',
+    padding: 16,
+    margin: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)'
+  },
+  configInput: {
+    backgroundColor: '#0f172a',
+    color: '#fff',
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)'
+  },
+  btnConfigClose: {
+    backgroundColor: '#3b82f6',
+    alignSelf: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    marginTop: 10
+  },
+  loginContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  loginHeader: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  loginTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#f8fafc',
+    marginTop: 16,
+  },
+  loginSubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 8,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 40,
+  },
+  dot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+  },
+  dotEmpty: {
+    borderColor: '#475569',
+  },
+  dotFilled: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  keyboard: {
+    gap: 12,
+  },
+  keyboardRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  key: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#1e293b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  keyText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#f8fafc',
+  },
+  truckItem: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16
+  },
+  dashboardContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#f8fafc',
+  },
+  truckText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  btnLogout: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  btnLogoutText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  alertCard: {
+    flexDirection: 'row',
+    gap: 16,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  alertTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f59e0b',
+  },
+  alertDesc: {
+    fontSize: 13,
+    color: '#f8fafc',
+    marginTop: 4,
+  },
+  btnLargePrimary: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4
+  },
+  btnLargeSecondary: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  btnLargeSuccess: {
+    backgroundColor: '#10b981',
+    borderRadius: 12,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  btnLargeText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  actionCard: {
+    flex: 1,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f8fafc',
+    textAlign: 'center'
+  },
+  actionCardDesc: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  syncCard: {
+    flexDirection: 'row',
+    gap: 10,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  syncText: {
+    color: '#3b82f6',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  btnBack: {
+    marginBottom: 20,
+  },
+  btnBackText: {
+    color: '#3b82f6',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  glassCard: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  missionTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#f8fafc',
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  infoText: {
+    color: '#e2e8f0',
+    fontSize: 14,
+  },
+  successCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  successText: {
+    color: '#10b981',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  btnCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  btnCircleText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  cameraOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 30,
+    alignItems: 'flex-end',
+  },
+  btnCapture: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: '#fff',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#fff',
+  },
+  btnCancelCapture: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  }
+});
