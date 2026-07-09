@@ -352,13 +352,55 @@ export default function App() {
             setEmployee(data.employee);
             setPin('');
             
-            // Get trucks to select
-            const resTrucks = await fetch(`${serverUrl}/trucks`, {
-              headers: { 'Authorization': `Bearer ${data.access_token}` }
-            });
-            const dataTrucks = await resTrucks.json();
-            setTrucksList(dataTrucks);
-            setCurrentScreen('select_truck');
+            if (data.truck) {
+              setTruck(data.truck);
+              
+              // Fetch today's missions for this truck directly
+              const headers = { 'Authorization': `Bearer ${data.access_token}` };
+              const resMissions = await fetch(`${serverUrl}/missions/today?truckId=${data.truck.id}`, { headers });
+              const missionsData = await resMissions.json();
+
+              // Cache data locally in SQLite
+              db.runSync('DELETE FROM cached_truck');
+              db.runSync(
+                'INSERT INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold) VALUES (?, ?, ?, ?)',
+                [data.truck.id, data.truck.plateNumber, data.truck.currentStock, data.truck.stockAlertThreshold]
+              );
+              
+              db.runSync('DELETE FROM cached_missions');
+              const formattedMissions = missionsData.map((m: any) => {
+                const clientName = m.clientName || m.client?.name || 'N/A';
+                const worksiteAddress = m.worksiteAddress || m.worksite?.address || 'N/A';
+                db.runSync(
+                  'INSERT INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                  [m.id, m.title, clientName, worksiteAddress, m.status, m.scheduledDate, m.notes || '']
+                );
+                return {
+                  id: m.id,
+                  title: m.title,
+                  client: clientName,
+                  worksite: worksiteAddress,
+                  status: m.status,
+                  scheduledDate: m.scheduledDate,
+                  notes: m.notes
+                };
+              });
+
+              setMissionsList(formattedMissions);
+              const inProgress = formattedMissions.find((m: any) => m.status === 'in_progress');
+              const planned = formattedMissions.find((m: any) => m.status === 'planned');
+              setActiveMission(inProgress || planned || formattedMissions[0] || null);
+
+              setCurrentScreen('dashboard');
+            } else {
+              // Standard flow: Get trucks list to select
+              const resTrucks = await fetch(`${serverUrl}/trucks`, {
+                headers: { 'Authorization': `Bearer ${data.access_token}` }
+              });
+              const dataTrucks = await resTrucks.json();
+              setTrucksList(dataTrucks);
+              setCurrentScreen('select_truck');
+            }
           } catch (err) {
             Alert.alert('Erreur', 'Code PIN incorrect ou serveur indisponible.');
             setPin('');

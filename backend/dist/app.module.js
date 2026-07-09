@@ -25,6 +25,9 @@ const reports_module_1 = require("./reports/reports.module");
 const stats_module_1 = require("./stats/stats.module");
 const planning_module_1 = require("./planning/planning.module");
 const seeder_service_1 = require("./database/seeder.service");
+const audit_module_1 = require("./audit/audit.module");
+const audit_interceptor_1 = require("./audit/audit.interceptor");
+const core_1 = require("@nestjs/core");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -39,7 +42,7 @@ exports.AppModule = AppModule = __decorate([
                     url: config.get('DATABASE_URL'),
                     entities: [__dirname + '/**/*.entity{.ts,.js}'],
                     migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-                    synchronize: config.get('NODE_ENV') !== 'production',
+                    synchronize: true,
                     logging: config.get('NODE_ENV') === 'development',
                     autoLoadEntities: true,
                 }),
@@ -59,8 +62,15 @@ exports.AppModule = AppModule = __decorate([
             reports_module_1.ReportsModule,
             stats_module_1.StatsModule,
             planning_module_1.PlanningModule,
+            audit_module_1.AuditModule,
         ],
-        providers: [seeder_service_1.SeederService],
+        providers: [
+            seeder_service_1.SeederService,
+            {
+                provide: core_1.APP_INTERCEPTOR,
+                useClass: audit_interceptor_1.AuditInterceptor,
+            },
+        ],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

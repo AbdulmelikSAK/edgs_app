@@ -10,6 +10,21 @@ export class CreateMissionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  type?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  clientName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  worksiteAddress?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @ApiProperty({ example: '2026-07-10T08:00:00Z' })

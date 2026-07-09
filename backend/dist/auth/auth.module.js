@@ -17,6 +17,7 @@ const auth_service_1 = require("./auth.service");
 const jwt_strategy_1 = require("./jwt.strategy");
 const employee_entity_1 = require("../database/entities/employee.entity");
 const user_entity_1 = require("../database/entities/user.entity");
+const truck_entity_1 = require("../database/entities/truck.entity");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -32,7 +33,7 @@ exports.AuthModule = AuthModule = __decorate([
                 }),
                 inject: [config_1.ConfigService],
             }),
-            typeorm_1.TypeOrmModule.forFeature([employee_entity_1.Employee, user_entity_1.User]),
+            typeorm_1.TypeOrmModule.forFeature([employee_entity_1.Employee, user_entity_1.User, truck_entity_1.Truck]),
         ],
         controllers: [auth_controller_1.AuthController],
         providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],

@@ -10,8 +10,26 @@ export declare class AuthController {
             id: string;
             firstName: string;
             lastName: string;
+            role: string;
+        };
+        truck: {
+            id: string;
+            plateNumber: string;
+            model: string;
+            year: number;
+            currentStock: number;
+            stockAlertThreshold: number;
+            stocks: import("../database/entities/truck-stock.entity").TruckStock[];
+        };
+    } | {
+        access_token: string;
+        employee: {
+            id: string;
+            firstName: string;
+            lastName: string;
             role: import("../database/entities/role.entity").RoleName;
         };
+        truck?: undefined;
     }>;
     loginUser(dto: LoginUserDto): Promise<{
         access_token: string;

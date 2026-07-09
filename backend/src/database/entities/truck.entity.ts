@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { TruckStock } from './truck-stock.entity';
 
 @Entity('trucks')
 export class Truck {
@@ -7,6 +8,9 @@ export class Truck {
 
   @Column({ unique: true })
   plateNumber: string;
+
+  @Column({ nullable: true })
+  pinCode: string;
 
   @Column({ nullable: true })
   model: string;
@@ -22,6 +26,9 @@ export class Truck {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @OneToMany(() => TruckStock, ts => ts.truck)
+  stocks: TruckStock[];
 
   @CreateDateColumn()
   createdAt: Date;

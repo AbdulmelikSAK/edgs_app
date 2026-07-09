@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Employee } from '../database/entities/employee.entity';
 import { User } from '../database/entities/user.entity';
+import { Truck } from '../database/entities/truck.entity';
 import { LoginPinDto } from './dto/login-pin.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 
@@ -15,10 +16,47 @@ export class AuthService {
     private employeeRepo: Repository<Employee>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(Truck)
+    private truckRepo: Repository<Truck>,
     private jwtService: JwtService,
   ) {}
 
   async loginWithPin(dto: LoginPinDto) {
+    // 1. Check if PIN matches a Truck directly (e.g. "1212")
+    const matchedTruck = await this.truckRepo.findOne({
+      where: { pinCode: dto.pin, isActive: true },
+      relations: { stocks: { stockItem: true } }
+    });
+
+    if (matchedTruck) {
+      // Find the first active employee to satisfy database constraint dependencies (badge tracking)
+      const defaultEmp = await this.employeeRepo.findOne({ where: { isActive: true } });
+      const payload = {
+        sub: defaultEmp?.id || matchedTruck.id,
+        type: 'employee',
+        role: 'driver',
+      };
+      return {
+        access_token: this.jwtService.sign(payload),
+        employee: {
+          id: defaultEmp?.id || 'default-employee-id',
+          firstName: 'Chauffeur',
+          lastName: matchedTruck.plateNumber,
+          role: 'driver',
+        },
+        truck: {
+          id: matchedTruck.id,
+          plateNumber: matchedTruck.plateNumber,
+          model: matchedTruck.model,
+          year: matchedTruck.year,
+          currentStock: matchedTruck.currentStock,
+          stockAlertThreshold: matchedTruck.stockAlertThreshold,
+          stocks: matchedTruck.stocks
+        }
+      };
+    }
+
+    // 2. Otherwise, check employee PINs (compatibility mode)
     const employees = await this.employeeRepo.find({
       where: { isActive: true },
       relations: { role: true },

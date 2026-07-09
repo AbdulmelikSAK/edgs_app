@@ -33,7 +33,12 @@ export class MinioService implements OnModuleInit {
 
   async uploadFile(filename: string, buffer: Buffer, mimetype: string): Promise<string> {
     await this.client.putObject(this.bucket, filename, buffer, buffer.length, { 'Content-Type': mimetype });
-    return `${this.configService.get('MINIO_ENDPOINT')}:${this.configService.get('MINIO_PORT')}/${this.bucket}/${filename}`;
+    const useSSL = this.configService.get<string>('MINIO_USE_SSL') === 'true';
+    const protocol = useSSL ? 'https://' : 'http://';
+    const endpoint = this.configService.get('MINIO_ENDPOINT', 'localhost');
+    const port = this.configService.get('MINIO_PORT', '9000');
+    const portSuffix = (port && port !== '80' && port !== '443') ? `:${port}` : '';
+    return `${protocol}${endpoint}${portSuffix}/${this.bucket}/${filename}`;
   }
 
   async getPresignedUrl(filename: string): Promise<string> {

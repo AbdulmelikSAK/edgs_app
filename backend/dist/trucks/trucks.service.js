@@ -27,10 +27,16 @@ let TrucksService = class TrucksService {
         return this.truckRepo.save(truck);
     }
     findAll() {
-        return this.truckRepo.find({ where: { isActive: true } });
+        return this.truckRepo.find({
+            relations: { stocks: { stockItem: true } },
+            order: { plateNumber: 'ASC' }
+        });
     }
     async findOne(id) {
-        const truck = await this.truckRepo.findOne({ where: { id } });
+        const truck = await this.truckRepo.findOne({
+            where: { id },
+            relations: { stocks: { stockItem: true } }
+        });
         if (!truck)
             throw new common_1.NotFoundException(`Camion ${id} non trouvé`);
         return truck;

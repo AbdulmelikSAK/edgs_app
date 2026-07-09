@@ -24,6 +24,9 @@ var MissionStatus;
 let Mission = class Mission {
     id;
     title;
+    type;
+    clientName;
+    worksiteAddress;
     description;
     status;
     scheduledDate;
@@ -50,6 +53,18 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], Mission.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Mission.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Mission.prototype, "clientName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Mission.prototype, "worksiteAddress", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
     __metadata("design:type", String)

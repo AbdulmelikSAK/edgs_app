@@ -42,6 +42,7 @@ interface Truck {
   year: number;
   currentStock: number;
   stockAlertThreshold: number;
+  pinCode?: string;
 }
 
 interface Employee {
@@ -54,6 +55,9 @@ interface Employee {
 interface Mission {
   id: string;
   title: string;
+  type?: string;
+  clientName?: string;
+  worksiteAddress?: string;
   description?: string;
   status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
   scheduledDate: string;
@@ -111,15 +115,31 @@ function App() {
   const [livePositions, setLivePositions] = useState<any[]>([]);
   const [stockMovements, setStockMovements] = useState<any[]>([]);
 
+  // Dynamic stocks state
+  const [stockItems, setStockItems] = useState<any[]>([]);
+  const [newStockItem, setNewStockItem] = useState({ name: '', unit: 'pcs' });
+  const [selectedTruckForStock, setSelectedTruckForStock] = useState<string>('');
+  const [stockItemToAssign, setStockItemToAssign] = useState<string>('');
+  const [assignQuantity, setAssignQuantity] = useState<string>('1');
+
   // Form states
   const [newMission, setNewMission] = useState({
     title: '',
+    type: '',
+    clientName: '',
+    worksiteAddress: '',
     description: '',
     scheduledDate: '',
     estimatedPrice: '',
     truckId: '',
-    clientId: '',
-    worksiteId: '',
+  });
+
+  const [newTruck, setNewTruck] = useState({
+    plateNumber: '',
+    model: '',
+    year: '',
+    pinCode: '',
+    stockAlertThreshold: '10',
   });
 
   const [planningForm, setPlanningForm] = useState({
@@ -182,7 +202,7 @@ function App() {
     try {
       const { year, week } = getISOWeekAndYear(new Date());
 
-      const [missionsRes, trucksRes, clientsRes, worksitesRes, statsRes, planningRes, reportsRes] = await Promise.all([
+      const [missionsRes, trucksRes, clientsRes, worksitesRes, statsRes, planningRes, reportsRes, stockItemsRes] = await Promise.all([
         fetchWithAuth(API_BASE_URL + '/missions'),
         fetchWithAuth(API_BASE_URL + '/trucks'),
         fetchWithAuth(API_BASE_URL + '/clients'),
@@ -190,9 +210,10 @@ function App() {
         fetchWithAuth(API_BASE_URL + '/stats'),
         fetchWithAuth(`${API_BASE_URL}/planning/week?year=${year}&week=${week}`),
         fetchWithAuth(API_BASE_URL + '/reports'),
+        fetchWithAuth(API_BASE_URL + '/stock-items'),
       ]);
 
-      const [missionsData, trucksData, clientsData, worksitesData, statsData, planningData, reportsData] = await Promise.all([
+      const [missionsData, trucksData, clientsData, worksitesData, statsData, planningData, reportsData, stockItemsData] = await Promise.all([
         missionsRes.json(),
         trucksRes.json(),
         clientsRes.json(),
@@ -200,6 +221,7 @@ function App() {
         statsRes.json(),
         planningRes.json(),
         reportsRes.json(),
+        stockItemsRes.json(),
       ]);
 
       setMissions(missionsData);
@@ -209,6 +231,7 @@ function App() {
       setStats(statsData);
       setWeeklyPlanning(planningData);
       setReports(reportsData);
+      setStockItems(stockItemsData);
 
       // Fetch stock movements for first truck if available
       if (trucksData.length > 0) {
@@ -289,12 +312,13 @@ function App() {
         method: 'POST',
         body: JSON.stringify({
           title: newMission.title,
+          type: newMission.type || undefined,
+          clientName: newMission.clientName || undefined,
+          worksiteAddress: newMission.worksiteAddress || undefined,
           description: newMission.description || undefined,
           scheduledDate: newMission.scheduledDate,
           estimatedPrice: Number(newMission.estimatedPrice) || undefined,
           truckId: newMission.truckId || undefined,
-          clientId: newMission.clientId || undefined,
-          worksiteId: newMission.worksiteId || undefined,
         }),
       });
 
@@ -304,12 +328,13 @@ function App() {
 
       setNewMission({
         title: '',
+        type: '',
+        clientName: '',
+        worksiteAddress: '',
         description: '',
         scheduledDate: '',
         estimatedPrice: '',
         truckId: '',
-        clientId: '',
-        worksiteId: '',
       });
       loadAllData();
       setActiveTab('missions');
@@ -365,6 +390,119 @@ function App() {
     } catch (err) {
       console.error(err);
       alert('Erreur lors de la suppression.');
+    }
+  };
+
+  const handleCreateTruck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTruck.plateNumber) return;
+
+    try {
+      const res = await fetchWithAuth(API_BASE_URL + '/trucks', {
+        method: 'POST',
+        body: JSON.stringify({
+          plateNumber: newTruck.plateNumber,
+          model: newTruck.model || undefined,
+          year: newTruck.year ? Number(newTruck.year) : undefined,
+          pinCode: newTruck.pinCode || undefined,
+          stockAlertThreshold: Number(newTruck.stockAlertThreshold) || 10,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Erreur de création du véhicule');
+
+      setNewTruck({
+        plateNumber: '',
+        model: '',
+        year: '',
+        pinCode: '',
+        stockAlertThreshold: '10',
+      });
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la création du véhicule.');
+    }
+  };
+
+  const handleDeleteTruck = async (id: string) => {
+    if (!confirm('Voulez-vous supprimer ce véhicule ?')) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/trucks/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Erreur de suppression');
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la suppression.');
+    }
+  };
+
+  const handleCreateStockItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStockItem.name) return;
+    try {
+      const res = await fetchWithAuth(API_BASE_URL + '/stock-items', {
+        method: 'POST',
+        body: JSON.stringify(newStockItem),
+      });
+      if (!res.ok) throw new Error('Erreur de création du type de stock');
+      setNewStockItem({ name: '', unit: 'pcs' });
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la création du type de stock.');
+    }
+  };
+
+  const handleDeleteStockItem = async (id: string) => {
+    if (!confirm('Voulez-vous supprimer ce type de stock ?')) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/stock-items/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Erreur de suppression');
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la suppression.');
+    }
+  };
+
+  const handleAssignStockToTruck = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTruckForStock || !stockItemToAssign || !assignQuantity) return;
+    try {
+      const res = await fetchWithAuth(API_BASE_URL + '/truck-stocks', {
+        method: 'POST',
+        body: JSON.stringify({
+          truckId: selectedTruckForStock,
+          stockItemId: stockItemToAssign,
+          quantity: Number(assignQuantity),
+        }),
+      });
+      if (!res.ok) throw new Error('Erreur d\'affectation');
+      setStockItemToAssign('');
+      setAssignQuantity('1');
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de l\'affectation du stock.');
+    }
+  };
+
+  const handleRemoveStockFromTruck = async (id: string) => {
+    if (!confirm('Voulez-vous retirer cet équipement du camion ?')) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/truck-stocks/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Erreur de retrait');
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors du retrait.');
     }
   };
 
@@ -728,32 +866,37 @@ function App() {
                     </select>
                   </div>
 
+                   <div className="form-group">
+                    <label className="form-label">Type de Mission</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Sablage, Nettoyage" 
+                      value={newMission.type}
+                      onChange={e => setNewMission({ ...newMission, type: e.target.value })}
+                    />
+                  </div>
+
                   <div className="form-group">
                     <label className="form-label">Client</label>
-                    <select 
-                      className="form-input"
-                      value={newMission.clientId}
-                      onChange={e => setNewMission({ ...newMission, clientId: e.target.value })}
-                    >
-                      <option value="">Sélectionner un client</option>
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Nom du client..." 
+                      value={newMission.clientName}
+                      onChange={e => setNewMission({ ...newMission, clientName: e.target.value })}
+                    />
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">Chantier / Adresse</label>
-                    <select 
-                      className="form-input"
-                      value={newMission.worksiteId}
-                      onChange={e => setNewMission({ ...newMission, worksiteId: e.target.value })}
-                    >
-                      <option value="">Sélectionner un chantier</option>
-                      {worksites.map(w => (
-                        <option key={w.id} value={w.id}>{w.name}</option>
-                      ))}
-                    </select>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="Adresse complète..." 
+                      value={newMission.worksiteAddress}
+                      onChange={e => setNewMission({ ...newMission, worksiteAddress: e.target.value })}
+                    />
                   </div>
 
                   <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
@@ -770,7 +913,7 @@ function App() {
                   <table className="custom-table">
                      <thead>
                       <tr>
-                        <th>Titre</th>
+                        <th>Titre / Type</th>
                         <th>Client / Chantier</th>
                         <th>Camion</th>
                         <th>Date programmée</th>
@@ -779,23 +922,40 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {missions.map(m => (
-                        <tr key={m.id}>
-                          <td style={{ fontWeight: '600' }}>{m.title}</td>
-                          <td>
-                            <div>{m.client?.name || 'Sans Client'}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{m.worksite?.name || 'Sans Chantier'}</div>
-                          </td>
-                          <td>{m.truck?.plateNumber || '--'}</td>
-                          <td>{new Date(m.scheduledDate).toLocaleDateString('fr-FR')}</td>
-                          <td>
-                            <span className={`badge ${m.status === 'completed' ? 'badge-success' : 'badge-info'}`}>
-                              {m.status}
-                            </span>
-                          </td>
-                          <td>{m.estimatedPrice || 0} €</td>
-                        </tr>
-                      ))}
+                      {missions.map(m => {
+                        const statusLabels: Record<string, string> = {
+                          planned: 'Planifié',
+                          in_progress: 'En cours',
+                          completed: 'Terminé',
+                          cancelled: 'Annulé'
+                        };
+                        const statusBadges: Record<string, string> = {
+                          planned: 'badge-warning',
+                          in_progress: 'badge-info',
+                          completed: 'badge-success',
+                          cancelled: 'badge-danger'
+                        };
+                        return (
+                          <tr key={m.id}>
+                            <td>
+                              <div style={{ fontWeight: '600' }}>{m.title}</div>
+                              {m.type && <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>{m.type}</div>}
+                            </td>
+                            <td>
+                              <div>{m.clientName || m.client?.name || 'Sans Client'}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{m.worksiteAddress || m.worksite?.address || 'Sans Chantier'}</div>
+                            </td>
+                            <td>{m.truck?.plateNumber || '--'}</td>
+                            <td>{new Date(m.scheduledDate).toLocaleDateString('fr-FR')}</td>
+                            <td>
+                              <span className={`badge ${statusBadges[m.status] || 'badge-info'}`}>
+                                {statusLabels[m.status] || m.status}
+                              </span>
+                            </td>
+                            <td>{m.estimatedPrice || 0} €</td>
+                          </tr>
+                        );
+                      })}
                       {missions.length === 0 && (
                         <tr>
                           <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Aucune mission trouvée.</td>
@@ -944,59 +1104,134 @@ function App() {
               <p style={{ color: 'var(--text-secondary)' }}>Parc automobile, stock embarqué de sable et alertes.</p>
             </div>
 
-            <div className="glass-card">
-              <div className="table-container">
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Plaque d'Immatriculation</th>
-                      <th>Modèle</th>
-                      <th>Année</th>
-                      <th>Stock Actuel</th>
-                      <th>Seuil Critique</th>
-                      <th>Statut Stock</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trucks.map(t => {
-                      const isCritical = t.currentStock <= t.stockAlertThreshold;
-                      return (
-                        <tr key={t.id}>
-                          <td style={{ fontWeight: '600' }}>{t.plateNumber}</td>
-                          <td>{t.model}</td>
-                          <td>{t.year}</td>
-                          <td style={{ fontSize: '18px', fontWeight: '700' }}>{t.currentStock} sacs</td>
-                          <td>{t.stockAlertThreshold} sacs</td>
-                          <td>
-                            {isCritical ? (
-                              <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <AlertTriangle size={14} /> Stock Critique
-                              </span>
-                            ) : (
-                              <span className="badge badge-success">Stock OK</span>
-                            )}
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => updateTruckStock(t.id, 10)}>
-                                +10 sacs
-                              </button>
-                              <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => updateTruckStock(t.id, -5)}>
-                                Consommer 5
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {trucks.length === 0 && (
+            <div className="grid-3">
+              {/* Form creation */}
+              <div className="glass-card" style={{ height: 'fit-content' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Ajouter un Véhicule</h3>
+                <form onSubmit={handleCreateTruck}>
+                  <div className="form-group">
+                    <label className="form-label">Plaque d'Immatriculation</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. AB-123-CD" 
+                      value={newTruck.plateNumber}
+                      onChange={e => setNewTruck({ ...newTruck, plateNumber: e.target.value })}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="form-label">Modèle</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Renault Master" 
+                      value={newTruck.model}
+                      onChange={e => setNewTruck({ ...newTruck, model: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Année</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 2021" 
+                      value={newTruck.year}
+                      onChange={e => setNewTruck({ ...newTruck, year: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Code PIN Tablette (Connexion)</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. 1212" 
+                      maxLength={4}
+                      value={newTruck.pinCode}
+                      onChange={e => setNewTruck({ ...newTruck, pinCode: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Seuil Alerte Stock (Sacs)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 10" 
+                      value={newTruck.stockAlertThreshold}
+                      onChange={e => setNewTruck({ ...newTruck, stockAlertThreshold: e.target.value })}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                    Créer le Véhicule
+                  </button>
+                </form>
+              </div>
+
+              {/* Trucks list */}
+              <div className="glass-card" style={{ gridColumn: 'span 2' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Liste des Véhicules</h3>
+                <div className="table-container">
+                  <table className="custom-table">
+                    <thead>
                       <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Aucun camion trouvé.</td>
+                        <th>Plaque</th>
+                        <th>Modèle / Année</th>
+                        <th>Code PIN</th>
+                        <th>Stock Actuel</th>
+                        <th>Statut Stock</th>
+                        <th>Actions</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {trucks.map(t => {
+                        const isCritical = t.currentStock <= t.stockAlertThreshold;
+                        return (
+                          <tr key={t.id}>
+                            <td style={{ fontWeight: '600' }}>{t.plateNumber}</td>
+                            <td>
+                              <div>{t.model || '--'}</div>
+                              {t.year && <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.year}</div>}
+                            </td>
+                            <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{t.pinCode || '--'}</td>
+                            <td style={{ fontSize: '16px', fontWeight: '700' }}>{t.currentStock} sacs</td>
+                            <td>
+                              {isCritical ? (
+                                <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <AlertTriangle size={14} /> Stock Critique ({t.stockAlertThreshold})
+                                </span>
+                              ) : (
+                                <span className="badge badge-success">Stock OK</span>
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => updateTruckStock(t.id, 10)}>
+                                  +10 sacs
+                                </button>
+                                <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => updateTruckStock(t.id, -5)}>
+                                  -5 sacs
+                                </button>
+                                <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteTruck(t.id)}>
+                                  Supprimer
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {trucks.length === 0 && (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Aucun camion trouvé.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -1082,7 +1317,7 @@ function App() {
                       return (
                         <tr key={m.id}>
                           <td style={{ fontWeight: '600' }}>{m.title}</td>
-                          <td>{m.client?.name || 'Sans Client'}</td>
+                          <td>{m.clientName || m.client?.name || 'Sans Client'}</td>
                           <td>{report ? new Date(report.createdAt).toLocaleDateString('fr-FR') : '--'}</td>
                           <td>
                             {report ? (
@@ -1120,7 +1355,7 @@ function App() {
                     {missions.filter(m => m.status !== 'completed').map(m => (
                       <tr key={m.id} style={{ opacity: 0.6 }}>
                         <td style={{ fontWeight: '600' }}>{m.title}</td>
-                        <td>{m.client?.name || '--'}</td>
+                        <td>{m.clientName || m.client?.name || '--'}</td>
                         <td>--</td>
                         <td>
                           <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

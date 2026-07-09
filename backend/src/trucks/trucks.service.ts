@@ -18,11 +18,17 @@ export class TrucksService {
   }
 
   findAll(): Promise<Truck[]> {
-    return this.truckRepo.find({ where: { isActive: true } });
+    return this.truckRepo.find({
+      relations: { stocks: { stockItem: true } },
+      order: { plateNumber: 'ASC' }
+    });
   }
 
   async findOne(id: string): Promise<Truck> {
-    const truck = await this.truckRepo.findOne({ where: { id } });
+    const truck = await this.truckRepo.findOne({
+      where: { id },
+      relations: { stocks: { stockItem: true } }
+    });
     if (!truck) throw new NotFoundException(`Camion ${id} non trouvé`);
     return truck;
   }

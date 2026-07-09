@@ -7,6 +7,11 @@ export class CreateTruckDto {
   @IsString()
   plateNumber: string;
 
+  @ApiPropertyOptional({ example: '1212' })
+  @IsOptional()
+  @IsString()
+  pinCode?: string;
+
   @ApiPropertyOptional({ example: 'Mercedes Actros' })
   @IsOptional()
   @IsString()

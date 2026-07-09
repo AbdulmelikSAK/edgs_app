@@ -10,18 +10,22 @@ exports.StockModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const stock_controller_1 = require("./stock.controller");
+const stock_items_controller_1 = require("./stock-items.controller");
+const truck_stocks_controller_1 = require("./truck-stocks.controller");
 const stock_service_1 = require("./stock.service");
 const stock_movement_entity_1 = require("../database/entities/stock-movement.entity");
 const truck_entity_1 = require("../database/entities/truck.entity");
 const mission_entity_1 = require("../database/entities/mission.entity");
 const employee_entity_1 = require("../database/entities/employee.entity");
+const stock_item_entity_1 = require("../database/entities/stock-item.entity");
+const truck_stock_entity_1 = require("../database/entities/truck-stock.entity");
 let StockModule = class StockModule {
 };
 exports.StockModule = StockModule;
 exports.StockModule = StockModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([stock_movement_entity_1.StockMovement, truck_entity_1.Truck, mission_entity_1.Mission, employee_entity_1.Employee])],
-        controllers: [stock_controller_1.StockController],
+        imports: [typeorm_1.TypeOrmModule.forFeature([stock_movement_entity_1.StockMovement, truck_entity_1.Truck, mission_entity_1.Mission, employee_entity_1.Employee, stock_item_entity_1.StockItem, truck_stock_entity_1.TruckStock])],
+        controllers: [stock_controller_1.StockController, stock_items_controller_1.StockItemsController, truck_stocks_controller_1.TruckStocksController],
         providers: [stock_service_1.StockService],
         exports: [stock_service_1.StockService],
     })

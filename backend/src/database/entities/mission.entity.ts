@@ -18,6 +18,15 @@ export class Mission {
   @Column()
   title: string;
 
+  @Column({ nullable: true })
+  type: string;
+
+  @Column({ nullable: true })
+  clientName: string;
+
+  @Column({ nullable: true })
+  worksiteAddress: string;
+
   @Column({ nullable: true, type: 'text' })
   description: string;
 

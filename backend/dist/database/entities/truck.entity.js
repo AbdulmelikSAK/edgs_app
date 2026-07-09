@@ -11,14 +11,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Truck = void 0;
 const typeorm_1 = require("typeorm");
+const truck_stock_entity_1 = require("./truck-stock.entity");
 let Truck = class Truck {
     id;
     plateNumber;
+    pinCode;
     model;
     year;
     currentStock;
     stockAlertThreshold;
     isActive;
+    stocks;
     createdAt;
     updatedAt;
 };
@@ -31,6 +34,10 @@ __decorate([
     (0, typeorm_1.Column)({ unique: true }),
     __metadata("design:type", String)
 ], Truck.prototype, "plateNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Truck.prototype, "pinCode", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
@@ -51,6 +58,10 @@ __decorate([
     (0, typeorm_1.Column)({ default: true }),
     __metadata("design:type", Boolean)
 ], Truck.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => truck_stock_entity_1.TruckStock, ts => ts.truck),
+    __metadata("design:type", Array)
+], Truck.prototype, "stocks", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

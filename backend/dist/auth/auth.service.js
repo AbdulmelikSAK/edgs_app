@@ -53,16 +53,49 @@ const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcrypt"));
 const employee_entity_1 = require("../database/entities/employee.entity");
 const user_entity_1 = require("../database/entities/user.entity");
+const truck_entity_1 = require("../database/entities/truck.entity");
 let AuthService = class AuthService {
     employeeRepo;
     userRepo;
+    truckRepo;
     jwtService;
-    constructor(employeeRepo, userRepo, jwtService) {
+    constructor(employeeRepo, userRepo, truckRepo, jwtService) {
         this.employeeRepo = employeeRepo;
         this.userRepo = userRepo;
+        this.truckRepo = truckRepo;
         this.jwtService = jwtService;
     }
     async loginWithPin(dto) {
+        const matchedTruck = await this.truckRepo.findOne({
+            where: { pinCode: dto.pin, isActive: true },
+            relations: { stocks: { stockItem: true } }
+        });
+        if (matchedTruck) {
+            const defaultEmp = await this.employeeRepo.findOne({ where: { isActive: true } });
+            const payload = {
+                sub: defaultEmp?.id || matchedTruck.id,
+                type: 'employee',
+                role: 'driver',
+            };
+            return {
+                access_token: this.jwtService.sign(payload),
+                employee: {
+                    id: defaultEmp?.id || 'default-employee-id',
+                    firstName: 'Chauffeur',
+                    lastName: matchedTruck.plateNumber,
+                    role: 'driver',
+                },
+                truck: {
+                    id: matchedTruck.id,
+                    plateNumber: matchedTruck.plateNumber,
+                    model: matchedTruck.model,
+                    year: matchedTruck.year,
+                    currentStock: matchedTruck.currentStock,
+                    stockAlertThreshold: matchedTruck.stockAlertThreshold,
+                    stocks: matchedTruck.stocks
+                }
+            };
+        }
         const employees = await this.employeeRepo.find({
             where: { isActive: true },
             relations: { role: true },
@@ -121,7 +154,9 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(employee_entity_1.Employee)),
     __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(2, (0, typeorm_1.InjectRepository)(truck_entity_1.Truck)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         jwt_1.JwtService])
 ], AuthService);

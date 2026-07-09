@@ -49,9 +49,10 @@ async function bootstrap() {
         transform: true,
     }));
     app.enableCors({
-        origin: ['http://localhost:8080', 'http://localhost:5173', '*'],
+        origin: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
         allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true,
     });
     const config = new swagger_1.DocumentBuilder()
         .setTitle('EDGS API')

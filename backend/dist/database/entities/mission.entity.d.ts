@@ -10,6 +10,9 @@ export declare enum MissionStatus {
 export declare class Mission {
     id: string;
     title: string;
+    type: string;
+    clientName: string;
+    worksiteAddress: string;
     description: string;
     status: MissionStatus;
     scheduledDate: Date;

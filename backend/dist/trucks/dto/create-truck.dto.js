@@ -15,6 +15,7 @@ const swagger_1 = require("@nestjs/swagger");
 const class_transformer_1 = require("class-transformer");
 class CreateTruckDto {
     plateNumber;
+    pinCode;
     model;
     year;
     currentStock;
@@ -26,6 +27,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTruckDto.prototype, "plateNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: '1212' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTruckDto.prototype, "pinCode", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ example: 'Mercedes Actros' }),
     (0, class_validator_1.IsOptional)(),
