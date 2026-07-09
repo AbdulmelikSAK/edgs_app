@@ -1,3 +1,4 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
@@ -148,7 +149,7 @@ function App() {
     e.preventDefault();
     setLoginError('');
     try {
-      const res = await fetch('http://localhost:3000/auth/login', {
+      const res = await fetch(API_BASE_URL + '/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
@@ -182,13 +183,13 @@ function App() {
       const { year, week } = getISOWeekAndYear(new Date());
 
       const [missionsRes, trucksRes, clientsRes, worksitesRes, statsRes, planningRes, reportsRes] = await Promise.all([
-        fetchWithAuth('http://localhost:3000/missions'),
-        fetchWithAuth('http://localhost:3000/trucks'),
-        fetchWithAuth('http://localhost:3000/clients'),
-        fetchWithAuth('http://localhost:3000/worksites'),
-        fetchWithAuth('http://localhost:3000/stats'),
-        fetchWithAuth(`http://localhost:3000/planning/week?year=${year}&week=${week}`),
-        fetchWithAuth('http://localhost:3000/reports'),
+        fetchWithAuth(API_BASE_URL + '/missions'),
+        fetchWithAuth(API_BASE_URL + '/trucks'),
+        fetchWithAuth(API_BASE_URL + '/clients'),
+        fetchWithAuth(API_BASE_URL + '/worksites'),
+        fetchWithAuth(API_BASE_URL + '/stats'),
+        fetchWithAuth(`${API_BASE_URL}/planning/week?year=${year}&week=${week}`),
+        fetchWithAuth(API_BASE_URL + '/reports'),
       ]);
 
       const [missionsData, trucksData, clientsData, worksitesData, statsData, planningData, reportsData] = await Promise.all([
@@ -211,7 +212,7 @@ function App() {
 
       // Fetch stock movements for first truck if available
       if (trucksData.length > 0) {
-        const movementsRes = await fetchWithAuth(`http://localhost:3000/stock/truck/${trucksData[0].id}`);
+        const movementsRes = await fetchWithAuth(`${API_BASE_URL}/stock/truck/${trucksData[0].id}`);
         const movementsData = await movementsRes.json();
         setStockMovements(movementsData);
       }
@@ -230,7 +231,7 @@ function App() {
   // Load live positions for Map
   useEffect(() => {
     if (activeTab === 'dashboard' && isAuthenticated) {
-      fetchWithAuth('http://localhost:3000/gps/live')
+      fetchWithAuth(API_BASE_URL + '/gps/live')
         .then(res => res.json())
         .then(data => setLivePositions(data))
         .catch(err => console.error('Erreur live positions:', err));
@@ -284,7 +285,7 @@ function App() {
     if (!newMission.title || !newMission.scheduledDate) return;
 
     try {
-      const res = await fetchWithAuth('http://localhost:3000/missions', {
+      const res = await fetchWithAuth(API_BASE_URL + '/missions', {
         method: 'POST',
         body: JSON.stringify({
           title: newMission.title,
@@ -324,7 +325,7 @@ function App() {
 
     try {
       const { year, week } = getISOWeekAndYear(new Date());
-      const res = await fetchWithAuth('http://localhost:3000/planning', {
+      const res = await fetchWithAuth(API_BASE_URL + '/planning', {
         method: 'POST',
         body: JSON.stringify({
           year,
@@ -356,7 +357,7 @@ function App() {
   const handleDeletePlanning = async (id: string) => {
     if (!confirm('Voulez-vous retirer cette mission du calendrier hebdomadaire ?')) return;
     try {
-      const res = await fetchWithAuth(`http://localhost:3000/planning/${id}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/planning/${id}`, {
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Erreur de suppression');
@@ -370,7 +371,7 @@ function App() {
   const updateTruckStock = async (truckId: string, quantity: number) => {
     try {
       const type = quantity > 0 ? 'load' : 'consume';
-      const res = await fetchWithAuth('http://localhost:3000/stock/movement', {
+      const res = await fetchWithAuth(API_BASE_URL + '/stock/movement', {
         method: 'POST',
         body: JSON.stringify({
           truckId,
@@ -390,7 +391,7 @@ function App() {
 
   const handleGenerateReport = async (missionId: string) => {
     try {
-      const res = await fetchWithAuth(`http://localhost:3000/reports/generate/${missionId}`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/reports/generate/${missionId}`, {
         method: 'POST',
       });
       if (!res.ok) throw new Error('Erreur génération rapport');
