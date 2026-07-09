@@ -49,8 +49,9 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'login' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera'>('login');
   
   // Configuration
-  const [serverUrl, setServerUrl] = useState('http://localhost:3000');
+  const [serverUrl, setServerUrl] = useState('https://edgs-app.onrender.com');
   const [showConfig, setShowConfig] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // Connection states
   const [isOffline, setIsOffline] = useState(false);
@@ -303,12 +304,14 @@ export default function App() {
 
   // PIN Login flow
   const handleKeyPress = async (num: string) => {
+    if (loading) return; // Prevent double taps during fetch
     if (pin.length < 4) {
       const newPin = pin + num;
       setPin(newPin);
       
       if (newPin.length === 4) {
         if (!isOffline) {
+          setLoading(true);
           try {
             const res = await fetch(`${serverUrl}/auth/pin`, {
               method: 'POST',
@@ -335,6 +338,8 @@ export default function App() {
           } catch (err) {
             Alert.alert('Erreur', 'Code PIN incorrect ou serveur indisponible.');
             setPin('');
+          } finally {
+            setLoading(false);
           }
         } else {
           // Offline local login bypass using seeder defaults
@@ -740,25 +745,40 @@ export default function App() {
             ))}
           </View>
 
-          <View style={styles.keyboard}>
-            {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['C', '0', '⌫']].map((row, rIdx) => (
-              <View key={rIdx} style={styles.keyboardRow}>
-                {row.map(key => (
-                  <TouchableOpacity 
-                    key={key} 
-                    style={styles.key}
-                    onPress={() => {
-                      if (key === 'C') clearPin();
-                      else if (key === '⌫') setPin(pin.slice(0, -1));
-                      else handleKeyPress(key);
-                    }}
-                  >
-                    <Text style={styles.keyText}>{key}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))}
-          </View>
+          {loading ? (
+            <View style={{ marginVertical: 40, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+              <Text style={{ color: '#94a3b8', marginTop: 16, fontSize: 16, fontWeight: '600' }}>Connexion en cours...</Text>
+              <Text style={{ color: '#64748b', marginTop: 8, fontSize: 12, textAlign: 'center', paddingHorizontal: 40 }}>
+                (Le premier démarrage du serveur d'évaluation gratuit Render peut nécessiter jusqu'à 50 secondes)
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.keyboard}>
+              {[
+                ['1', '2', '3'],
+                ['4', '5', '6'],
+                ['7', '8', '9'],
+                ['C', '0', '⌫']
+              ].map((row, rIdx) => (
+                <View key={rIdx} style={styles.keyboardRow}>
+                  {row.map(key => (
+                    <TouchableOpacity
+                      key={key}
+                      style={styles.key}
+                      onPress={() => {
+                        if (key === 'C') clearPin();
+                        else if (key === '⌫') setPin(pin.slice(0, -1));
+                        else handleKeyPress(key);
+                      }}
+                    >
+                      <Text style={styles.keyText}>{key}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       )}
 
