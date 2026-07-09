@@ -30,7 +30,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
         url: config.get<string>('DATABASE_URL'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        synchronize: config.get('NODE_ENV') !== 'production',
+        synchronize: true,
         logging: config.get('NODE_ENV') === 'development',
         autoLoadEntities: true,
       }),
