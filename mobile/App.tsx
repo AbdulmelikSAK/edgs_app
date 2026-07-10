@@ -99,8 +99,14 @@ export default function App() {
           id TEXT PRIMARY KEY,
           plateNumber TEXT NOT NULL,
           currentStock INTEGER NOT NULL,
-          stockAlertThreshold INTEGER NOT NULL
+          stockAlertThreshold INTEGER NOT NULL,
+          stocksJson TEXT
         );
+        try {
+          db.execSync('ALTER TABLE cached_truck ADD COLUMN stocksJson TEXT;');
+        } catch (e) {
+          // Column already exists or table is freshly created
+        }
       `);
       loadCachedData();
     } catch (err) {
@@ -142,7 +148,17 @@ export default function App() {
 
       const cachedT: any[] = db.getAllSync('SELECT * FROM cached_truck LIMIT 1');
       if (cachedT.length > 0) {
-        setTruck(cachedT[0]);
+        const tObj = cachedT[0];
+        if (tObj.stocksJson) {
+          try {
+            tObj.stocks = JSON.parse(tObj.stocksJson);
+          } catch (e) {
+            tObj.stocks = [];
+          }
+        } else {
+          tObj.stocks = [];
+        }
+        setTruck(tObj);
       }
 
       const pending: any[] = db.getAllSync('SELECT * FROM pending_sync');
@@ -315,8 +331,8 @@ export default function App() {
       if (resTruck.ok) {
         const dataT = await resTruck.json();
         db.runSync(
-          'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold) VALUES (?, ?, ?, ?)',
-          [dataT.id, dataT.plateNumber, dataT.currentStock, dataT.stockAlertThreshold]
+          'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
+          [dataT.id, dataT.plateNumber, dataT.currentStock, dataT.stockAlertThreshold, JSON.stringify(dataT.stocks || [])]
         );
       }
 
@@ -363,8 +379,8 @@ export default function App() {
               // Cache data locally in SQLite
               db.runSync('DELETE FROM cached_truck');
               db.runSync(
-                'INSERT INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold) VALUES (?, ?, ?, ?)',
-                [data.truck.id, data.truck.plateNumber, data.truck.currentStock, data.truck.stockAlertThreshold]
+                'INSERT INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
+                [data.truck.id, data.truck.plateNumber, data.truck.currentStock, data.truck.stockAlertThreshold, JSON.stringify(data.truck.stocks || [])]
               );
               
               db.runSync('DELETE FROM cached_missions');
@@ -429,8 +445,8 @@ export default function App() {
   const handleSelectTruck = (selected: any) => {
     setTruck(selected);
     db.runSync(
-      'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold) VALUES (?, ?, ?, ?)',
-      [selected.id, selected.plateNumber, selected.currentStock, selected.stockAlertThreshold]
+      'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
+      [selected.id, selected.plateNumber, selected.currentStock, selected.stockAlertThreshold, JSON.stringify(selected.stocks || [])]
     );
     fetchMissionsAndStock(selected, token);
     setCurrentScreen('dashboard');
@@ -1078,7 +1094,25 @@ export default function App() {
                 <Text style={styles.btnCircleText}>-5</Text>
               </TouchableOpacity>
             </View>
-            <Text style={{ color: '#94a3b8', textAlign: 'center', fontSize: 13 }}>Les modifications mettent à jour la base SQLite locale immédiatement et se synchronisent en tâche de fond.</Text>
+            <Text style={{ color: '#94a3b8', textAlign: 'center', fontSize: 13, marginBottom: 10 }}>Les modifications mettent à jour la base SQLite locale immédiatement et se synchronisent en tâche de fond.</Text>
+          </View>
+
+          <View style={[styles.glassCard, { marginTop: 16, flex: 1 }]}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 12 }}>Matériels & Équipements Embarqués</Text>
+            <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled={true}>
+              {truck.stocks && truck.stocks.length > 0 ? (
+                truck.stocks.map((s: any) => (
+                  <View key={s.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#334155' }}>
+                    <Text style={{ color: '#f8fafc', fontSize: 15, fontWeight: '600' }}>{s.stockItem?.name}</Text>
+                    <Text style={{ color: '#34d399', fontSize: 15, fontWeight: '700' }}>
+                      {s.quantity} {s.stockItem?.unit || 'pcs'}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={{ color: '#94a3b8', textAlign: 'center', paddingVertical: 16 }}>Aucun équipement (compresseur, casque, etc.) chargé pour le moment.</Text>
+              )}
+            </ScrollView>
           </View>
         </View>
       )}

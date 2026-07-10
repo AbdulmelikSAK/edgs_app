@@ -123,16 +123,29 @@ ${mission.notes ? `<h2>Notes</h2><p>${mission.notes}</p>` : ''}
     return Math.max(0, (end - start) / 3600000);
   }
 
-  findAll(): Promise<Report[]> {
-    return this.reportRepo.find({
+  async findAll(): Promise<Report[]> {
+    const list = await this.reportRepo.find({
       relations: { mission: true },
       order: { createdAt: 'DESC' },
+    });
+    return list.map(r => {
+      r.url = `/reports/view/${r.id}`;
+      return r;
     });
   }
 
   async findOne(id: string): Promise<Report> {
     const r = await this.reportRepo.findOne({ where: { id }, relations: { mission: true } });
     if (!r) throw new NotFoundException('Rapport non trouvé');
+    r.url = `/reports/view/${r.id}`;
     return r;
+  }
+
+  async getReportStream(id: string): Promise<any> {
+    const report = await this.findOne(id);
+    if (!report.filename) {
+      throw new NotFoundException('Fichier de rapport non disponible');
+    }
+    return this.minioService.getFileStream(report.filename);
   }
 }

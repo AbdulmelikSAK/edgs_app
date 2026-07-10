@@ -18,4 +18,5 @@ export declare class ReportsService {
     private calculateWorkHours;
     findAll(): Promise<Report[]>;
     findOne(id: string): Promise<Report>;
+    getReportStream(id: string): Promise<any>;
 }

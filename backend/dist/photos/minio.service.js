@@ -87,6 +87,9 @@ let MinioService = MinioService_1 = class MinioService {
     async getPresignedUrl(filename) {
         return this.client.presignedGetObject(this.bucket, filename, 3600);
     }
+    async getFileStream(filename) {
+        return this.client.getObject(this.bucket, filename);
+    }
     async deleteFile(filename) {
         await this.client.removeObject(this.bucket, filename);
     }

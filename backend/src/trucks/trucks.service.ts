@@ -19,6 +19,7 @@ export class TrucksService {
 
   findAll(): Promise<Truck[]> {
     return this.truckRepo.find({
+      where: { isActive: true },
       relations: { stocks: { stockItem: true } },
       order: { plateNumber: 'ASC' }
     });

@@ -43,6 +43,7 @@ interface Truck {
   currentStock: number;
   stockAlertThreshold: number;
   pinCode?: string;
+  stocks?: any[];
 }
 
 interface Employee {
@@ -141,6 +142,7 @@ function App() {
     pinCode: '',
     stockAlertThreshold: '10',
   });
+  const [editingTruckId, setEditingTruckId] = useState<string | null>(null);
 
   const [planningForm, setPlanningForm] = useState({
     missionId: '',
@@ -398,8 +400,12 @@ function App() {
     if (!newTruck.plateNumber) return;
 
     try {
-      const res = await fetchWithAuth(API_BASE_URL + '/trucks', {
-        method: 'POST',
+      const isEditing = !!editingTruckId;
+      const url = isEditing ? `${API_BASE_URL}/trucks/${editingTruckId}` : `${API_BASE_URL}/trucks`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetchWithAuth(url, {
+        method,
         body: JSON.stringify({
           plateNumber: newTruck.plateNumber,
           model: newTruck.model || undefined,
@@ -409,7 +415,7 @@ function App() {
         }),
       });
 
-      if (!res.ok) throw new Error('Erreur de création du véhicule');
+      if (!res.ok) throw new Error('Erreur d\'enregistrement du véhicule');
 
       setNewTruck({
         plateNumber: '',
@@ -418,10 +424,11 @@ function App() {
         pinCode: '',
         stockAlertThreshold: '10',
       });
+      setEditingTruckId(null);
       loadAllData();
     } catch (err) {
       console.error(err);
-      alert('Erreur lors de la création du véhicule.');
+      alert('Erreur lors de l\'enregistrement du véhicule.');
     }
   };
 
@@ -1107,7 +1114,9 @@ function App() {
             <div className="grid-3">
               {/* Form creation */}
               <div className="glass-card" style={{ height: 'fit-content' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Ajouter un Véhicule</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>
+                  {editingTruckId ? 'Modifier le Véhicule' : 'Ajouter un Véhicule'}
+                </h3>
                 <form onSubmit={handleCreateTruck}>
                   <div className="form-group">
                     <label className="form-label">Plaque d'Immatriculation</label>
@@ -1166,9 +1175,29 @@ function App() {
                     />
                   </div>
 
-                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                    Créer le Véhicule
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                      {editingTruckId ? 'Modifier' : 'Créer le Véhicule'}
+                    </button>
+                    {editingTruckId && (
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        onClick={() => {
+                          setEditingTruckId(null);
+                          setNewTruck({
+                            plateNumber: '',
+                            model: '',
+                            year: '',
+                            pinCode: '',
+                            stockAlertThreshold: '10',
+                          });
+                        }}
+                      >
+                        Annuler
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
 
@@ -1216,6 +1245,22 @@ function App() {
                                 <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => updateTruckStock(t.id, -5)}>
                                   -5 sacs
                                 </button>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '6px 12px', fontSize: '13px' }} 
+                                  onClick={() => {
+                                    setEditingTruckId(t.id);
+                                    setNewTruck({
+                                      plateNumber: t.plateNumber,
+                                      model: t.model || '',
+                                      year: t.year ? String(t.year) : '',
+                                      pinCode: t.pinCode || '',
+                                      stockAlertThreshold: String(t.stockAlertThreshold),
+                                    });
+                                  }}
+                                >
+                                  Modifier
+                                </button>
                                 <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteTruck(t.id)}>
                                   Supprimer
                                 </button>
@@ -1241,12 +1286,179 @@ function App() {
         {activeTab === 'stock' && (
           <div>
             <div style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Gestion des Stocks</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Historique des mouvements de sacs de sable.</p>
+              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Consommables & Équipements</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Gérez les types de consommables, chargez le matériel dans les véhicules et suivez les mouvements.</p>
+            </div>
+
+            <div className="grid-3" style={{ marginBottom: '32px' }}>
+              {/* Column 1: Define consumables */}
+              <div className="glass-card">
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Définir un Consommable / Équipement</h3>
+                <form onSubmit={handleCreateStockItem}>
+                  <div className="form-group">
+                    <label className="form-label">Nom de l'élément</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Sac de ciment, Casque, Compresseur..." 
+                      value={newStockItem.name}
+                      onChange={e => setNewStockItem({ ...newStockItem, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Unité (Optionnel)</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. sacs, pcs, kg" 
+                      value={newStockItem.unit}
+                      onChange={e => setNewStockItem({ ...newStockItem, unit: e.target.value })}
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                    Créer l'Élément
+                  </button>
+                </form>
+
+                <div className="table-container" style={{ marginTop: '24px', maxHeight: '300px', overflowY: 'auto' }}>
+                  <table className="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Nom</th>
+                        <th>Unité</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stockItems.map(item => (
+                        <tr key={item.id}>
+                          <td style={{ fontWeight: '600' }}>{item.name}</td>
+                          <td>{item.unit || 'pcs'}</td>
+                          <td>
+                            <button 
+                              className="btn btn-danger" 
+                              style={{ padding: '4px 8px', fontSize: '11px', backgroundColor: '#dc2626', color: '#fff' }}
+                              onClick={() => handleDeleteStockItem(item.id)}
+                            >
+                              Supprimer
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {stockItems.length === 0 && (
+                        <tr>
+                          <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Aucun type enregistré.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Column 2: Assign stocks to Truck */}
+              <div className="glass-card" style={{ gridColumn: 'span 2' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Charger un véhicule (Inventaire Embarqué)</h3>
+                <form onSubmit={handleAssignStockToTruck} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', marginBottom: '24px' }}>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label">Véhicule</label>
+                    <select 
+                      className="form-input" 
+                      value={selectedTruckForStock} 
+                      onChange={e => setSelectedTruckForStock(e.target.value)}
+                      required
+                    >
+                      <option value="">Sélectionner un véhicule...</option>
+                      {trucks.map(t => (
+                        <option key={t.id} value={t.id}>{t.plateNumber} - {t.model}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <label className="form-label">Élément de Stock</label>
+                    <select 
+                      className="form-input" 
+                      value={stockItemToAssign} 
+                      onChange={e => setStockItemToAssign(e.target.value)}
+                      required
+                    >
+                      <option value="">Sélectionner...</option>
+                      {stockItems.map(item => (
+                        <option key={item.id} value={item.id}>{item.name} ({item.unit || 'pcs'})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ width: '100px', marginBottom: 0 }}>
+                    <label className="form-label">Quantité</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      value={assignQuantity} 
+                      onChange={e => setAssignQuantity(e.target.value)}
+                      min="0"
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>
+                    Affecter
+                  </button>
+                </form>
+
+                {selectedTruckForStock ? (() => {
+                  const selectedTruck = trucks.find(t => t.id === selectedTruckForStock);
+                  const loadedStocks = selectedTruck?.stocks || [];
+                  return (
+                    <div>
+                      <h4 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                        Inventaire Actuel du Camion : {selectedTruck?.plateNumber} ({selectedTruck?.model})
+                      </h4>
+                      <div className="table-container">
+                        <table className="custom-table">
+                          <thead>
+                            <tr>
+                              <th>Matériel / Consommable</th>
+                              <th>Quantité Embarquée</th>
+                              <th>Unité</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {loadedStocks.map((ts: any) => (
+                              <tr key={ts.id}>
+                                <td style={{ fontWeight: '600' }}>{ts.stockItem?.name}</td>
+                                <td style={{ fontSize: '16px', fontWeight: '700' }}>{ts.quantity}</td>
+                                <td>{ts.stockItem?.unit || 'pcs'}</td>
+                                <td>
+                                  <button 
+                                    className="btn btn-danger" 
+                                    style={{ padding: '4px 8px', fontSize: '11px', backgroundColor: '#dc2626', color: '#fff' }}
+                                    onClick={() => handleRemoveStockFromTruck(ts.id)}
+                                  >
+                                    Retirer
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {loadedStocks.length === 0 && (
+                              <tr>
+                                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Ce camion ne contient actuellement aucun consommable/équipement spécifique.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    Sélectionnez un véhicule ci-dessus pour gérer et visualiser son équipement embarqué.
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="glass-card">
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Mouvements Récents (Premier Camion)</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Historique Récent des Mouvements de Sable (Sacs)</h3>
               
               <div className="table-container">
                 <table className="custom-table">
@@ -1331,7 +1543,7 @@ function App() {
                           <td>
                             {report ? (
                               <a 
-                                href={report.url} 
+                                href={report.url.startsWith('http') ? report.url : `${API_BASE_URL}${report.url}`} 
                                 target="_blank"
                                 rel="noreferrer"
                                 className="btn btn-secondary" 

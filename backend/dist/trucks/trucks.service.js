@@ -28,6 +28,7 @@ let TrucksService = class TrucksService {
     }
     findAll() {
         return this.truckRepo.find({
+            where: { isActive: true },
             relations: { stocks: { stockItem: true } },
             order: { plateNumber: 'ASC' }
         });

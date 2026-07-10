@@ -9,5 +9,6 @@ export declare class MinioService implements OnModuleInit {
     onModuleInit(): Promise<void>;
     uploadFile(filename: string, buffer: Buffer, mimetype: string): Promise<string>;
     getPresignedUrl(filename: string): Promise<string>;
+    getFileStream(filename: string): Promise<any>;
     deleteFile(filename: string): Promise<void>;
 }
