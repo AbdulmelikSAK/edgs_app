@@ -27,6 +27,24 @@ export class Truck {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ type: 'int', default: 0 })
+  mileage: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  insuranceExpirationDate: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  controlTechniqueDate: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastServiceDate: Date;
+
+  @Column({ nullable: true })
+  registrationCardUrl: string;
+
+  @Column({ nullable: true })
+  insuranceCardUrl: string;
+
   @OneToMany(() => TruckStock, ts => ts.truck)
   stocks: TruckStock[];
 

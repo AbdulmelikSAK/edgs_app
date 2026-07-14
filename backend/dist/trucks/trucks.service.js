@@ -17,10 +17,16 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const truck_entity_1 = require("../database/entities/truck.entity");
+const truck_assignment_entity_1 = require("../database/entities/truck-assignment.entity");
+const employee_entity_1 = require("../database/entities/employee.entity");
 let TrucksService = class TrucksService {
     truckRepo;
-    constructor(truckRepo) {
+    assignmentRepo;
+    employeeRepo;
+    constructor(truckRepo, assignmentRepo, employeeRepo) {
         this.truckRepo = truckRepo;
+        this.assignmentRepo = assignmentRepo;
+        this.employeeRepo = employeeRepo;
     }
     create(dto) {
         const truck = this.truckRepo.create(dto);
@@ -64,11 +70,81 @@ let TrucksService = class TrucksService {
             .andWhere('truck.currentStock <= truck.stockAlertThreshold')
             .getMany();
     }
+    async assignTruck(truckId, employeeId, startDate, notes) {
+        const truck = await this.findOne(truckId);
+        const employee = await this.employeeRepo.findOne({ where: { id: employeeId } });
+        if (!employee)
+            throw new common_1.NotFoundException('Employé non trouvé');
+        const activeTruckAss = await this.assignmentRepo.findOne({
+            where: { truck: { id: truckId }, endDate: (0, typeorm_2.IsNull)() }
+        });
+        if (activeTruckAss) {
+            activeTruckAss.endDate = new Date();
+            await this.assignmentRepo.save(activeTruckAss);
+        }
+        const activeEmpAss = await this.assignmentRepo.findOne({
+            where: { employee: { id: employeeId }, endDate: (0, typeorm_2.IsNull)() }
+        });
+        if (activeEmpAss) {
+            activeEmpAss.endDate = new Date();
+            await this.assignmentRepo.save(activeEmpAss);
+        }
+        const assignment = this.assignmentRepo.create({
+            truck,
+            employee,
+            startDate: startDate ? new Date(startDate) : new Date(),
+            notes,
+        });
+        return this.assignmentRepo.save(assignment);
+    }
+    async unassignTruck(assignmentId, endDate) {
+        const ass = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+        if (!ass)
+            throw new common_1.NotFoundException('Affectation non trouvée');
+        ass.endDate = endDate ? new Date(endDate) : new Date();
+        return this.assignmentRepo.save(ass);
+    }
+    async getAssignments(truckId) {
+        if (truckId) {
+            return this.assignmentRepo.find({
+                where: { truck: { id: truckId } },
+                relations: { truck: true, employee: true },
+                order: { startDate: 'DESC' }
+            });
+        }
+        return this.assignmentRepo.find({
+            relations: { truck: true, employee: true },
+            order: { startDate: 'DESC' }
+        });
+    }
+    async searchDriverByDate(plateNumber, dateStr) {
+        const date = new Date(dateStr);
+        const ass = await this.assignmentRepo.findOne({
+            where: [
+                {
+                    truck: { plateNumber },
+                    startDate: (0, typeorm_2.LessThanOrEqual)(date),
+                    endDate: (0, typeorm_2.MoreThanOrEqual)(date)
+                },
+                {
+                    truck: { plateNumber },
+                    startDate: (0, typeorm_2.LessThanOrEqual)(date),
+                    endDate: (0, typeorm_2.IsNull)()
+                }
+            ],
+            relations: { employee: true }
+        });
+        return ass ? ass.employee : null;
+    }
 };
 exports.TrucksService = TrucksService;
 exports.TrucksService = TrucksService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(truck_entity_1.Truck)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(truck_assignment_entity_1.TruckAssignment)),
+    __param(2, (0, typeorm_1.InjectRepository)(employee_entity_1.Employee)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
 ], TrucksService);
 //# sourceMappingURL=trucks.service.js.map

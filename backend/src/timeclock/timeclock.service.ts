@@ -31,6 +31,9 @@ export class TimeclockService {
       latitude: dto.latitude,
       longitude: dto.longitude,
       notes: dto.notes,
+      displacementMode: dto.displacementMode,
+      signature: dto.signature,
+      isOutOfZone: dto.isOutOfZone ?? false,
       isSyncedFromOffline: dto.isSyncedFromOffline ?? false,
     });
     return this.timeEntryRepo.save(entry);

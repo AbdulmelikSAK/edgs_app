@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery, ApiOperation } from '@nestjs/swagger';
 import { StatsService } from './stats.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -9,6 +9,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 @Controller('stats')
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
+
+  @Get('dashboard')
+  @ApiOperation({ summary: 'Obtenir les indicateurs de pilotage EDGS' })
+  getDashboard() {
+    return this.statsService.getDashboardStats();
+  }
 
   @Get()
   @ApiQuery({ name: 'from', required: false })

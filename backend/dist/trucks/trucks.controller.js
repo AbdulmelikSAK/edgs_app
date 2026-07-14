@@ -42,6 +42,18 @@ let TrucksController = class TrucksController {
     remove(id) {
         return this.trucksService.remove(id);
     }
+    assign(body) {
+        return this.trucksService.assignTruck(body.truckId, body.employeeId, body.startDate, body.notes);
+    }
+    unassign(id, body) {
+        return this.trucksService.unassignTruck(id, body.endDate);
+    }
+    getAssignments(truckId) {
+        return this.trucksService.getAssignments(truckId);
+    }
+    searchDriver(plateNumber, date) {
+        return this.trucksService.searchDriverByDate(plateNumber, date);
+    }
 };
 exports.TrucksController = TrucksController;
 __decorate([
@@ -88,6 +100,40 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TrucksController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)('assignments'),
+    (0, swagger_1.ApiOperation)({ summary: 'Affecter un camion à un chauffeur' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TrucksController.prototype, "assign", null);
+__decorate([
+    (0, common_1.Post)('assignments/:id/end'),
+    (0, swagger_1.ApiOperation)({ summary: 'Terminer une affectation de camion' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TrucksController.prototype, "unassign", null);
+__decorate([
+    (0, common_1.Get)('assignments/all'),
+    (0, swagger_1.ApiOperation)({ summary: 'Liste de toutes les affectations de camions' }),
+    __param(0, (0, common_1.Query)('truckId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TrucksController.prototype, "getAssignments", null);
+__decorate([
+    (0, common_1.Get)('assignments/search'),
+    (0, swagger_1.ApiOperation)({ summary: 'Rechercher le conducteur responsable à une date donnée pour les PV' }),
+    __param(0, (0, common_1.Query)('plateNumber')),
+    __param(1, (0, common_1.Query)('date')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], TrucksController.prototype, "searchDriver", null);
 exports.TrucksController = TrucksController = __decorate([
     (0, swagger_1.ApiTags)('trucks'),
     (0, swagger_1.ApiBearerAuth)(),

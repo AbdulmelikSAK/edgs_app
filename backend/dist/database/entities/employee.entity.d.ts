@@ -6,6 +6,11 @@ export declare class Employee {
     pin: string;
     badgeNumber: string;
     isActive: boolean;
+    hourlyRate: number;
+    phone: string;
+    email: string;
+    qualification: string;
+    documents: string;
     role: Role;
     createdAt: Date;
     updatedAt: Date;

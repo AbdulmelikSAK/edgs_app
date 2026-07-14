@@ -20,6 +20,12 @@ class CreateTruckDto {
     year;
     currentStock;
     stockAlertThreshold;
+    mileage;
+    insuranceExpirationDate;
+    controlTechniqueDate;
+    lastServiceDate;
+    registrationCardUrl;
+    insuranceCardUrl;
 }
 exports.CreateTruckDto = CreateTruckDto;
 __decorate([
@@ -62,4 +68,42 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], CreateTruckDto.prototype, "stockAlertThreshold", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 45000 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateTruckDto.prototype, "mileage", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTruckDto.prototype, "insuranceExpirationDate", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTruckDto.prototype, "controlTechniqueDate", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTruckDto.prototype, "lastServiceDate", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTruckDto.prototype, "registrationCardUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTruckDto.prototype, "insuranceCardUrl", void 0);
 //# sourceMappingURL=create-truck.dto.js.map

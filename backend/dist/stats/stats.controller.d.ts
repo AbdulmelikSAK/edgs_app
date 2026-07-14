@@ -2,6 +2,7 @@ import { StatsService } from './stats.service';
 export declare class StatsController {
     private readonly statsService;
     constructor(statsService: StatsService);
+    getDashboard(): Promise<any>;
     getGlobal(from?: string, to?: string): Promise<{
         missions: {
             total: number;

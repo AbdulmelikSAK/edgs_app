@@ -23,6 +23,9 @@ class CreateTimeEntryDto {
     latitude;
     longitude;
     notes;
+    displacementMode;
+    signature;
+    isOutOfZone;
     isSyncedFromOffline;
 }
 exports.CreateTimeEntryDto = CreateTimeEntryDto;
@@ -74,6 +77,24 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTimeEntryDto.prototype, "notes", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTimeEntryDto.prototype, "displacementMode", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTimeEntryDto.prototype, "signature", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateTimeEntryDto.prototype, "isOutOfZone", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),

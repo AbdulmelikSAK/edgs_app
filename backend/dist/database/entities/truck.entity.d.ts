@@ -8,6 +8,12 @@ export declare class Truck {
     currentStock: number;
     stockAlertThreshold: number;
     isActive: boolean;
+    mileage: number;
+    insuranceExpirationDate: Date;
+    controlTechniqueDate: Date;
+    lastServiceDate: Date;
+    registrationCardUrl: string;
+    insuranceCardUrl: string;
     stocks: TruckStock[];
     createdAt: Date;
     updatedAt: Date;

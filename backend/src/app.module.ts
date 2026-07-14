@@ -19,6 +19,9 @@ import { SeederService } from './database/seeder.service';
 import { AuditModule } from './audit/audit.module';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ProductionModule } from './production/production.module';
+import { EquipmentModule } from './equipment/equipment.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -51,6 +54,9 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     StatsModule,
     PlanningModule,
     AuditModule,
+    ProductionModule,
+    EquipmentModule,
+    BillingModule,
   ],
   providers: [
     SeederService,

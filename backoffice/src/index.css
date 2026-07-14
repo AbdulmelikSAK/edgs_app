@@ -1,12 +1,12 @@
 :root {
-  --bg-main: #0f172a;
-  --bg-card: rgba(30, 41, 59, 0.7);
-  --bg-sidebar: #1e293b;
-  --border-color: rgba(255, 255, 255, 0.08);
+  --bg-main: #121214;
+  --bg-card: rgba(26, 28, 35, 0.75);
+  --bg-sidebar: #16181d;
+  --border-color: rgba(255, 255, 255, 0.06);
   
-  --primary: #3b82f6;
-  --primary-glow: rgba(59, 130, 246, 0.15);
-  --primary-hover: #2563eb;
+  --primary: #f26522;
+  --primary-glow: rgba(242, 101, 34, 0.15);
+  --primary-hover: #e05310;
   
   --success: #10b981;
   --success-glow: rgba(16, 185, 129, 0.15);
@@ -17,9 +17,9 @@
   --danger: #ef4444;
   --danger-glow: rgba(239, 68, 68, 0.15);
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a5b5;
+  --text-muted: #6b7280;
   
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -112,7 +112,7 @@ body {
 .brand-logo {
   font-size: 24px;
   font-weight: 800;
-  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #ff8e53 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -1px;

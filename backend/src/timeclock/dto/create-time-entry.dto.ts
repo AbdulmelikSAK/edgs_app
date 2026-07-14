@@ -46,6 +46,21 @@ export class CreateTimeEntryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  displacementMode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  signature?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isOutOfZone?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
   isSyncedFromOffline?: boolean;
 }

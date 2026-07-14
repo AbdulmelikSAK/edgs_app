@@ -28,6 +28,9 @@ const seeder_service_1 = require("./database/seeder.service");
 const audit_module_1 = require("./audit/audit.module");
 const audit_interceptor_1 = require("./audit/audit.interceptor");
 const core_1 = require("@nestjs/core");
+const production_module_1 = require("./production/production.module");
+const equipment_module_1 = require("./equipment/equipment.module");
+const billing_module_1 = require("./billing/billing.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -63,6 +66,9 @@ exports.AppModule = AppModule = __decorate([
             stats_module_1.StatsModule,
             planning_module_1.PlanningModule,
             audit_module_1.AuditModule,
+            production_module_1.ProductionModule,
+            equipment_module_1.EquipmentModule,
+            billing_module_1.BillingModule,
         ],
         providers: [
             seeder_service_1.SeederService,

@@ -20,6 +20,8 @@ var TimeEntryType;
     TimeEntryType["DAY_END"] = "day_end";
     TimeEntryType["MISSION_START"] = "mission_start";
     TimeEntryType["MISSION_END"] = "mission_end";
+    TimeEntryType["PAUSE_START"] = "pause_start";
+    TimeEntryType["PAUSE_END"] = "pause_end";
 })(TimeEntryType || (exports.TimeEntryType = TimeEntryType = {}));
 let TimeEntry = class TimeEntry {
     id;
@@ -31,6 +33,9 @@ let TimeEntry = class TimeEntry {
     latitude;
     longitude;
     notes;
+    displacementMode;
+    signature;
+    isOutOfZone;
     isSyncedFromOffline;
     createdAt;
 };
@@ -74,6 +79,18 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
     __metadata("design:type", String)
 ], TimeEntry.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimeEntry.prototype, "displacementMode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
+    __metadata("design:type", String)
+], TimeEntry.prototype, "signature", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], TimeEntry.prototype, "isOutOfZone", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: false }),
     __metadata("design:type", Boolean)

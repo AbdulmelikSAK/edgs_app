@@ -44,13 +44,15 @@ interface Mission {
   status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
   scheduledDate: string;
   notes?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'login' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera'>('login');
   
   // Configuration
-  const [serverUrl, setServerUrl] = useState('https://edgs-app.onrender.com');
+  const [serverUrl, setServerUrl] = useState('http://10.0.2.2:3000'); // Standard Android emulator localhost link or online
   const [showConfig, setShowConfig] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -69,6 +71,15 @@ export default function App() {
   const [dayStarted, setDayStarted] = useState(false);
   const [missionsList, setMissionsList] = useState<Mission[]>([]);
   const [activeMission, setActiveMission] = useState<Mission | null>(null);
+
+  // New features states
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseType, setPauseType] = useState<'repas' | 'technique'>('repas');
+  const [displacementMode, setDisplacementMode] = useState<'panier' | 'petit' | 'grand'>('panier');
+  const [isOutOfZone, setIsOutOfZone] = useState(false);
+  const [signatureBase64, setSignatureBase64] = useState<string | null>(null);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
+  const [signaturePoints, setSignaturePoints] = useState<{ x: number; y: number }[]>([]);
 
   // Camera states
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -93,7 +104,9 @@ export default function App() {
           worksiteAddress TEXT,
           status TEXT NOT NULL,
           scheduledDate TEXT NOT NULL,
-          notes TEXT
+          notes TEXT,
+          latitude REAL,
+          longitude REAL
         );
         CREATE TABLE IF NOT EXISTS cached_truck (
           id TEXT PRIMARY KEY,
@@ -102,6 +115,12 @@ export default function App() {
           stockAlertThreshold INTEGER NOT NULL,
           stocksJson TEXT
         );
+        try {
+          db.execSync('ALTER TABLE cached_missions ADD COLUMN latitude REAL;');
+          db.execSync('ALTER TABLE cached_missions ADD COLUMN longitude REAL;');
+        } catch (e) {
+          // Columns already exist
+        }
         try {
           db.execSync('ALTER TABLE cached_truck ADD COLUMN stocksJson TEXT;');
         } catch (e) {
@@ -138,14 +157,16 @@ export default function App() {
         worksite: m.worksiteAddress || 'N/A',
         status: m.status,
         scheduledDate: m.scheduledDate,
-        notes: m.notes
+        notes: m.notes,
+        latitude: m.latitude || null,
+        longitude: m.longitude || null
       }));
       setMissionsList(formattedMissions);
       
       const inProgress = formattedMissions.find(m => m.status === 'in_progress');
       const planned = formattedMissions.find(m => m.status === 'planned');
       setActiveMission(inProgress || planned || formattedMissions[0] || null);
-
+      
       const cachedT: any[] = db.getAllSync('SELECT * FROM cached_truck LIMIT 1');
       if (cachedT.length > 0) {
         const tObj = cachedT[0];
@@ -182,7 +203,7 @@ export default function App() {
           'Authorization': `Bearer ${currentToken}`
         };
 
-        if (op.type === 'day_start' || op.type === 'day_end') {
+        if (op.type === 'day_start' || op.type === 'day_end' || op.type === 'pause_start' || op.type === 'pause_end') {
           await fetch(`${serverUrl}/timeclock`, {
             method: 'POST',
             headers,
@@ -190,6 +211,8 @@ export default function App() {
               employeeId: payload.employeeId,
               truckId: payload.truckId,
               type: op.type,
+              pauseType: payload.pauseType,
+              displacementMode: payload.displacementMode,
               timestamp: payload.timestamp,
               isSyncedFromOffline: true
             })
@@ -226,6 +249,7 @@ export default function App() {
               employeeId: payload.employeeId,
               missionId: payload.missionId,
               type: 'mission_end',
+              signature: payload.signature,
               timestamp: payload.timestamp,
               isSyncedFromOffline: true
             })
@@ -255,6 +279,7 @@ export default function App() {
               latitude: payload.latitude,
               longitude: payload.longitude,
               speed: payload.speed,
+              isOutOfZone: payload.isOutOfZone,
               isSyncedFromOffline: true
             })
           });
@@ -320,8 +345,8 @@ export default function App() {
         db.execSync('DELETE FROM cached_missions');
         for (const m of dataM) {
           db.runSync(
-            'INSERT OR REPLACE INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [m.id, m.title, m.client?.name || 'N/A', m.worksite?.address || 'N/A', m.status, m.scheduledDate, m.notes || '']
+            'INSERT OR REPLACE INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [m.id, m.title, m.client?.name || 'N/A', m.worksite?.address || 'N/A', m.status, m.scheduledDate, m.notes || '', m.worksite?.latitude || null, m.worksite?.longitude || null]
           );
         }
       }
@@ -388,8 +413,8 @@ export default function App() {
                 const clientName = m.clientName || m.client?.name || 'N/A';
                 const worksiteAddress = m.worksiteAddress || m.worksite?.address || 'N/A';
                 db.runSync(
-                  'INSERT INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                  [m.id, m.title, clientName, worksiteAddress, m.status, m.scheduledDate, m.notes || '']
+                  'INSERT INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                  [m.id, m.title, clientName, worksiteAddress, m.status, m.scheduledDate, m.notes || '', m.worksite?.latitude || null, m.worksite?.longitude || null]
                 );
                 return {
                   id: m.id,
@@ -398,7 +423,9 @@ export default function App() {
                   worksite: worksiteAddress,
                   status: m.status,
                   scheduledDate: m.scheduledDate,
-                  notes: m.notes
+                  notes: m.notes,
+                  latitude: m.worksite?.latitude || null,
+                  longitude: m.worksite?.longitude || null
                 };
               });
 
@@ -458,6 +485,7 @@ export default function App() {
     const payload = {
       employeeId: employee.id,
       truckId: truck.id,
+      displacementMode,
       timestamp: new Date().toISOString()
     };
 
@@ -481,12 +509,13 @@ export default function App() {
       );
       loadCachedData();
     }
-    Alert.alert('Pointage', 'Début de journée enregistré.');
+    Alert.alert('Pointage', `Début de journée enregistré (${displacementMode}).`);
   };
 
   // End Day timeclock
   const endDay = async () => {
     setDayStarted(false);
+    setIsPaused(false);
     const payload = {
       employeeId: employee.id,
       truckId: truck.id,
@@ -517,6 +546,72 @@ export default function App() {
     setCurrentScreen('login');
     setEmployee(null);
     setToken(null);
+  };
+
+  // Start Pause
+  const startPause = async (type: 'repas' | 'technique') => {
+    setIsPaused(true);
+    setPauseType(type);
+    const payload = {
+      employeeId: employee.id,
+      truckId: truck.id,
+      pauseType: type,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/timeclock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ...payload, type: 'pause_start' })
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('pause_start', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+      loadCachedData();
+    }
+    Alert.alert('Pointage', `Pause ${type === 'repas' ? 'Déjeuner' : 'Technique'} enregistrée.`);
+  };
+
+  // End Pause
+  const endPause = async () => {
+    setIsPaused(false);
+    const payload = {
+      employeeId: employee.id,
+      truckId: truck.id,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/timeclock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ...payload, type: 'pause_end' })
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('pause_end', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+      loadCachedData();
+    }
+    Alert.alert('Pointage', 'Reprise de l\'activité enregistrée.');
   };
 
   // Start active mission
@@ -573,44 +668,53 @@ export default function App() {
         },
         {
           text: 'Oui, terminer',
-          onPress: async () => {
-            const payload = {
-              missionId: activeMission.id,
-              employeeId: employee.id,
-              timestamp: new Date().toISOString()
-            };
-
-            if (!isOffline) {
-              try {
-                await fetch(`${serverUrl}/missions/${activeMission.id}/status/completed`, {
-                  method: 'PATCH',
-                  headers: { 'Authorization': `Bearer ${token}` }
-                });
-                await fetch(`${serverUrl}/timeclock`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({ ...payload, type: 'mission_end' })
-                });
-              } catch (e) {
-                console.error(e);
-              }
-            } else {
-              db.runSync("UPDATE cached_missions SET status = 'completed' WHERE id = ?", [activeMission.id]);
-              db.runSync(
-                "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('end_mission', ?, ?)",
-                [JSON.stringify(payload), new Date().toISOString()]
-              );
-            }
-            
-            Alert.alert('Chantier', 'Mission clôturée avec succès.');
-            fetchMissionsAndStock();
+          onPress: () => {
+            // Open signature pad
+            setShowSignaturePad(true);
           }
         }
       ]
     );
+  };
+
+  // Submit End Mission with Signature payload
+  const submitEndMission = async (sigBase64: string) => {
+    if (!activeMission) return;
+    const payload = {
+      missionId: activeMission.id,
+      employeeId: employee.id,
+      signature: sigBase64,
+      timestamp: new Date().toISOString()
+    };
+
+    if (!isOffline) {
+      try {
+        await fetch(`${serverUrl}/missions/${activeMission.id}/status/completed`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        await fetch(`${serverUrl}/timeclock`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ...payload, type: 'mission_end' })
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      db.runSync("UPDATE cached_missions SET status = 'completed' WHERE id = ?", [activeMission.id]);
+      db.runSync(
+        "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('end_mission', ?, ?)",
+        [JSON.stringify(payload), new Date().toISOString()]
+      );
+    }
+
+    Alert.alert('Chantier', 'Mission clôturée avec signature enregistrée.');
+    setShowSignaturePad(false);
+    fetchMissionsAndStock();
   };
 
   // Adjust Truck sand stock
@@ -651,6 +755,22 @@ export default function App() {
     }
   };
 
+  // Haversine formula helper
+  const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // metres
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+    const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // in metres
+  };
+
   // Location interval loop (Simulation/Background tracking)
   useEffect(() => {
     let interval: any;
@@ -658,13 +778,29 @@ export default function App() {
       interval = setInterval(async () => {
         try {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          
+          let outOfZone = false;
+          if (activeMission.latitude && activeMission.longitude) {
+            const dist = getDistance(
+              loc.coords.latitude,
+              loc.coords.longitude,
+              activeMission.latitude,
+              activeMission.longitude
+            );
+            outOfZone = dist > 100;
+            setIsOutOfZone(outOfZone);
+          } else {
+            setIsOutOfZone(false);
+          }
+
           const gpsPoint = {
             truckId: truck.id,
             missionId: activeMission.id,
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
             speed: loc.coords.speed || 0,
-            accuracy: loc.coords.accuracy || 0
+            accuracy: loc.coords.accuracy || 0,
+            isOutOfZone: outOfZone
           };
 
           if (!isOffline) {
@@ -686,7 +822,9 @@ export default function App() {
         } catch (e) {
           console.log('Location track error:', e);
         }
-      }, 20000); // 20 seconds loop for quick demonstration
+      }, 10000); // 10 seconds loop for quick demonstration
+    } else {
+      setIsOutOfZone(false);
     }
     return () => clearInterval(interval);
   }, [dayStarted, truck, activeMission, isOffline, token, serverUrl]);
@@ -910,6 +1048,20 @@ export default function App() {
       {/* SCREEN 3: DASHBOARD */}
       {currentScreen === 'dashboard' && employee && truck && (
         <ScrollView style={styles.dashboardContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+          
+          {/* Out of zone banner alert */}
+          {isOutOfZone && (
+            <View style={[styles.alertCard, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: '#ef4444' }]}>
+              <Icon name="alert" size={24} color="#ef4444" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.alertTitle, { color: '#ef4444' }]}>Hors Zone Chantier</Text>
+                <Text style={styles.alertDesc}>
+                  Attention : Vous êtes éloigné du chantier de plus de 100 mètres.
+                </Text>
+              </View>
+            </View>
+          )}
+
           <View style={styles.header}>
             <View>
               <Text style={styles.welcomeText}>Bonjour, {employee.firstName}</Text>
@@ -940,12 +1092,69 @@ export default function App() {
 
           {/* Quick actions row */}
           {!dayStarted ? (
-            <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
-              <Icon name="clock" size={28} />
-              <Text style={styles.btnLargeText}>DÉBUT DE JOURNÉE</Text>
-            </TouchableOpacity>
+            <View style={styles.glassCard}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>
+                Sélectionner le mode de déplacement :
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                {(['panier', 'petit', 'grand'] as const).map(mode => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.modeBtn,
+                      displacementMode === mode ? styles.modeBtnActive : styles.modeBtnInactive
+                    ]}
+                    onPress={() => setDisplacementMode(mode)}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textTransform: 'capitalize' }}>
+                      {mode === 'panier' ? 'Panier' : mode === 'petit' ? 'Déplacement' : 'Grand Déplac.'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
+                <Icon name="clock" size={28} />
+                <Text style={styles.btnLargeText}>DÉBUT DE JOURNÉE</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <View style={{ gap: 20 }}>
+              
+              {/* Pauses / Pointage Controls */}
+              <View style={[styles.glassCard, { borderColor: isPaused ? '#ef4444' : 'rgba(255,255,255,0.08)' }]}>
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 }}>
+                  Statut : {isPaused ? `En Pause (${pauseType === 'repas' ? 'Déjeuner' : 'Technique'})` : 'En Activité'}
+                </Text>
+                <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 12 }}>
+                  Mode : {displacementMode === 'panier' ? 'Panier' : displacementMode === 'petit' ? 'Déplacement' : 'Grand Déplacement'}
+                </Text>
+                
+                {!isPaused ? (
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity
+                      style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#b45309', paddingVertical: 12 }]}
+                      onPress={() => startPause('repas')}
+                    >
+                      <Text style={[styles.btnLargeText, { fontSize: 12 }]}>PAUSE REPAS</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#475569', paddingVertical: 12 }]}
+                      onPress={() => startPause('technique')}
+                    >
+                      <Text style={[styles.btnLargeText, { fontSize: 12 }]}>PAUSE TECHNIQUE</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.btnLargeSuccess, { paddingVertical: 12 }]}
+                    onPress={endPause}
+                  >
+                    <Text style={styles.btnLargeText}>REPRENDRE LE TRAVAIL</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
               <View style={styles.actionsGrid}>
                 <TouchableOpacity 
                   style={styles.actionCard}
@@ -1019,6 +1228,18 @@ export default function App() {
             ) : null}
           </View>
 
+          {isOutOfZone && (
+            <View style={[styles.alertCard, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: '#ef4444', marginBottom: 16 }]}>
+              <Icon name="alert" size={24} color="#ef4444" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.alertTitle, { color: '#ef4444' }]}>Hors Zone Chantier</Text>
+                <Text style={styles.alertDesc}>
+                  Attention : Vous êtes éloigné du chantier de plus de 100 mètres.
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Navigation Button */}
           <TouchableOpacity style={[styles.btnLargeSecondary, { marginBottom: 16 }]} onPress={openGps}>
             <Icon name="mapPin" size={24} color="#3b82f6" />
@@ -1067,6 +1288,93 @@ export default function App() {
             <View style={styles.successCard}>
               <Icon name="check" size={28} color="#10b981" />
               <Text style={styles.successText}>Mission complétée avec succès !</Text>
+            </View>
+          )}
+
+          {/* Fullscreen Signature Overlay inside Screen 4 if showSignaturePad is true */}
+          {showSignaturePad && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0f172a', zIndex: 999, padding: 20, justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', textAlign: 'center', marginBottom: 10 }}>
+                Validation Chef d'Équipe
+              </Text>
+              <Text style={{ color: '#94a3b8', textAlign: 'center', marginBottom: 20 }}>
+                Veuillez signer ci-dessous pour valider la fin de chantier :
+              </Text>
+              
+              <View style={{ height: 260, backgroundColor: '#1e293b', borderRadius: 12, borderWidth: 2, borderColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
+                <View 
+                  style={{ width: '100%', height: '100%' }}
+                  onTouchStart={(e) => {
+                    const { locationX, locationY } = e.nativeEvent;
+                    setSignaturePoints([{ x: locationX, y: locationY }]);
+                  }}
+                  onTouchMove={(e) => {
+                    const { locationX, locationY } = e.nativeEvent;
+                    setSignaturePoints(prev => [...prev, { x: locationX, y: locationY }]);
+                  }}
+                >
+                  {signaturePoints.map((pt, idx) => {
+                    if (idx === 0) return null;
+                    const prevPt = signaturePoints[idx - 1];
+                    const dx = pt.x - prevPt.x;
+                    const dy = pt.y - prevPt.y;
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    if (len > 30) return null;
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    return (
+                      <View 
+                        key={idx} 
+                        style={{
+                          position: 'absolute',
+                          left: prevPt.x,
+                          top: prevPt.y,
+                          width: len,
+                          height: 3,
+                          backgroundColor: '#3b82f6',
+                          transform: [{ rotate: `${angle}deg` }],
+                          transformOrigin: 'top left'
+                        }}
+                      />
+                    );
+                  })}
+                  
+                  {signaturePoints.length === 0 && (
+                    <Text style={{ color: '#475569', fontSize: 14, textAlign: 'center', marginTop: 110 }}>Signez ici avec votre doigt</Text>
+                  )}
+                </View>
+              </View>
+              
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+                <TouchableOpacity 
+                  style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#334155' }]} 
+                  onPress={() => {
+                    setSignaturePoints([]);
+                    setShowSignaturePad(false);
+                  }}
+                >
+                  <Text style={styles.btnLargeText}>Annuler</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#dc2626' }]} 
+                  onPress={() => setSignaturePoints([])}
+                >
+                  <Text style={styles.btnLargeText}>Effacer</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.btnLargeSuccess, { flex: 1.5 }]} 
+                  onPress={() => {
+                    if (signaturePoints.length < 5) {
+                      Alert.alert('Signature', 'Veuillez apposer votre signature avant de valider.');
+                      return;
+                    }
+                    submitEndMission("data:image/svg+xml;base64,drawing_sig");
+                  }}
+                >
+                  <Text style={styles.btnLargeText}>Valider Clôture</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </ScrollView>
@@ -1530,5 +1838,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  modeBtnActive: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  modeBtnInactive: {
+    backgroundColor: '#1e293b',
+    borderColor: 'rgba(255,255,255,0.1)',
   }
 });

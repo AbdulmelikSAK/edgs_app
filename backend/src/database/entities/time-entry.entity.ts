@@ -8,6 +8,8 @@ export enum TimeEntryType {
   DAY_END = 'day_end',
   MISSION_START = 'mission_start',
   MISSION_END = 'mission_end',
+  PAUSE_START = 'pause_start',
+  PAUSE_END = 'pause_end',
 }
 
 @Entity('time_entries')
@@ -41,6 +43,15 @@ export class TimeEntry {
 
   @Column({ nullable: true, type: 'text' })
   notes: string;
+
+  @Column({ nullable: true })
+  displacementMode: string;
+
+  @Column({ nullable: true, type: 'text' })
+  signature: string;
+
+  @Column({ default: false })
+  isOutOfZone: boolean;
 
   @Column({ default: false })
   isSyncedFromOffline: boolean;

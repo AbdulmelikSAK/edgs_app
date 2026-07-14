@@ -19,6 +19,11 @@ let Employee = class Employee {
     pin;
     badgeNumber;
     isActive;
+    hourlyRate;
+    phone;
+    email;
+    qualification;
+    documents;
     role;
     createdAt;
     updatedAt;
@@ -48,6 +53,26 @@ __decorate([
     (0, typeorm_1.Column)({ default: true }),
     __metadata("design:type", Boolean)
 ], Employee.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 35.00 }),
+    __metadata("design:type", Number)
+], Employee.prototype, "hourlyRate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "phone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "email", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "qualification", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
+    __metadata("design:type", String)
+], Employee.prototype, "documents", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => role_entity_1.Role, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),

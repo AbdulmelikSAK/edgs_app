@@ -8,5 +8,8 @@ export declare class CreateTimeEntryDto {
     latitude?: number;
     longitude?: number;
     notes?: string;
+    displacementMode?: string;
+    signature?: string;
+    isOutOfZone?: boolean;
     isSyncedFromOffline?: boolean;
 }

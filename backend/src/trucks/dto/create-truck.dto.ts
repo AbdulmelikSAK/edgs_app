@@ -36,4 +36,36 @@ export class CreateTruckDto {
   @Min(0)
   @Type(() => Number)
   stockAlertThreshold?: number;
+
+  @ApiPropertyOptional({ example: 45000 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  mileage?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  insuranceExpirationDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  controlTechniqueDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  lastServiceDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  registrationCardUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  insuranceCardUrl?: string;
 }

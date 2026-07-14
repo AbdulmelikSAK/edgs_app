@@ -3,12 +3,18 @@ import { Mission } from '../database/entities/mission.entity';
 import { TimeEntry } from '../database/entities/time-entry.entity';
 import { StockMovement } from '../database/entities/stock-movement.entity';
 import { Truck } from '../database/entities/truck.entity';
+import { Employee } from '../database/entities/employee.entity';
+import { ProductionEntry } from '../database/entities/production-entry.entity';
+import { Equipment } from '../database/entities/equipment.entity';
 export declare class StatsService {
-    private missionRepo;
-    private timeRepo;
-    private stockRepo;
-    private truckRepo;
-    constructor(missionRepo: Repository<Mission>, timeRepo: Repository<TimeEntry>, stockRepo: Repository<StockMovement>, truckRepo: Repository<Truck>);
+    private readonly missionRepo;
+    private readonly timeRepo;
+    private readonly stockRepo;
+    private readonly truckRepo;
+    private readonly employeeRepo;
+    private readonly productionRepo;
+    private readonly equipmentRepo;
+    constructor(missionRepo: Repository<Mission>, timeRepo: Repository<TimeEntry>, stockRepo: Repository<StockMovement>, truckRepo: Repository<Truck>, employeeRepo: Repository<Employee>, productionRepo: Repository<ProductionEntry>, equipmentRepo: Repository<Equipment>);
     getGlobalStats(from?: string, to?: string): Promise<{
         missions: {
             total: number;
@@ -36,4 +42,5 @@ export declare class StatsService {
         totalSurface: number;
         sandBagsConsumed: number;
     }>;
+    getDashboardStats(): Promise<any>;
 }

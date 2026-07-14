@@ -22,6 +22,9 @@ let StatsController = class StatsController {
     constructor(statsService) {
         this.statsService = statsService;
     }
+    getDashboard() {
+        return this.statsService.getDashboardStats();
+    }
     getGlobal(from, to) {
         return this.statsService.getGlobalStats(from, to);
     }
@@ -30,6 +33,13 @@ let StatsController = class StatsController {
     }
 };
 exports.StatsController = StatsController;
+__decorate([
+    (0, common_1.Get)('dashboard'),
+    (0, swagger_1.ApiOperation)({ summary: 'Obtenir les indicateurs de pilotage EDGS' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], StatsController.prototype, "getDashboard", null);
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiQuery)({ name: 'from', required: false }),

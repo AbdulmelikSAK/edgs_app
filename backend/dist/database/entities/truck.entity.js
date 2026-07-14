@@ -21,6 +21,12 @@ let Truck = class Truck {
     currentStock;
     stockAlertThreshold;
     isActive;
+    mileage;
+    insuranceExpirationDate;
+    controlTechniqueDate;
+    lastServiceDate;
+    registrationCardUrl;
+    insuranceCardUrl;
     stocks;
     createdAt;
     updatedAt;
@@ -58,6 +64,30 @@ __decorate([
     (0, typeorm_1.Column)({ default: true }),
     __metadata("design:type", Boolean)
 ], Truck.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], Truck.prototype, "mileage", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], Truck.prototype, "insuranceExpirationDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], Truck.prototype, "controlTechniqueDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
+    __metadata("design:type", Date)
+], Truck.prototype, "lastServiceDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Truck.prototype, "registrationCardUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Truck.prototype, "insuranceCardUrl", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => truck_stock_entity_1.TruckStock, ts => ts.truck),
     __metadata("design:type", Array)

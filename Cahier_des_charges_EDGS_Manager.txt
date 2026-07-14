@@ -1,0 +1,413 @@
+EDGS MANAGER | CAHIER DES CHARGES
+
+CAHIER DES CHARGES
+Plateforme EDGS Manager
+Site vitrine • Application terrain • Administration • Rentabilité
+OBJECTIF
+
+Créer une solution unique reliant les équipes de chantier et l’administration afin de planifier les
+interventions, pointer les heures, suivre les quantités réalisées, centraliser les preuves terrain et mesurer
+la rentabilité de chaque chantier.
+Document
+
+Entreprise
+
+Version
+
+Statut
+
+Cahier des charges
+fonctionnel
+
+EDGS
+
+1.0
+
+Cadrage initial
+
+Document de cadrage fonctionnel — Version 1.0 — 14 juillet 2026
+
+EDGS MANAGER | CAHIER DES CHARGES
+
+1. Vision du projet
+EDGS Manager est une plateforme métier dédiée aux activités de sablage, bouchardage et ponçage. Elle
+doit remplacer les échanges dispersés et les relevés manuels par un parcours simple, sécurisé et adapté
+à une utilisation quotidienne sur smartphone, tablette et ordinateur.
+
+1.1 Périmètre
+ Un site vitrine public présentant EDGS, ses prestations et ses réalisations.
+ Une application mobile responsive pour les salariés et chefs d’équipe.
+ Une interface d’administration pour le planning, le suivi des chantiers et la gestion interne.
+ Un module de rentabilité réservé aux profils autorisés.
+ Une base de données centralisée et historisée.
+
+1.2 Principes directeurs
+Principe
+
+Exigence
+
+Simplicité terrain
+
+Saisie rapide, gros boutons, parcours utilisable avec des
+gants et sur petit écran.
+
+Confidentialité
+
+Le salarié ne voit aucun prix, coût, marge cible ou donnée
+financière.
+
+Traçabilité
+
+Chaque pointage, quantité, photo et validation est daté et
+rattaché à un utilisateur.
+
+Mobilité
+
+Interface responsive et fonctionnement dégradé en cas de
+réseau faible.
+
+Pilotage
+
+Indicateurs consolidés par jour, salarié, équipe, chantier, client
+et prestation.
+
+2. Utilisateurs et droits
+Profil
+
+Accès principal
+
+Restrictions
+
+Salarié
+
+Chantier affecté, horaires,
+panier/déplacement, quantité, photos,
+commentaire.
+
+Aucun accès aux prix, coûts, marges ni
+autres salariés.
+
+Chef d’équipe
+
+Fonctions salarié + équipe, validation de
+journée et signature.
+
+Accès limité aux chantiers et membres
+affectés.
+
+Administratif
+
+Planning, clients, chantiers, pointages,
+production, véhicules, documents.
+
+Pas de modification des droits superadministrateur.
+
+Administrateur
+
+Tous les modules, paramètres,
+utilisateurs, tarifs, coûts et rentabilité.
+
+Accès journalisé et protégé.
+
+Document de cadrage fonctionnel — Version 1.0 — 14 juillet 2026
+
+EDGS MANAGER | CAHIER DES CHARGES
+
+3. Parcours application terrain
+3.1 Accueil salarié
+ Identification nominative et accès sécurisé.
+ Affichage du chantier du jour : client, adresse, prestation et quantité totale prévue.
+ Boutons Arrivée, Pause, Reprise et Fin de journée.
+ Accès direct à la production, aux photos et aux commentaires.
+
+3.2 Pointage et géolocalisation
+ Enregistrement de la date et de l’heure avec position GPS après consentement.
+ Calcul automatique du temps travaillé en tenant compte des pauses.
+ Choix : panier, petit déplacement, grand déplacement, intempérie, absence ou autre motif.
+ Signalement d’une saisie hors zone du chantier sans blocage silencieux.
+ Correction possible selon un circuit de validation et conservation de l’historique.
+
+3.3 Production de fin de journée
+ Saisie de la prestation exécutée : sablage, bouchardage, ponçage ou prestation personnalisée.
+ Quantité réalisée avec unité paramétrable : m², ml, unité ou forfait.
+ Affichage de la quantité prévue et du reste à réaliser, sans donnée financière.
+ Ajout de photos avant / pendant / après et d’un commentaire.
+ Validation du salarié puis signature du chef d’équipe si requise.
+
+4. Interface d’administration
+Module
+
+Fonctions attendues
+
+Tableau de bord
+
+Présents, chantiers actifs, heures, production, alertes,
+avancement et accès rapide.
+
+Planning
+
+Affectation par salarié/équipe, chantier, dates, horaires,
+camion et matériel. Vues jour/semaine/mois.
+
+Chantiers
+
+Client, adresse, contacts, prestations, quantités, dates,
+documents, équipes et statut.
+
+Salariés
+
+Profil, rôle, coordonnées, habilitations, documents,
+affectations et historique.
+
+Pointages
+
+Contrôle des heures, pauses, déplacements, anomalies,
+corrections et export paie.
+
+Production
+
+Quantités journalières/cumulées, avancement, photos et
+comparaison prévu/réalisé.
+
+Véhicules
+
+Immatriculation, affectation, conducteur, kilométrage,
+assurances, contrôles et PV.
+
+Matériel
+
+Inventaire, affectations, entretien, incidents et échéances.
+
+Clients & devis
+
+Fiches clients, contacts, devis, prestations, prix de vente et
+statut.
+
+Facturation
+
+Préparation des éléments facturables à partir des quantités
+
+Document de cadrage fonctionnel — Version 1.0 — 14 juillet 2026
+
+EDGS MANAGER | CAHIER DES CHARGES
+
+Module
+
+Fonctions attendues
+validées.
+
+Rentabilité
+
+CA prévu/réalisé, coûts de main-d’œuvre, déplacements,
+matériel, sous-traitance et marge.
+
+Documents
+
+Plans, PPSPS, autorisations, rapports, justificatifs, signatures
+et archivage.
+
+5. Calcul de rentabilité
+Le module financier est strictement invisible pour les salariés et chefs d’équipe, sauf autorisation
+spécifique. Les données doivent pouvoir être ajustées par l’administrateur.
+Indicateur
+
+Règle de calcul
+
+Chiffre d’affaires prévisionnel
+
+Quantité prévue × prix de vente, ou montant forfaitaire du
+devis.
+
+Chiffre d’affaires réalisé
+
+Quantité validée × prix de vente, ou avancement du forfait.
+
+Coût main-d’œuvre
+
+Heures validées × coût horaire chargé paramétré.
+
+Coûts complémentaires
+
+Déplacements, paniers, hébergement, matériel,
+consommables, location et sous-traitance.
+
+Marge brute
+
+Chiffre d’affaires réalisé – coûts réels cumulés.
+
+Taux de marge
+
+Marge brute ÷ chiffre d’affaires réalisé × 100.
+
+Alerte
+
+Déclenchement si marge sous la cible, dérive des heures ou
+retard de production.
+
+6. Gestion des véhicules et des PV
+ Affecter un camion à un salarié ou à une équipe pour une période précise.
+ Conserver l’historique des conducteurs afin d’identifier rapidement le responsable d’un PV.
+ Enregistrer immatriculation, carte grise, assurance, contrôle technique, kilométrage et entretien.
+ Créer des alertes avant chaque échéance et centraliser les justificatifs.
+ Exporter un relevé d’affectation avec dates, heures, chantier et conducteur.
+
+7. Modèle de données principal
+Entité
+
+Données principales
+
+Utilisateur
+
+Identité, rôle, coordonnées, statut, permissions,
+authentification.
+
+Client
+
+Raison sociale, contacts, adresses, conditions et documents.
+
+Chantier
+
+Client, adresse/GPS, dates, statut, équipes, documents,
+budget.
+
+Document de cadrage fonctionnel — Version 1.0 — 14 juillet 2026
+
+EDGS MANAGER | CAHIER DES CHARGES
+
+Entité
+
+Données principales
+
+Prestation
+
+Type, unité, quantité prévue/réalisée, prix, coût et
+avancement.
+
+Pointage
+
+Utilisateur, date, arrivée, pauses, départ, GPS, motif,
+validation.
+
+Production
+
+Chantier, prestation, quantité, unité, auteur, date, validation.
+
+Photo
+
+Fichier, catégorie, chantier, date, auteur, commentaire.
+
+Véhicule
+
+Immatriculation, modèle, documents, kilométrage, échéances.
+
+Affectation
+
+Ressource, utilisateur/équipe, chantier, début et fin.
+
+Coût
+
+Catégorie, chantier, montant, période, justificatif.
+
+Facture/Devis
+
+Client, chantier, lignes, montants, statuts et pièces.
+
+Journal
+
+Action, utilisateur, date, ancienne valeur et nouvelle valeur.
+
+8. Exigences techniques et sécurité
+ Application web responsive installable sur smartphone (PWA souhaitée).
+ Hébergement européen recommandé et sauvegardes automatisées.
+ Chiffrement des échanges HTTPS et des données sensibles.
+ Gestion des droits par rôle et principe du moindre privilège.
+ Authentification robuste ; double facteur recommandé pour les administrateurs.
+ Conformité RGPD : information GPS, durée de conservation, droit d’accès et suppression.
+ Journalisation des actions sensibles et export des données.
+ Optimisation des images, chargement rapide et compatibilité Chrome, Safari, Edge et Firefox récents.
+
+9. Site vitrine
+ Accueil avec proposition de valeur et demande de devis.
+ Présentation des services : sablage, bouchardage et ponçage.
+ Réalisations avec photos, surfaces, localisations et prestations.
+ Présentation d’EDGS Manager avec démonstration visuelle.
+ À propos, zones d’intervention, contact et mentions légales.
+ Identité graphique : orange vif, anthracite, gris métallique et blanc, conformément au logo EDGS.
+
+10. Feuille de route recommandée
+Phase
+
+Contenu
+
+Durée indicative
+
+1 — Cadrage
+
+Validation des règles, rôles, écrans,
+données et exports.
+
+1 à 2 semaines
+
+2 — Prototype
+
+Maquette interactive mobile +
+administration + tests utilisateurs.
+
+2 à 3 semaines
+
+3 — MVP
+
+Chantiers, planning, pointage,
+
+6 à 10 semaines
+
+Document de cadrage fonctionnel — Version 1.0 — 14 juillet 2026
+
+EDGS MANAGER | CAHIER DES CHARGES
+
+Phase
+
+Contenu
+
+Durée indicative
+
+production, photos, véhicules, droits.
+4 — Pilotage
+
+Rentabilité, alertes, exports, documents
+et tableaux de bord.
+
+3 à 5 semaines
+
+5 — Déploiement
+
+Tests terrain, formation, reprise des
+données et mise en production.
+
+2 à 3 semaines
+
+11. Critères de recette
+ Un salarié ne peut voir aucune donnée financière.
+ Un pointage complet calcule correctement les heures et les pauses.
+ Une quantité validée met à jour l’avancement du chantier.
+ Les photos sont rattachées au bon chantier et à la bonne date.
+ L’administrateur peut retrouver le conducteur d’un véhicule pour une période donnée.
+ La rentabilité intègre les heures, déplacements et coûts complémentaires.
+ Les exports restituent les données filtrées sans perte.
+ Le site et l’application restent lisibles sur mobile, tablette et ordinateur.
+
+12. Éléments à valider avant développement
+ Coordonnées officielles à publier sur le site.
+ Liste exacte des salariés, rôles et responsables.
+ Règles d’heures, pauses, paniers et déplacements.
+ Coûts horaires chargés et méthode de calcul des marges.
+ Liste des véhicules, matériels et échéances.
+ Logiciel de paie/comptabilité à connecter et formats d’export.
+ Durée de conservation des données GPS et photos.
+ Nom de domaine et adresses e-mail techniques.
+
+EDGS — L’exigence du geste, la maîtrise des surfaces.
+
+Document de cadrage fonctionnel — Version 1.0 — 14 juillet 2026
+
+
