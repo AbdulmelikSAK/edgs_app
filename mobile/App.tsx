@@ -52,7 +52,8 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'login' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera'>('login');
   
   // Configuration
-  const [serverUrl, setServerUrl] = useState('https://edgs-app.onrender.com'); // Production Render backend URL
+  const [rawServerUrl, setRawServerUrl] = useState('https://edgs-app.onrender.com'); // Production Render backend URL
+  const serverUrl = rawServerUrl.trim().replace(/\/+$/, '');
   const [showConfig, setShowConfig] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -958,9 +959,9 @@ export default function App() {
           <Text style={{ color: '#fff', fontWeight: '700', marginBottom: 8 }}>Adresse EDGS API :</Text>
           <TextInput 
             style={styles.configInput}
-            value={serverUrl}
-            onChangeText={setServerUrl}
-            placeholder="http://localhost:3000"
+            value={rawServerUrl}
+            onChangeText={setRawServerUrl}
+            placeholder="https://edgs-app.onrender.com"
             placeholderTextColor="#64748b"
           />
           <TouchableOpacity style={styles.btnConfigClose} onPress={() => setShowConfig(false)}>
