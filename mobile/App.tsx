@@ -397,26 +397,44 @@ export default function App() {
             if (data.truck) {
               setTruck(data.truck);
               
-              // Fetch today's missions for this truck directly
-              const headers = { 'Authorization': `Bearer ${data.access_token}` };
-              const resMissions = await fetch(`${serverUrl}/missions/today?truckId=${data.truck.id}`, { headers });
-              const missionsData = await resMissions.json();
+              let missionsData: any[] = [];
+              try {
+                // Fetch today's missions for this truck directly
+                const headers = { 'Authorization': `Bearer ${data.access_token}` };
+                const resMissions = await fetch(`${serverUrl}/missions/today?truckId=${data.truck.id}`, { headers });
+                if (resMissions.ok) {
+                  missionsData = await resMissions.json();
+                }
+              } catch (errMissions) {
+                console.warn("Failed to fetch today's missions during login:", errMissions);
+              }
 
               // Cache data locally in SQLite
-              db.runSync('DELETE FROM cached_truck');
-              db.runSync(
-                'INSERT INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
-                [data.truck.id, data.truck.plateNumber, data.truck.currentStock, data.truck.stockAlertThreshold, JSON.stringify(data.truck.stocks || [])]
-              );
-              
-              db.runSync('DELETE FROM cached_missions');
-              const formattedMissions = missionsData.map((m: any) => {
+              try {
+                db.runSync('DELETE FROM cached_truck');
+                db.runSync(
+                  'INSERT INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
+                  [data.truck.id, data.truck.plateNumber, data.truck.currentStock, data.truck.stockAlertThreshold, JSON.stringify(data.truck.stocks || [])]
+                );
+                
+                db.runSync('DELETE FROM cached_missions');
+                if (missionsData && missionsData.length > 0) {
+                  missionsData.forEach((m: any) => {
+                    const clientName = m.clientName || m.client?.name || 'N/A';
+                    const worksiteAddress = m.worksiteAddress || m.worksite?.address || 'N/A';
+                    db.runSync(
+                      'INSERT INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      [m.id, m.title, clientName, worksiteAddress, m.status, m.scheduledDate, m.notes || '', m.worksite?.latitude || null, m.worksite?.longitude || null]
+                    );
+                  });
+                }
+              } catch (errCache) {
+                console.warn("Failed to cache login info:", errCache);
+              }
+
+              const formattedMissions = (missionsData || []).map((m: any) => {
                 const clientName = m.clientName || m.client?.name || 'N/A';
                 const worksiteAddress = m.worksiteAddress || m.worksite?.address || 'N/A';
-                db.runSync(
-                  'INSERT INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                  [m.id, m.title, clientName, worksiteAddress, m.status, m.scheduledDate, m.notes || '', m.worksite?.latitude || null, m.worksite?.longitude || null]
-                );
                 return {
                   id: m.id,
                   title: m.title,
@@ -1175,7 +1193,13 @@ export default function App() {
 
                 <TouchableOpacity 
                   style={styles.actionCard}
-                  onPress={() => setCurrentScreen('mission_detail')}
+                  onPress={() => {
+                    if (activeMission) {
+                      setCurrentScreen('mission_detail');
+                    } else {
+                      Alert.alert('Information', "Aucune mission n'est planifiée pour ce véhicule aujourd'hui.");
+                    }
+                  }}
                 >
                   <Icon name="truck" size={32} color="#3b82f6" />
                   <Text style={styles.actionCardTitle}>Mission Assignée</Text>
