@@ -52,7 +52,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'login' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera'>('login');
   
   // Configuration
-  const [serverUrl, setServerUrl] = useState('http://10.0.2.2:3000'); // Standard Android emulator localhost link or online
+  const [serverUrl, setServerUrl] = useState('https://edgs-app.onrender.com'); // Production Render backend URL
   const [showConfig, setShowConfig] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -444,8 +444,15 @@ export default function App() {
               setTrucksList(dataTrucks);
               setCurrentScreen('select_truck');
             }
-          } catch (err) {
-            Alert.alert('Erreur', 'Code PIN incorrect ou serveur indisponible.');
+          } catch (err: any) {
+            if (err.message === 'PIN incorrect') {
+              Alert.alert('Connexion échouée', 'Le code PIN saisi est incorrect.');
+            } else {
+              Alert.alert(
+                'Serveur indisponible',
+                'Le serveur est injoignable. S\'il s\'agit de la première connexion de la journée, le serveur gratuit Render nécessite environ 50 secondes pour démarrer. Veuillez patienter et réessayer.'
+              );
+            }
             setPin('');
           } finally {
             setLoading(false);
