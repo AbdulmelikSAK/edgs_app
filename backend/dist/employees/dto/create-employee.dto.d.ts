@@ -4,4 +4,9 @@ export declare class CreateEmployeeDto {
     pin: string;
     badgeNumber?: string;
     roleId?: string;
+    hourlyRate?: number;
+    phone?: string;
+    email?: string;
+    qualification?: string;
+    documents?: string;
 }

@@ -20,10 +20,8 @@ export class EmployeesService {
     const pinHash = await bcrypt.hash(dto.pin, 10);
     const role = dto.roleId ? await this.roleRepo.findOne({ where: { id: dto.roleId } }) : null;
     const employee = this.employeeRepo.create({
-      firstName: dto.firstName,
-      lastName: dto.lastName,
+      ...dto,
       pin: pinHash,
-      badgeNumber: dto.badgeNumber,
       role: role ?? undefined,
     });
     return this.employeeRepo.save(employee);

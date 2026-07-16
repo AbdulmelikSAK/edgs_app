@@ -18,6 +18,11 @@ class CreateEmployeeDto {
     pin;
     badgeNumber;
     roleId;
+    hourlyRate;
+    phone;
+    email;
+    qualification;
+    documents;
 }
 exports.CreateEmployeeDto = CreateEmployeeDto;
 __decorate([
@@ -48,4 +53,34 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateEmployeeDto.prototype, "roleId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 35.00 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateEmployeeDto.prototype, "hourlyRate", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: '0612345678' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmployeeDto.prototype, "phone", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'jean@example.com' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmployeeDto.prototype, "email", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Chef de chantier' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmployeeDto.prototype, "qualification", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmployeeDto.prototype, "documents", void 0);
 //# sourceMappingURL=create-employee.dto.js.map
