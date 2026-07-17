@@ -26,6 +26,7 @@ export class GpsService {
       speed: dto.speed,
       accuracy: dto.accuracy,
       isSyncedFromOffline: dto.isSyncedFromOffline ?? false,
+      isOutOfZone: dto.isOutOfZone ?? false,
     });
     return this.gpsRepo.save(point);
   }
@@ -45,11 +46,12 @@ export class GpsService {
       .innerJoin('gps.truck', 'truck')
       .select([
         'truck.id AS "truckId"',
-        'truck.plateNumber AS "plateNumber"',
+        'truck.plateNumber AS "truckPlate"',
         'gps.latitude AS latitude',
         'gps.longitude AS longitude',
         'gps.speed AS speed',
-        'gps.createdAt AS "lastSeen"',
+        'gps.isOutOfZone AS "isOutOfZone"',
+        'gps.createdAt AS "timestamp"',
       ])
       .where('truck.isActive = true')
       .distinctOn(['truck.id'])

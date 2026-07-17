@@ -38,4 +38,9 @@ export class CreateGpsPointDto {
   @IsOptional()
   @IsBoolean()
   isSyncedFromOffline?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isOutOfZone?: boolean;
 }

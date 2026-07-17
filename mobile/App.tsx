@@ -650,6 +650,11 @@ export default function App() {
       timestamp: new Date().toISOString()
     };
 
+    // Update SQLite and React State immediately for instantaneous UI updates
+    db.runSync("UPDATE cached_missions SET status = 'in_progress' WHERE id = ?", [activeMission.id]);
+    setMissionsList(prev => prev.map(m => m.id === activeMission.id ? { ...m, status: 'in_progress' } : m));
+    setActiveMission(prev => prev ? { ...prev, status: 'in_progress' } : null);
+
     if (!isOffline) {
       try {
         await fetch(`${serverUrl}/missions/${activeMission.id}/status/in_progress`, {
@@ -668,8 +673,6 @@ export default function App() {
         console.error(e);
       }
     } else {
-      // Local db cache update
-      db.runSync("UPDATE cached_missions SET status = 'in_progress' WHERE id = ?", [activeMission.id]);
       db.runSync(
         "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('start_mission', ?, ?)",
         [JSON.stringify(payload), new Date().toISOString()]
@@ -713,6 +716,18 @@ export default function App() {
       timestamp: new Date().toISOString()
     };
 
+    // Update SQLite and React State immediately for instantaneous UI updates
+    db.runSync("UPDATE cached_missions SET status = 'completed' WHERE id = ?", [activeMission.id]);
+    
+    // We update the state immediately
+    const updatedList = missionsList.map(m => m.id === activeMission.id ? { ...m, status: 'completed' as const } : m);
+    setMissionsList(updatedList);
+    
+    // Find next active mission
+    const nextInProgress = updatedList.find(m => m.status === 'in_progress');
+    const nextPlanned = updatedList.find(m => m.status === 'planned');
+    setActiveMission(nextInProgress || nextPlanned || null);
+
     if (!isOffline) {
       try {
         await fetch(`${serverUrl}/missions/${activeMission.id}/status/completed`, {
@@ -731,7 +746,6 @@ export default function App() {
         console.error(e);
       }
     } else {
-      db.runSync("UPDATE cached_missions SET status = 'completed' WHERE id = ?", [activeMission.id]);
       db.runSync(
         "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('end_mission', ?, ?)",
         [JSON.stringify(payload), new Date().toISOString()]
@@ -740,6 +754,10 @@ export default function App() {
 
     Alert.alert('Chantier', 'Mission clôturée avec signature enregistrée.');
     setShowSignaturePad(false);
+    
+    // Smooth transition back to dashboard
+    setCurrentScreen('dashboard');
+    
     fetchMissionsAndStock();
   };
 
@@ -800,13 +818,13 @@ export default function App() {
   // Location interval loop (Simulation/Background tracking)
   useEffect(() => {
     let interval: any;
-    if (dayStarted && truck && activeMission && activeMission.status === 'in_progress') {
+    if (dayStarted && truck) {
       interval = setInterval(async () => {
         try {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           
           let outOfZone = false;
-          if (activeMission.latitude && activeMission.longitude) {
+          if (activeMission && activeMission.status === 'in_progress' && activeMission.latitude && activeMission.longitude) {
             const dist = getDistance(
               loc.coords.latitude,
               loc.coords.longitude,
@@ -821,7 +839,7 @@ export default function App() {
 
           const gpsPoint = {
             truckId: truck.id,
-            missionId: activeMission.id,
+            missionId: (activeMission && activeMission.status === 'in_progress') ? activeMission.id : null,
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
             speed: loc.coords.speed || 0,
@@ -852,7 +870,9 @@ export default function App() {
     } else {
       setIsOutOfZone(false);
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [dayStarted, truck, activeMission, isOffline, token, serverUrl]);
 
   // Photo Capture

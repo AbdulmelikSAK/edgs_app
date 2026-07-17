@@ -6,6 +6,7 @@ import { Truck } from '../database/entities/truck.entity';
 import { Employee } from '../database/entities/employee.entity';
 import { ProductionEntry } from '../database/entities/production-entry.entity';
 import { Equipment } from '../database/entities/equipment.entity';
+import { GpsPoint } from '../database/entities/gps-point.entity';
 export declare class StatsService {
     private readonly missionRepo;
     private readonly timeRepo;
@@ -14,7 +15,8 @@ export declare class StatsService {
     private readonly employeeRepo;
     private readonly productionRepo;
     private readonly equipmentRepo;
-    constructor(missionRepo: Repository<Mission>, timeRepo: Repository<TimeEntry>, stockRepo: Repository<StockMovement>, truckRepo: Repository<Truck>, employeeRepo: Repository<Employee>, productionRepo: Repository<ProductionEntry>, equipmentRepo: Repository<Equipment>);
+    private readonly gpsRepo;
+    constructor(missionRepo: Repository<Mission>, timeRepo: Repository<TimeEntry>, stockRepo: Repository<StockMovement>, truckRepo: Repository<Truck>, employeeRepo: Repository<Employee>, productionRepo: Repository<ProductionEntry>, equipmentRepo: Repository<Equipment>, gpsRepo: Repository<GpsPoint>);
     getGlobalStats(from?: string, to?: string): Promise<{
         missions: {
             total: number;

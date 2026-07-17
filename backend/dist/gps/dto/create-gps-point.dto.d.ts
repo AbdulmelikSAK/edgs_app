@@ -6,4 +6,5 @@ export declare class CreateGpsPointDto {
     speed?: number;
     accuracy?: number;
     isSyncedFromOffline?: boolean;
+    isOutOfZone?: boolean;
 }

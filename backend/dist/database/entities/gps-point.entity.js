@@ -22,6 +22,7 @@ let GpsPoint = class GpsPoint {
     speed;
     accuracy;
     isSyncedFromOffline;
+    isOutOfZone;
     createdAt;
 };
 exports.GpsPoint = GpsPoint;
@@ -59,6 +60,10 @@ __decorate([
     (0, typeorm_1.Column)({ default: false }),
     __metadata("design:type", Boolean)
 ], GpsPoint.prototype, "isSyncedFromOffline", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], GpsPoint.prototype, "isOutOfZone", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

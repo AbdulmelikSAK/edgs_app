@@ -9,5 +9,6 @@ export declare class GpsPoint {
     speed: number;
     accuracy: number;
     isSyncedFromOffline: boolean;
+    isOutOfZone: boolean;
     createdAt: Date;
 }

@@ -30,6 +30,9 @@ export class GpsPoint {
   @Column({ default: false })
   isSyncedFromOffline: boolean;
 
+  @Column({ default: false })
+  isOutOfZone: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }

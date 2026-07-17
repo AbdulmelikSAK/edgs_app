@@ -21,6 +21,7 @@ class CreateGpsPointDto {
     speed;
     accuracy;
     isSyncedFromOffline;
+    isOutOfZone;
 }
 exports.CreateGpsPointDto = CreateGpsPointDto;
 __decorate([
@@ -66,4 +67,10 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateGpsPointDto.prototype, "isSyncedFromOffline", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateGpsPointDto.prototype, "isOutOfZone", void 0);
 //# sourceMappingURL=create-gps-point.dto.js.map

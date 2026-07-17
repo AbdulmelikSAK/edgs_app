@@ -8,6 +8,7 @@ import { Truck } from '../database/entities/truck.entity';
 import { Employee } from '../database/entities/employee.entity';
 import { ProductionEntry } from '../database/entities/production-entry.entity';
 import { Equipment } from '../database/entities/equipment.entity';
+import { GpsPoint } from '../database/entities/gps-point.entity';
 
 @Injectable()
 export class StatsService {
@@ -19,6 +20,7 @@ export class StatsService {
     @InjectRepository(Employee) private readonly employeeRepo: Repository<Employee>,
     @InjectRepository(ProductionEntry) private readonly productionRepo: Repository<ProductionEntry>,
     @InjectRepository(Equipment) private readonly equipmentRepo: Repository<Equipment>,
+    @InjectRepository(GpsPoint) private readonly gpsRepo: Repository<GpsPoint>,
   ) {}
 
   async getGlobalStats(from?: string, to?: string) {
@@ -235,6 +237,27 @@ export class StatsService {
         });
       }
     });
+
+    // 7.5 Out of zone alerts
+    const activeMissionsForAlerts = await this.missionRepo.find({
+      where: { status: MissionStatus.IN_PROGRESS },
+      relations: { truck: true },
+    });
+    for (const m of activeMissionsForAlerts) {
+      if (m.truck) {
+        const latestPoint = await this.gpsRepo.findOne({
+          where: { truck: { id: m.truck.id }, mission: { id: m.id } },
+          order: { createdAt: 'DESC' },
+        });
+        if (latestPoint && latestPoint.isOutOfZone) {
+          alertes.push({
+            type: 'out_of_zone',
+            message: `Hors zone : Le camion ${m.truck.plateNumber} s'est éloigné de plus de 100m du chantier "${m.title}"`,
+            severity: 'high',
+          });
+        }
+      }
+    }
 
     // 8. Rentabilité chantiers
     const rentabilitéChantiers = await Promise.all(

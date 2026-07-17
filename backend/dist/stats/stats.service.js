@@ -23,6 +23,7 @@ const truck_entity_1 = require("../database/entities/truck.entity");
 const employee_entity_1 = require("../database/entities/employee.entity");
 const production_entry_entity_1 = require("../database/entities/production-entry.entity");
 const equipment_entity_1 = require("../database/entities/equipment.entity");
+const gps_point_entity_1 = require("../database/entities/gps-point.entity");
 let StatsService = class StatsService {
     missionRepo;
     timeRepo;
@@ -31,7 +32,8 @@ let StatsService = class StatsService {
     employeeRepo;
     productionRepo;
     equipmentRepo;
-    constructor(missionRepo, timeRepo, stockRepo, truckRepo, employeeRepo, productionRepo, equipmentRepo) {
+    gpsRepo;
+    constructor(missionRepo, timeRepo, stockRepo, truckRepo, employeeRepo, productionRepo, equipmentRepo, gpsRepo) {
         this.missionRepo = missionRepo;
         this.timeRepo = timeRepo;
         this.stockRepo = stockRepo;
@@ -39,6 +41,7 @@ let StatsService = class StatsService {
         this.employeeRepo = employeeRepo;
         this.productionRepo = productionRepo;
         this.equipmentRepo = equipmentRepo;
+        this.gpsRepo = gpsRepo;
     }
     async getGlobalStats(from, to) {
         const where = {};
@@ -220,6 +223,25 @@ let StatsService = class StatsService {
                 });
             }
         });
+        const activeMissionsForAlerts = await this.missionRepo.find({
+            where: { status: mission_entity_1.MissionStatus.IN_PROGRESS },
+            relations: { truck: true },
+        });
+        for (const m of activeMissionsForAlerts) {
+            if (m.truck) {
+                const latestPoint = await this.gpsRepo.findOne({
+                    where: { truck: { id: m.truck.id }, mission: { id: m.id } },
+                    order: { createdAt: 'DESC' },
+                });
+                if (latestPoint && latestPoint.isOutOfZone) {
+                    alertes.push({
+                        type: 'out_of_zone',
+                        message: `Hors zone : Le camion ${m.truck.plateNumber} s'est éloigné de plus de 100m du chantier "${m.title}"`,
+                        severity: 'high',
+                    });
+                }
+            }
+        }
         const rentabilitéChantiers = await Promise.all(allMissions.map(async (m) => {
             const caPrevisionnel = Number(m.estimatedPrice) || 125000;
             const prod = await this.productionRepo.find({ where: { mission: { id: m.id } } });
@@ -295,7 +317,9 @@ exports.StatsService = StatsService = __decorate([
     __param(4, (0, typeorm_1.InjectRepository)(employee_entity_1.Employee)),
     __param(5, (0, typeorm_1.InjectRepository)(production_entry_entity_1.ProductionEntry)),
     __param(6, (0, typeorm_1.InjectRepository)(equipment_entity_1.Equipment)),
+    __param(7, (0, typeorm_1.InjectRepository)(gps_point_entity_1.GpsPoint)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
