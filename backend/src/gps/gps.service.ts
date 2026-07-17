@@ -58,7 +58,13 @@ export class GpsService {
       .orderBy('truck.id')
       .addOrderBy('gps.createdAt', 'DESC')
       .getRawMany();
-    return result;
+    
+    return result.map(pos => ({
+      ...pos,
+      latitude: Number(pos.latitude),
+      longitude: Number(pos.longitude),
+      speed: Number(pos.speed || 0),
+    }));
   }
 
   getHistory(truckId: string, from?: string, to?: string): Promise<GpsPoint[]> {

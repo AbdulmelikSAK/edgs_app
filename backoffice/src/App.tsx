@@ -383,8 +383,11 @@ function App() {
         fetchWithAuth(API_BASE_URL + '/audit').catch(() => null), // Fail-safe
       ]);
 
-      setMissions(await missionsRes.json());
-      setTrucks(await trucksRes.json());
+      const mData = await missionsRes.json();
+      const trucksData = await trucksRes.json();
+      
+      setMissions(mData);
+      setTrucks(trucksData);
       setClients(await clientsRes.json());
       setWorksites(await worksitesRes.json());
       setStats(await statsRes.json());
@@ -404,7 +407,6 @@ function App() {
       }
 
       // Fetch stock movements for first truck if available
-      const trucksData = trucks.length > 0 ? trucks : await trucksRes.json();
       if (trucksData.length > 0) {
         const movementsRes = await fetchWithAuth(`${API_BASE_URL}/stock/truck/${trucksData[0].id}`);
         if (movementsRes.ok) {
@@ -414,7 +416,6 @@ function App() {
 
       // Populate photos dynamically from missions
       const allPhotos: any[] = [];
-      const mData = missions.length > 0 ? missions : await missionsRes.json();
       await Promise.all(
         mData.map(async (m: Mission) => {
           const photoRes = await fetchWithAuth(`${API_BASE_URL}/photos/mission/${m.id}`);
