@@ -12,8 +12,14 @@ export class Employee {
   @Column()
   lastName: string;
 
-  @Column()
-  pin: string;
+  @Column({ unique: true, nullable: true })
+  username: string;
+
+  @Column({ nullable: true })
+  passwordHash: string;
+
+  @Column({ default: true })
+  mustChangePassword: boolean;
 
   @Column({ unique: true, nullable: true })
   badgeNumber: string;
@@ -23,6 +29,15 @@ export class Employee {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 35.00 })
   hourlyRate: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  monthlySalary: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
+  paidLeaveBalance: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
+  rttBalance: number;
 
   @Column({ nullable: true })
   phone: string;

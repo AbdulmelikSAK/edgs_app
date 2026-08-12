@@ -53,78 +53,55 @@ const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcrypt"));
 const employee_entity_1 = require("../database/entities/employee.entity");
 const user_entity_1 = require("../database/entities/user.entity");
-const truck_entity_1 = require("../database/entities/truck.entity");
 let AuthService = class AuthService {
     employeeRepo;
     userRepo;
-    truckRepo;
     jwtService;
-    constructor(employeeRepo, userRepo, truckRepo, jwtService) {
+    constructor(employeeRepo, userRepo, jwtService) {
         this.employeeRepo = employeeRepo;
         this.userRepo = userRepo;
-        this.truckRepo = truckRepo;
         this.jwtService = jwtService;
     }
-    async loginWithPin(dto) {
-        const matchedTruck = await this.truckRepo.findOne({
-            where: { pinCode: dto.pin, isActive: true },
-            relations: { stocks: { stockItem: true } }
-        });
-        if (matchedTruck) {
-            const defaultEmp = await this.employeeRepo.findOne({ where: { isActive: true } });
-            const payload = {
-                sub: defaultEmp?.id || matchedTruck.id,
-                type: 'employee',
-                role: 'driver',
-            };
-            return {
-                access_token: this.jwtService.sign(payload),
-                employee: {
-                    id: defaultEmp?.id || 'default-employee-id',
-                    firstName: 'Chauffeur',
-                    lastName: matchedTruck.plateNumber,
-                    role: 'driver',
-                },
-                truck: {
-                    id: matchedTruck.id,
-                    plateNumber: matchedTruck.plateNumber,
-                    model: matchedTruck.model,
-                    year: matchedTruck.year,
-                    currentStock: matchedTruck.currentStock,
-                    stockAlertThreshold: matchedTruck.stockAlertThreshold,
-                    stocks: matchedTruck.stocks
-                }
-            };
-        }
-        const employees = await this.employeeRepo.find({
-            where: { isActive: true },
+    async loginEmployee(dto) {
+        const emp = await this.employeeRepo.findOne({
+            where: { username: dto.username, isActive: true },
             relations: { role: true },
         });
-        let matchedEmployee = null;
-        for (const emp of employees) {
-            const isMatch = await bcrypt.compare(dto.pin, emp.pin);
-            if (isMatch) {
-                matchedEmployee = emp;
-                break;
-            }
+        if (!emp) {
+            throw new common_1.UnauthorizedException('Identifiants incorrects');
         }
-        if (!matchedEmployee) {
-            throw new common_1.UnauthorizedException('PIN incorrect');
+        const isMatch = await bcrypt.compare(dto.password, emp.passwordHash);
+        if (!isMatch) {
+            throw new common_1.UnauthorizedException('Identifiants incorrects');
         }
         const payload = {
-            sub: matchedEmployee.id,
+            sub: emp.id,
             type: 'employee',
-            role: matchedEmployee.role?.name,
+            role: emp.role?.name,
         };
         return {
             access_token: this.jwtService.sign(payload),
             employee: {
-                id: matchedEmployee.id,
-                firstName: matchedEmployee.firstName,
-                lastName: matchedEmployee.lastName,
-                role: matchedEmployee.role?.name,
+                id: emp.id,
+                firstName: emp.firstName,
+                lastName: emp.lastName,
+                username: emp.username,
+                role: emp.role?.name,
+                mustChangePassword: emp.mustChangePassword,
+                paidLeaveBalance: emp.paidLeaveBalance,
+                rttBalance: emp.rttBalance,
             },
         };
+    }
+    async changePassword(employeeId, newPassword) {
+        const emp = await this.employeeRepo.findOne({ where: { id: employeeId } });
+        if (!emp) {
+            throw new common_1.NotFoundException('Employé non trouvé');
+        }
+        emp.passwordHash = await bcrypt.hash(newPassword, 10);
+        emp.mustChangePassword = false;
+        await this.employeeRepo.save(emp);
+        return { success: true, message: 'Mot de passe modifié avec succès' };
     }
     async loginUser(dto) {
         const user = await this.userRepo.findOne({
@@ -154,9 +131,7 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(employee_entity_1.Employee)),
     __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __param(2, (0, typeorm_1.InjectRepository)(truck_entity_1.Truck)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
         typeorm_2.Repository,
         jwt_1.JwtService])
 ], AuthService);

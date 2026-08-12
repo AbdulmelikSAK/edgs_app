@@ -66,27 +66,45 @@ export class SeederService implements OnApplicationBootstrap {
     const driverEmp = employeeRepo.create({
       firstName: 'Jean',
       lastName: 'Chauffeur',
-      pin: await bcrypt.hash('1234', 10),
+      username: 'cjean',
+      passwordHash: await bcrypt.hash('123456', 10),
+      mustChangePassword: true,
       badgeNumber: 'BDG001',
       role: driverRole,
+      hourlyRate: 15.00,
+      monthlySalary: 2500.00,
+      paidLeaveBalance: 25.00,
+      rttBalance: 12.00,
     });
     await employeeRepo.save(driverEmp);
 
     const managerEmp = employeeRepo.create({
       firstName: 'Paul',
       lastName: 'Chef',
-      pin: await bcrypt.hash('4321', 10),
+      username: 'cpaul',
+      passwordHash: await bcrypt.hash('123456', 10),
+      mustChangePassword: true,
       badgeNumber: 'BDG002',
       role: managerRole,
+      hourlyRate: 20.00,
+      monthlySalary: 3200.00,
+      paidLeaveBalance: 25.00,
+      rttBalance: 12.00,
     });
     await employeeRepo.save(managerEmp);
 
     const adminEmp = employeeRepo.create({
       firstName: 'Pierre',
       lastName: 'Admin',
-      pin: await bcrypt.hash('0000', 10),
+      username: 'apierre',
+      passwordHash: await bcrypt.hash('123456', 10),
+      mustChangePassword: true,
       badgeNumber: 'BDG003',
       role: adminRole,
+      hourlyRate: 25.00,
+      monthlySalary: 4000.00,
+      paidLeaveBalance: 25.00,
+      rttBalance: 12.00,
     });
     await employeeRepo.save(adminEmp);
 

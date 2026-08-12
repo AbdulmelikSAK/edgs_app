@@ -16,12 +16,48 @@ export class EmployeesService {
     private roleRepo: Repository<Role>,
   ) {}
 
+  private generateUsername(firstName: string, lastName: string): string {
+    const firstLetterLast = lastName.trim().charAt(0);
+    const raw = firstLetterLast + firstName.trim();
+    return raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  async getUniqueUsername(firstName: string, lastName: string): Promise<string> {
+    const base = this.generateUsername(firstName, lastName);
+    let username = base;
+    let counter = 1;
+    while (await this.employeeRepo.findOne({ where: { username } })) {
+      username = `${base}${counter}`;
+      counter++;
+    }
+    return username;
+  }
+
   async create(dto: CreateEmployeeDto): Promise<Employee> {
-    const pinHash = await bcrypt.hash(dto.pin, 10);
+    const username = dto.username || (await this.getUniqueUsername(dto.firstName, dto.lastName));
+    const rawPassword = dto.password || '123456';
+    const passwordHash = await bcrypt.hash(rawPassword, 10);
     const role = dto.roleId ? await this.roleRepo.findOne({ where: { id: dto.roleId } }) : null;
+    
     const employee = this.employeeRepo.create({
-      ...dto,
-      pin: pinHash,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      username,
+      passwordHash,
+      mustChangePassword: true,
+      badgeNumber: dto.badgeNumber,
+      hourlyRate: dto.hourlyRate,
+      monthlySalary: dto.monthlySalary,
+      paidLeaveBalance: dto.paidLeaveBalance,
+      rttBalance: dto.rttBalance,
+      phone: dto.phone,
+      email: dto.email,
+      qualification: dto.qualification,
+      documents: dto.documents,
       role: role ?? undefined,
     });
     return this.employeeRepo.save(employee);
@@ -39,8 +75,16 @@ export class EmployeesService {
 
   async update(id: string, dto: UpdateEmployeeDto): Promise<Employee> {
     const emp = await this.findOne(id);
-    if (dto.pin) (dto as any).pin = await bcrypt.hash(dto.pin, 10);
-    Object.assign(emp, dto);
+    
+    // Hash password if updating
+    if (dto.password) {
+      emp.passwordHash = await bcrypt.hash(dto.password, 10);
+    }
+    
+    // Copy other fields
+    const { password, ...fields } = dto;
+    Object.assign(emp, fields);
+    
     return this.employeeRepo.save(emp);
   }
 

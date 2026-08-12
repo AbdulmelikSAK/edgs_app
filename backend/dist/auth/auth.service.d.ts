@@ -2,41 +2,29 @@ import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { Employee } from '../database/entities/employee.entity';
 import { User } from '../database/entities/user.entity';
-import { Truck } from '../database/entities/truck.entity';
-import { LoginPinDto } from './dto/login-pin.dto';
+import { LoginEmployeeDto } from './dto/login-employee.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 export declare class AuthService {
     private employeeRepo;
     private userRepo;
-    private truckRepo;
     private jwtService;
-    constructor(employeeRepo: Repository<Employee>, userRepo: Repository<User>, truckRepo: Repository<Truck>, jwtService: JwtService);
-    loginWithPin(dto: LoginPinDto): Promise<{
+    constructor(employeeRepo: Repository<Employee>, userRepo: Repository<User>, jwtService: JwtService);
+    loginEmployee(dto: LoginEmployeeDto): Promise<{
         access_token: string;
         employee: {
             id: string;
             firstName: string;
             lastName: string;
-            role: string;
-        };
-        truck: {
-            id: string;
-            plateNumber: string;
-            model: string;
-            year: number;
-            currentStock: number;
-            stockAlertThreshold: number;
-            stocks: import("../database/entities/truck-stock.entity").TruckStock[];
-        };
-    } | {
-        access_token: string;
-        employee: {
-            id: string;
-            firstName: string;
-            lastName: string;
+            username: string;
             role: import("../database/entities/role.entity").RoleName;
+            mustChangePassword: boolean;
+            paidLeaveBalance: number;
+            rttBalance: number;
         };
-        truck?: undefined;
+    }>;
+    changePassword(employeeId: string, newPassword: string): Promise<{
+        success: boolean;
+        message: string;
     }>;
     loginUser(dto: LoginUserDto): Promise<{
         access_token: string;

@@ -26,6 +26,8 @@ class CreateMissionDto {
     truckId;
     clientId;
     worksiteId;
+    employeeIds;
+    chefDeMissionId;
 }
 exports.CreateMissionDto = CreateMissionDto;
 __decorate([
@@ -100,4 +102,17 @@ __decorate([
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateMissionDto.prototype, "worksiteId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ type: [String], example: ['uuid-1', 'uuid-2'] }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsUUID)(undefined, { each: true }),
+    __metadata("design:type", Array)
+], CreateMissionDto.prototype, "employeeIds", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'uuid-leader' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateMissionDto.prototype, "chefDeMissionId", void 0);
 //# sourceMappingURL=create-mission.dto.js.map

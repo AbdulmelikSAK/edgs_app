@@ -7,6 +7,8 @@ export declare class EmployeesService {
     private employeeRepo;
     private roleRepo;
     constructor(employeeRepo: Repository<Employee>, roleRepo: Repository<Role>);
+    private generateUsername;
+    getUniqueUsername(firstName: string, lastName: string): Promise<string>;
     create(dto: CreateEmployeeDto): Promise<Employee>;
     findAll(): Promise<Employee[]>;
     findOne(id: string): Promise<Employee>;

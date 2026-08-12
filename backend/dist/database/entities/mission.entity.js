@@ -14,6 +14,7 @@ const typeorm_1 = require("typeorm");
 const truck_entity_1 = require("./truck.entity");
 const client_entity_1 = require("./client.entity");
 const worksite_entity_1 = require("./worksite.entity");
+const employee_entity_1 = require("./employee.entity");
 var MissionStatus;
 (function (MissionStatus) {
     MissionStatus["PLANNED"] = "planned";
@@ -41,6 +42,8 @@ let Mission = class Mission {
     truck;
     client;
     worksite;
+    employees;
+    chefDeMission;
     createdAt;
     updatedAt;
 };
@@ -124,6 +127,16 @@ __decorate([
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", worksite_entity_1.Worksite)
 ], Mission.prototype, "worksite", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => employee_entity_1.Employee, { nullable: true }),
+    (0, typeorm_1.JoinTable)({ name: 'mission_employees' }),
+    __metadata("design:type", Array)
+], Mission.prototype, "employees", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => employee_entity_1.Employee, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'chef_de_mission_id' }),
+    __metadata("design:type", Object)
+], Mission.prototype, "chefDeMission", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

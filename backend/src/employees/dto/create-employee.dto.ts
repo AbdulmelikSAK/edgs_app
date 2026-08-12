@@ -10,10 +10,30 @@ export class CreateEmployeeDto {
   @IsString()
   lastName: string;
 
-  @ApiProperty({ description: 'Code PIN 4-6 chiffres', example: '1234' })
+  @ApiPropertyOptional({ example: 'jdupont' })
+  @IsOptional()
   @IsString()
-  @Length(4, 6)
-  pin: string;
+  username?: string;
+
+  @ApiPropertyOptional({ example: '123456' })
+  @IsOptional()
+  @IsString()
+  password?: string;
+
+  @ApiPropertyOptional({ example: 3000.00 })
+  @IsOptional()
+  @IsNumber()
+  monthlySalary?: number;
+
+  @ApiPropertyOptional({ example: 25.00 })
+  @IsOptional()
+  @IsNumber()
+  paidLeaveBalance?: number;
+
+  @ApiPropertyOptional({ example: 10.00 })
+  @IsOptional()
+  @IsNumber()
+  rttBalance?: number;
 
   @ApiPropertyOptional({ example: 'EMP001' })
   @IsOptional()

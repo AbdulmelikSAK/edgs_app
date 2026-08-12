@@ -22,6 +22,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ProductionModule } from './production/production.module';
 import { EquipmentModule } from './equipment/equipment.module';
 import { BillingModule } from './billing/billing.module';
+import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { BillingModule } from './billing/billing.module';
     ProductionModule,
     EquipmentModule,
     BillingModule,
+    LeaveRequestsModule,
   ],
   providers: [
     SeederService,

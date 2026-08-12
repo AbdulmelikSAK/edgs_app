@@ -8,7 +8,6 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { Employee } from '../database/entities/employee.entity';
 import { User } from '../database/entities/user.entity';
-import { Truck } from '../database/entities/truck.entity';
 
 @Module({
   imports: [
@@ -21,7 +20,7 @@ import { Truck } from '../database/entities/truck.entity';
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Employee, User, Truck]),
+    TypeOrmModule.forFeature([Employee, User]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

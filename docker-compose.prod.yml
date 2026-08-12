@@ -1,0 +1,71 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: edgs_db_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-edgs}
+      POSTGRES_USER: ${DB_USER:-edgs_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-edgs_user} -d ${DB_NAME:-edgs}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edgs_api_prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-edgs_user}:${DB_PASSWORD}@db:5432/${DB_NAME:-edgs}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      MINIO_ENDPOINT: ${S3_ENDPOINT} # e.g. s3.eu-west-3.amazonaws.com
+      MINIO_PORT: 443
+      MINIO_USE_SSL: 'true'
+      MINIO_ACCESS_KEY: ${S3_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${S3_SECRET_KEY}
+      MINIO_BUCKET: ${S3_BUCKET}
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backoffice:
+    build:
+      context: ./backoffice
+      dockerfile: Dockerfile
+    container_name: edgs_backoffice_prod
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: edgs_caddy
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backoffice
+      - api
+
+volumes:
+  postgres_prod_data:
+  caddy_data:
+  caddy_config:

@@ -15,7 +15,11 @@ const swagger_1 = require("@nestjs/swagger");
 class CreateEmployeeDto {
     firstName;
     lastName;
-    pin;
+    username;
+    password;
+    monthlySalary;
+    paidLeaveBalance;
+    rttBalance;
     badgeNumber;
     roleId;
     hourlyRate;
@@ -36,11 +40,35 @@ __decorate([
     __metadata("design:type", String)
 ], CreateEmployeeDto.prototype, "lastName", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ description: 'Code PIN 4-6 chiffres', example: '1234' }),
+    (0, swagger_1.ApiPropertyOptional)({ example: 'jdupont' }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Length)(4, 6),
     __metadata("design:type", String)
-], CreateEmployeeDto.prototype, "pin", void 0);
+], CreateEmployeeDto.prototype, "username", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: '123456' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmployeeDto.prototype, "password", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 3000.00 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateEmployeeDto.prototype, "monthlySalary", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 25.00 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateEmployeeDto.prototype, "paidLeaveBalance", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 10.00 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateEmployeeDto.prototype, "rttBalance", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ example: 'EMP001' }),
     (0, class_validator_1.IsOptional)(),

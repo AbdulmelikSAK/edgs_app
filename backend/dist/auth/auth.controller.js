@@ -16,15 +16,20 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const auth_service_1 = require("./auth.service");
-const login_pin_dto_1 = require("./dto/login-pin.dto");
+const login_employee_dto_1 = require("./dto/login-employee.dto");
 const login_user_dto_1 = require("./dto/login-user.dto");
+const change_password_dto_1 = require("./dto/change-password.dto");
+const jwt_auth_guard_1 = require("./jwt-auth.guard");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
         this.authService = authService;
     }
-    loginWithPin(dto) {
-        return this.authService.loginWithPin(dto);
+    loginEmployee(dto) {
+        return this.authService.loginEmployee(dto);
+    }
+    changePassword(req, dto) {
+        return this.authService.changePassword(req.user.id, dto.newPassword);
     }
     loginUser(dto) {
         return this.authService.loginUser(dto);
@@ -32,16 +37,28 @@ let AuthController = class AuthController {
 };
 exports.AuthController = AuthController;
 __decorate([
-    (0, common_1.Post)('pin'),
+    (0, common_1.Post)('employee/login'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
-    (0, swagger_1.ApiOperation)({ summary: 'Connexion employe par code PIN' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Connexion reussie' }),
-    (0, swagger_1.ApiResponse)({ status: 401, description: 'PIN incorrect' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Connexion employé par Username/Password' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Connexion réussie' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Identifiants incorrects' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [login_pin_dto_1.LoginPinDto]),
+    __metadata("design:paramtypes", [login_employee_dto_1.LoginEmployeeDto]),
     __metadata("design:returntype", void 0)
-], AuthController.prototype, "loginWithPin", null);
+], AuthController.prototype, "loginEmployee", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Post)('employee/change-password'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Changer le mot de passe de l\'employé connecté' }),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "changePassword", null);
 __decorate([
     (0, common_1.Post)('login'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),

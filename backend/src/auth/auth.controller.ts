@@ -1,21 +1,32 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginPinDto } from './dto/login-pin.dto';
+import { LoginEmployeeDto } from './dto/login-employee.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post('pin')
+  @Post('employee/login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Connexion employe par code PIN' })
-  @ApiResponse({ status: 200, description: 'Connexion reussie' })
-  @ApiResponse({ status: 401, description: 'PIN incorrect' })
-  loginWithPin(@Body() dto: LoginPinDto) {
-    return this.authService.loginWithPin(dto);
+  @ApiOperation({ summary: 'Connexion employé par Username/Password' })
+  @ApiResponse({ status: 200, description: 'Connexion réussie' })
+  @ApiResponse({ status: 401, description: 'Identifiants incorrects' })
+  loginEmployee(@Body() dto: LoginEmployeeDto) {
+    return this.authService.loginEmployee(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('employee/change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Changer le mot de passe de l\'employé connecté' })
+  changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.id, dto.newPassword);
   }
 
   @Post('login')

@@ -158,9 +158,21 @@ const getISOWeekAndYear = (d: Date) => {
   return { year: date.getUTCFullYear(), week: weekNo };
 };
 
+const getDateOfISOWeek = (w: number, y: number) => {
+  const simple = new Date(y, 0, 1 + (w - 1) * 7);
+  const dow = simple.getDay();
+  const ISOweekStart = simple;
+  if (dow <= 4) {
+    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+  }
+  return ISOweekStart;
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'missions' | 'planning' | 'gps' | 'photos' | 'reports' | 'trucks' | 'assignments' | 'stock' | 'equipment' | 'employees' | 'quotes' | 'invoices' | 'audit'
+    'dashboard' | 'missions' | 'planning' | 'gps' | 'photos' | 'reports' | 'trucks' | 'assignments' | 'stock' | 'equipment' | 'employees' | 'quotes' | 'invoices' | 'audit' | 'leaves'
   >('dashboard');
   
   // Auth state
@@ -190,6 +202,14 @@ function App() {
   const [clients, setClients] = useState<Client[]>([]);
   const [worksites, setWorksites] = useState<Worksite[]>([]);
   const [weeklyPlanning, setWeeklyPlanning] = useState<PlanningEntry[]>([]);
+  const [planningYear, setPlanningYear] = useState<number>(getISOWeekAndYear(new Date()).year);
+  const [planningWeek, setPlanningWeek] = useState<number>(getISOWeekAndYear(new Date()).week);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [planningView, setPlanningView] = useState<'week' | 'month'>('week');
+  const [planningFilterMission, setPlanningFilterMission] = useState<string>('');
+  const [planningFilterEmployee, setPlanningFilterEmployee] = useState<string>('');
+  const [planningFilterShowLeaves, setPlanningFilterShowLeaves] = useState<boolean>(true);
   const [reports, setReports] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [livePositions, setLivePositions] = useState<any[]>([]);
@@ -203,6 +223,7 @@ function App() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [photosList, setPhotosList] = useState<any[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
 
   // Dynamic stocks state
   const [stockItems, setStockItems] = useState<any[]>([]);
@@ -292,7 +313,7 @@ function App() {
   const [planningForm, setPlanningForm] = useState({
     missionId: '',
     truckId: '',
-    dayOfWeek: '1',
+    date: new Date().toISOString().split('T')[0],
     notes: '',
   });
 
@@ -345,6 +366,66 @@ function App() {
     setShowLogin(false);
   };
 
+  const getWeeksForMonth = (year: number, month: number) => {
+    const weeks: { year: number; week: number }[] = [];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    let current = new Date(firstDay);
+    const day = current.getDay();
+    const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+    current.setDate(diff);
+
+    while (current <= lastDay || weeks.length < 5) {
+      const info = getISOWeekAndYear(current);
+      if (!weeks.some(w => w.year === info.year && w.week === info.week)) {
+        weeks.push(info);
+      }
+      current.setDate(current.getDate() + 7);
+    }
+    return weeks;
+  };
+
+  const fetchPlanningForWeek = async (y: number, w: number) => {
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/planning/week?year=${y}&week=${w}`);
+      if (res.ok) {
+        setWeeklyPlanning(await res.json());
+      }
+    } catch (err) {
+      console.error('Error fetching weekly planning:', err);
+    }
+  };
+
+  const fetchPlanningForMonth = async (y: number, m: number) => {
+    try {
+      const weeks = getWeeksForMonth(y, m);
+      const results = await Promise.all(
+        weeks.map(w =>
+          fetchWithAuth(`${API_BASE_URL}/planning/week?year=${w.year}&week=${w.week}`)
+            .then(res => (res.ok ? res.json() : []))
+            .catch(() => [])
+        )
+      );
+      const allEntries = results.flat();
+      const uniqueEntries = allEntries.filter((item, index, self) =>
+        self.findIndex(t => t.id === item.id) === index
+      );
+      setWeeklyPlanning(uniqueEntries);
+    } catch (err) {
+      console.error('Error fetching monthly planning:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (planningView === 'week') {
+      fetchPlanningForWeek(planningYear, planningWeek);
+    } else {
+      fetchPlanningForMonth(selectedYear, selectedMonth);
+    }
+  }, [planningView, planningYear, planningWeek, selectedYear, selectedMonth, isAuthenticated]);
+
   // Load all data from API
   const loadAllData = async () => {
     if (!isAuthenticated) return;
@@ -365,7 +446,8 @@ function App() {
         quotesRes,
         invoicesRes,
         assignmentsRes,
-        auditRes
+        auditRes,
+        leavesRes
       ] = await Promise.all([
         fetchWithAuth(API_BASE_URL + '/missions'),
         fetchWithAuth(API_BASE_URL + '/trucks'),
@@ -381,6 +463,7 @@ function App() {
         fetchWithAuth(API_BASE_URL + '/billing/invoices'),
         fetchWithAuth(API_BASE_URL + '/trucks/assignments/all'),
         fetchWithAuth(API_BASE_URL + '/audit').catch(() => null), // Fail-safe
+        fetchWithAuth(API_BASE_URL + '/leave-requests').catch(() => null)
       ]);
 
       const mData = await missionsRes.json();
@@ -398,6 +481,9 @@ function App() {
       setEquipments(await equipmentsRes.json());
       setQuotes(await quotesRes.json());
       setInvoices(await invoicesRes.json());
+      if (leavesRes && leavesRes.ok) {
+        setLeaveRequests(await leavesRes.json());
+      }
       
       if (assignmentsRes.ok) {
         setAssignments(await assignmentsRes.json());
@@ -976,15 +1062,24 @@ function App() {
   const handleAddToPlanning = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const targetDate = new Date(planningForm.date);
+      const { year, week } = getISOWeekAndYear(targetDate);
+      
+      const rawDay = targetDate.getDay();
+      const dayOfWeek = rawDay === 0 ? 7 : rawDay;
+
       const payload = {
         missionId: planningForm.missionId,
         truckId: planningForm.truckId || undefined,
-        dayOfWeek: Number(planningForm.dayOfWeek),
+        year,
+        week,
+        dayOfWeek,
         notes: planningForm.notes,
       };
 
       const res = await fetchWithAuth(API_BASE_URL + '/planning', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -992,10 +1087,14 @@ function App() {
         setPlanningForm({
           missionId: '',
           truckId: '',
-          dayOfWeek: '1',
+          date: new Date().toISOString().split('T')[0],
           notes: '',
         });
-        loadAllData();
+        if (planningView === 'week') {
+          fetchPlanningForWeek(planningYear, planningWeek);
+        } else {
+          fetchPlanningForMonth(selectedYear, selectedMonth);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -1007,7 +1106,11 @@ function App() {
       await fetchWithAuth(`${API_BASE_URL}/planning/${id}`, {
         method: 'DELETE',
       });
-      loadAllData();
+      if (planningView === 'week') {
+        fetchPlanningForWeek(planningYear, planningWeek);
+      } else {
+        fetchPlanningForMonth(selectedYear, selectedMonth);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -1386,6 +1489,12 @@ function App() {
             Fiches Salariés
           </div>
 
+          {/* TAB 15: LEAVE REQUESTS */}
+          <div className={`nav-item ${activeTab === 'leaves' ? 'active' : ''}`} onClick={() => setActiveTab('leaves')}>
+            <Calendar size={18} />
+            Demandes de Congés
+          </div>
+
           {/* TAB 12: DEVIS */}
           <div className={`nav-item ${activeTab === 'quotes' ? 'active' : ''}`} onClick={() => setActiveTab('quotes')}>
             <FileSpreadsheet size={18} />
@@ -1720,108 +1829,485 @@ function App() {
         )}
 
         {/* TAB 3: WEEKLY PLANNING */}
-        {activeTab === 'planning' && (
-          <div>
-            <div style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Planning Hebdomadaire</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Affectez les camions et configurez le planning de la semaine courante.</p>
-            </div>
+        {activeTab === 'planning' && (() => {
+          // Helper: Find driver assigned to a truck on a date
+          const getDriverForTruckOnDate = (truckId: string, date: Date) => {
+            const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const match = assignments.find(a => {
+              if (a.truckId !== truckId) return false;
+              const start = new Date(a.startDate);
+              const normalizedStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+              if (d < normalizedStart) return false;
+              if (a.endDate) {
+                const end = new Date(a.endDate);
+                const normalizedEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+                if (d > normalizedEnd) return false;
+              }
+              return true;
+            });
+            return match ? match.employee : null;
+          };
 
-            <div className="grid-3" style={{ marginBottom: '32px' }}>
-              <div className="glass-card">
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Ajouter au Planning</h3>
-                <form onSubmit={handleAddToPlanning}>
-                  <div className="form-group">
-                    <label className="form-label">Mission / Chantier</label>
-                    <select 
-                      className="form-input" 
-                      value={planningForm.missionId} 
-                      onChange={e => setPlanningForm({ ...planningForm, missionId: e.target.value })}
-                      required
-                    >
-                      <option value="">Sélectionner une mission...</option>
-                      {missions.map(m => (
-                        <option key={m.id} value={m.id}>{m.title}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Véhicule</label>
-                    <select 
-                      className="form-input" 
-                      value={planningForm.truckId} 
-                      onChange={e => setPlanningForm({ ...planningForm, truckId: e.target.value })}
-                    >
-                      <option value="">Sélectionner un véhicule...</option>
-                      {trucks.map(t => (
-                        <option key={t.id} value={t.id}>{t.plateNumber} - {t.model}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Jour de la Semaine</label>
-                    <select 
-                      className="form-input" 
-                      value={planningForm.dayOfWeek} 
-                      onChange={e => setPlanningForm({ ...planningForm, dayOfWeek: e.target.value })}
-                    >
-                      <option value="1">Lundi</option>
-                      <option value="2">Mardi</option>
-                      <option value="3">Mercredi</option>
-                      <option value="4">Jeudi</option>
-                      <option value="5">Vendredi</option>
-                      <option value="6">Samedi</option>
-                      <option value="7">Dimanche</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Notes de planning</label>
-                    <textarea 
-                      className="form-input" 
-                      value={planningForm.notes} 
-                      onChange={e => setPlanningForm({ ...planningForm, notes: e.target.value })}
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                    Enregistrer au planning
+          // Helper: Check if a leave request falls on a date
+          const isLeaveOnDate = (req: any, date: Date) => {
+            const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const start = new Date(req.startDate);
+            const end = new Date(req.endDate);
+            const normalizedStart = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            const normalizedEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+            return d >= normalizedStart && d <= normalizedEnd;
+          };
+
+          // Helper: Get leave requests on a date
+          const getLeavesForDate = (date: Date) => {
+            if (!planningFilterShowLeaves) return [];
+            return leaveRequests.filter(req => {
+              if (req.status !== 'approved') return false;
+              if (planningFilterEmployee && req.employeeId !== planningFilterEmployee) return false;
+              return isLeaveOnDate(req, date);
+            });
+          };
+
+          const getDaysInMonthGrid = (year: number, month: number) => {
+            const dates: Date[] = [];
+            const firstDay = new Date(year, month, 1);
+            let firstDayOfWeek = firstDay.getDay();
+            if (firstDayOfWeek === 0) firstDayOfWeek = 7;
+            
+            const startOffset = 1 - firstDayOfWeek;
+            const startDate = new Date(firstDay);
+            startDate.setDate(firstDay.getDate() + startOffset);
+            
+            const current = new Date(startDate);
+            for (let i = 0; i < 42; i++) {
+              dates.push(new Date(current));
+              current.setDate(current.getDate() + 1);
+            }
+            return dates;
+          };
+
+          return (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                <div>
+                  <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Agenda & Planning</h1>
+                  <p style={{ color: 'var(--text-secondary)' }}>Affectez les véhicules aux chantiers, visualisez le planning et suivez les congés.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    className={`btn ${planningView === 'week' ? 'btn-primary' : ''}`} 
+                    style={{ backgroundColor: planningView === 'week' ? 'var(--primary)' : 'var(--bg-card)', color: '#fff', border: 'none', cursor: 'pointer', padding: '8px 16px', borderRadius: '4px' }}
+                    onClick={() => setPlanningView('week')}
+                  >
+                    Semaine
                   </button>
-                </form>
+                  <button 
+                    className={`btn ${planningView === 'month' ? 'btn-primary' : ''}`}
+                    style={{ backgroundColor: planningView === 'month' ? 'var(--primary)' : 'var(--bg-card)', color: '#fff', border: 'none', cursor: 'pointer', padding: '8px 16px', borderRadius: '4px' }}
+                    onClick={() => setPlanningView('month')}
+                  >
+                    Mois
+                  </button>
+                </div>
               </div>
 
-              <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Emploi du temps de la semaine</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((dayName, idx) => {
-                    const dayIdx = idx + 1;
-                    const dayEntries = weeklyPlanning.filter(e => e.dayOfWeek === dayIdx);
-                    return (
-                      <div key={dayIdx} style={{ padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                        <div style={{ fontWeight: '700', color: 'var(--primary)', marginBottom: '10px' }}>{dayName}</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {dayEntries.map(e => (
-                            <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                              <div>
-                                <span style={{ fontWeight: '600' }}>{e.mission?.title}</span>
-                                {e.truck && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '12px' }}>Camion: {e.truck.plateNumber}</span>}
-                                {e.notes && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Note: {e.notes}</div>}
+              {/* Navigation & Controls */}
+              <div className="glass-card" style={{ marginBottom: '24px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                {planningView === 'week' ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <button 
+                      className="btn" 
+                      style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', padding: '6px 12px', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                      onClick={() => {
+                        if (planningWeek === 1) {
+                          setPlanningWeek(52);
+                          setPlanningYear(planningYear - 1);
+                        } else {
+                          setPlanningWeek(planningWeek - 1);
+                        }
+                      }}
+                    >
+                      Précédent
+                    </button>
+                    <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--primary)' }}>
+                      Semaine {planningWeek} ({planningYear})
+                    </span>
+                    <button 
+                      className="btn" 
+                      style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', padding: '6px 12px', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                      onClick={() => {
+                        if (planningWeek === 52) {
+                          setPlanningWeek(1);
+                          setPlanningYear(planningYear + 1);
+                        } else {
+                          setPlanningWeek(planningWeek + 1);
+                        }
+                      }}
+                    >
+                      Suivant
+                    </button>
+                    <button 
+                      className="btn" 
+                      style={{ backgroundColor: 'rgba(59,130,246,0.1)', color: 'var(--primary)', padding: '6px 12px', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                      onClick={() => {
+                        const nowInfo = getISOWeekAndYear(new Date());
+                        setPlanningWeek(nowInfo.week);
+                        setPlanningYear(nowInfo.year);
+                      }}
+                    >
+                      Aujourd'hui
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <button 
+                      className="btn" 
+                      style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', padding: '6px 12px', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                      onClick={() => {
+                        if (selectedMonth === 0) {
+                          setSelectedMonth(11);
+                          setSelectedYear(selectedYear - 1);
+                        } else {
+                          setSelectedMonth(selectedMonth - 1);
+                        }
+                      }}
+                    >
+                      Précédent
+                    </button>
+                    <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--primary)', textTransform: 'capitalize' }}>
+                      {new Date(selectedYear, selectedMonth).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                    </span>
+                    <button 
+                      className="btn" 
+                      style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', padding: '6px 12px', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                      onClick={() => {
+                        if (selectedMonth === 11) {
+                          setSelectedMonth(0);
+                          setSelectedYear(selectedYear + 1);
+                        } else {
+                          setSelectedMonth(selectedMonth + 1);
+                        }
+                      }}
+                    >
+                      Suivant
+                    </button>
+                    <button 
+                      className="btn" 
+                      style={{ backgroundColor: 'rgba(59,130,246,0.1)', color: 'var(--primary)', padding: '6px 12px', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                      onClick={() => {
+                        setSelectedMonth(new Date().getMonth());
+                        setSelectedYear(new Date().getFullYear());
+                      }}
+                    >
+                      Ce mois
+                    </button>
+                  </div>
+                )}
+
+                {/* Filters */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <select 
+                    className="form-input" 
+                    style={{ width: '180px', marginBottom: 0 }}
+                    value={planningFilterMission} 
+                    onChange={e => setPlanningFilterMission(e.target.value)}
+                  >
+                    <option value="">Tous les chantiers</option>
+                    {missions.map(m => (
+                      <option key={m.id} value={m.id}>{m.title}</option>
+                    ))}
+                  </select>
+
+                  <select 
+                    className="form-input" 
+                    style={{ width: '180px', marginBottom: 0 }}
+                    value={planningFilterEmployee} 
+                    onChange={e => setPlanningFilterEmployee(e.target.value)}
+                  >
+                    <option value="">Tous les salariés</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
+                    ))}
+                  </select>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={planningFilterShowLeaves} 
+                      onChange={e => setPlanningFilterShowLeaves(e.target.checked)} 
+                    />
+                    Afficher les congés
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid-3" style={{ marginBottom: '32px' }}>
+                {/* Form to Add Entry */}
+                <div className="glass-card">
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Planifier une affectation</h3>
+                  <form onSubmit={handleAddToPlanning}>
+                    <div className="form-group">
+                      <label className="form-label">Date</label>
+                      <input 
+                        type="date"
+                        className="form-input"
+                        value={planningForm.date}
+                        onChange={e => setPlanningForm({ ...planningForm, date: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Mission / Chantier</label>
+                      <select 
+                        className="form-input" 
+                        value={planningForm.missionId} 
+                        onChange={e => setPlanningForm({ ...planningForm, missionId: e.target.value })}
+                        required
+                      >
+                        <option value="">Sélectionner une mission...</option>
+                        {missions.map(m => (
+                          <option key={m.id} value={m.id}>{m.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Véhicule</label>
+                      <select 
+                        className="form-input" 
+                        value={planningForm.truckId} 
+                        onChange={e => setPlanningForm({ ...planningForm, truckId: e.target.value })}
+                      >
+                        <option value="">Sélectionner un véhicule...</option>
+                        {trucks.map(t => (
+                          <option key={t.id} value={t.id}>{t.plateNumber} - {t.model}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Notes de planning</label>
+                      <textarea 
+                        className="form-input" 
+                        value={planningForm.notes} 
+                        onChange={e => setPlanningForm({ ...planningForm, notes: e.target.value })}
+                        placeholder="Ex: Apporter les EPI, grue nécessaire..."
+                      />
+                    </div>
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                      Enregistrer au planning
+                    </button>
+                  </form>
+                </div>
+
+                {/* Calendar Grid Display */}
+                <div className="glass-card" style={{ gridColumn: 'span 2' }}>
+                  {planningView === 'week' ? (
+                    <div>
+                      <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Semaine en cours</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((dayName, idx) => {
+                          const dayIdx = idx + 1;
+                          
+                          // Date calculation
+                          const monday = getDateOfISOWeek(planningWeek, planningYear);
+                          const dayDate = new Date(monday);
+                          dayDate.setDate(monday.getDate() + (dayIdx - 1));
+                          const dateStr = dayDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+                          // Filtered entries
+                          const dayEntries = weeklyPlanning.filter(e => {
+                            if (e.dayOfWeek !== dayIdx) return false;
+                            if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
+                            if (planningFilterEmployee) {
+                              const driver = e.truck?.id ? getDriverForTruckOnDate(e.truck.id, dayDate) : null;
+                              if (!driver || driver.id !== planningFilterEmployee) return false;
+                            }
+                            return true;
+                          });
+
+                          const dayLeaves = getLeavesForDate(dayDate);
+
+                          return (
+                            <div key={dayIdx} style={{ padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.01)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                <div style={{ fontWeight: '700', color: 'var(--primary)' }}>{dayName} {dateStr}</div>
+                                <button 
+                                  className="btn"
+                                  style={{ padding: '2px 8px', fontSize: '11px', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                                  onClick={() => {
+                                    const localISO = new Date(dayDate.getTime() - dayDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                                    setPlanningForm({ ...planningForm, date: localISO });
+                                  }}
+                                >
+                                  + Planifier ce jour
+                                </button>
                               </div>
-                              <button className="btn btn-danger" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => handleRemoveFromPlanning(e.id)}>
-                                Retirer
-                              </button>
+                              
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {/* Leaves display */}
+                                {dayLeaves.map(req => {
+                                  const emp = req.employee || employees.find((e: any) => e.id === req.employeeId);
+                                  let typeLabel = req.type === 'conge' ? 'Congé' : req.type === 'rtt' ? 'RTT' : req.type === 'sans_solde' ? 'Sans Solde' : 'Autre';
+                                  return (
+                                    <div key={`leave-${req.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(245,158,11,0.08)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid #f59e0b', borderTop: '1px solid rgba(245,158,11,0.1)', borderRight: '1px solid rgba(245,158,11,0.1)', borderBottom: '1px solid rgba(245,158,11,0.1)' }}>
+                                      <div>
+                                        <span style={{ fontWeight: '600', color: '#f59e0b' }}>🌴 Absent: {emp ? `${emp.firstName} ${emp.lastName}` : 'Salarié'}</span>
+                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '12px' }}>{typeLabel} {req.isHalfDay && '(Demi-journée)'}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Regular planning entries */}
+                                {dayEntries.map(e => {
+                                  const driver = e.truck?.id ? getDriverForTruckOnDate(e.truck.id, dayDate) : null;
+                                  return (
+                                    <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--primary)', borderTop: '1px solid rgba(255,255,255,0.03)', borderRight: '1px solid rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                      <div>
+                                        <span style={{ fontWeight: '600' }}>{e.mission?.title}</span>
+                                        {e.truck && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '12px' }}>Camion: {e.truck.plateNumber}</span>}
+                                        {driver && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '12px' }}>Chauffeur: {driver.firstName} {driver.lastName}</span>}
+                                        {e.notes && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Note: {e.notes}</div>}
+                                      </div>
+                                      <button className="btn btn-danger" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => handleRemoveFromPlanning(e.id)}>
+                                        Retirer
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+
+                                {dayEntries.length === 0 && dayLeaves.length === 0 && (
+                                  <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Aucun chantier programmé ce jour.</div>
+                                )}
+                              </div>
                             </div>
-                          ))}
-                          {dayEntries.length === 0 && (
-                            <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Aucun chantier programmé ce jour.</div>
-                          )}
-                        </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ) : (
+                    /* Month Grid View */
+                    <div>
+                      <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Grille mensuelle</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontWeight: '700', marginBottom: '8px', color: 'var(--primary)', fontSize: '14px' }}>
+                        <div>Lun</div>
+                        <div>Mar</div>
+                        <div>Mer</div>
+                        <div>Jeu</div>
+                        <div>Ven</div>
+                        <div>Sam</div>
+                        <div>Dim</div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                        {getDaysInMonthGrid(selectedYear, selectedMonth).map((cellDate, idx) => {
+                          const isCurrentMonth = cellDate.getMonth() === selectedMonth;
+                          const dateStr = cellDate.getDate();
+                          
+                          // Entries on this date
+                          const cellEntries = weeklyPlanning.filter(e => {
+                            const monday = getDateOfISOWeek(e.week, e.year);
+                            const entryDate = new Date(monday);
+                            entryDate.setDate(monday.getDate() + (e.dayOfWeek - 1));
+                            const matchesDate = entryDate.getFullYear() === cellDate.getFullYear() &&
+                                                entryDate.getMonth() === cellDate.getMonth() &&
+                                                entryDate.getDate() === cellDate.getDate();
+                            if (!matchesDate) return false;
+                            
+                            if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
+                            if (planningFilterEmployee) {
+                              const driver = e.truck?.id ? getDriverForTruckOnDate(e.truck.id, cellDate) : null;
+                              if (!driver || driver.id !== planningFilterEmployee) return false;
+                            }
+                            return true;
+                          });
+
+                          const cellLeaves = getLeavesForDate(cellDate);
+                          const hasToday = cellDate.toDateString() === new Date().toDateString();
+
+                          return (
+                            <div 
+                              key={idx} 
+                              style={{ 
+                                minHeight: '90px', 
+                                backgroundColor: isCurrentMonth ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.005)', 
+                                border: hasToday ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
+                                borderRadius: '4px', 
+                                padding: '4px', 
+                                opacity: isCurrentMonth ? 1 : 0.4,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: hasToday ? 'var(--primary)' : 'var(--text-secondary)' }}>
+                                  {dateStr}
+                                </span>
+                                <span 
+                                  style={{ fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                  onClick={() => {
+                                    const localISO = new Date(cellDate.getTime() - cellDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                                    setPlanningForm({ ...planningForm, date: localISO });
+                                  }}
+                                >
+                                  +
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px', flex: 1, overflowY: 'auto' }}>
+                                {cellLeaves.map(req => {
+                                  const emp = req.employee || employees.find((e: any) => e.id === req.employeeId);
+                                  return (
+                                    <div 
+                                      key={req.id} 
+                                      title={`🌴 Absent: ${emp ? emp.firstName + ' ' + emp.lastName : 'Salarié'}`}
+                                      style={{ 
+                                        backgroundColor: '#f59e0b', 
+                                        color: '#000', 
+                                        fontSize: '9px', 
+                                        fontWeight: '600', 
+                                        padding: '1px 3px', 
+                                        borderRadius: '2px',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                      }}
+                                    >
+                                      🌴 {emp ? emp.lastName : 'Absence'}
+                                    </div>
+                                  );
+                                })}
+
+                                {cellEntries.map(e => (
+                                  <div 
+                                    key={e.id} 
+                                    title={`${e.mission?.title} ${e.truck ? '(' + e.truck.plateNumber + ')' : ''}`}
+                                    style={{ 
+                                      backgroundColor: 'var(--primary)', 
+                                      color: '#fff', 
+                                      fontSize: '9px', 
+                                      fontWeight: '600', 
+                                      padding: '1px 3px', 
+                                      borderRadius: '2px',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis'
+                                    }}
+                                  >
+                                    🚛 {e.mission?.title.substring(0, 10)}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* TAB 4: GPS CARTOGRAPHY */}
         {activeTab === 'gps' && (
@@ -2682,6 +3168,124 @@ function App() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 15: LEAVE REQUESTS */}
+        {activeTab === 'leaves' && (
+          <div>
+            <div style={{ marginBottom: '32px' }}>
+              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Demandes de Congés & RTT</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Validez ou refusez les demandes d'absences soumises par les employés.</p>
+            </div>
+
+            <div className="glass-card">
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Demandes en attente de décision</h3>
+              
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Employé</th>
+                      <th>Type</th>
+                      <th>Dates</th>
+                      <th>Durée calculée</th>
+                      <th>Raison / Motif</th>
+                      <th>Soldes actuels</th>
+                      <th>Statut</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaveRequests.map(req => {
+                      const emp = req.employee || employees.find((e: any) => e.id === req.employeeId);
+                      const formattedStart = req.startDate ? req.startDate.split('T')[0] : '';
+                      const formattedEnd = req.endDate ? req.endDate.split('T')[0] : '';
+                      const dateDisplay = formattedStart === formattedEnd ? formattedStart : `Du ${formattedStart} au ${formattedEnd}`;
+                      
+                      let typeText = req.type;
+                      if (req.type === 'conge') typeText = 'Congé Payé';
+                      else if (req.type === 'rtt') typeText = 'RTT';
+                      else if (req.type === 'sans_solde') typeText = 'Sans Solde';
+                      else if (req.type === 'autre') typeText = 'Autre';
+
+                      const handleAction = async (status: 'approved' | 'rejected') => {
+                        try {
+                          const res = await fetchWithAuth(`${API_BASE_URL}/leave-requests/${req.id}/status`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status })
+                          });
+                          if (!res.ok) {
+                            const errData = await res.json();
+                            alert(errData.message || 'Erreur lors de la mise à jour du statut.');
+                            return;
+                          }
+                          alert(`Demande ${status === 'approved' ? 'approuvée' : 'rejetée'} avec succès.`);
+                          loadAllData();
+                        } catch (err) {
+                          alert('Impossible de mettre à jour la demande.');
+                        }
+                      };
+
+                      return (
+                        <tr key={req.id}>
+                          <td>
+                            <div style={{ fontWeight: '600' }}>{emp ? `${emp.firstName} ${emp.lastName}` : 'Inconnu'}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>@{emp?.username}</div>
+                          </td>
+                          <td>{typeText}</td>
+                          <td>
+                            <div>{dateDisplay}</div>
+                            {req.isHalfDay && <span style={{ fontSize: '11px', color: 'var(--primary)' }}>Demi-journée</span>}
+                          </td>
+                          <td style={{ fontWeight: '700' }}>{req.duration} jour(s)</td>
+                          <td style={{ fontStyle: 'italic', fontSize: '13px' }}>{req.reason || '-'}</td>
+                          <td>
+                            <div style={{ fontSize: '12px' }}>Congés: <strong style={{ color: 'var(--primary)' }}>{emp?.paidLeaveBalance ?? 0}j</strong></div>
+                            <div style={{ fontSize: '12px' }}>RTT: <strong style={{ color: 'var(--success)' }}>{emp?.rttBalance ?? 0}j</strong></div>
+                          </td>
+                          <td>
+                            <span className={`badge badge-${req.status === 'approved' ? 'success' : req.status === 'rejected' ? 'danger' : 'warning'}`}>
+                              {req.status === 'approved' ? 'Approuvé' : req.status === 'rejected' ? 'Refusé' : 'En attente'}
+                            </span>
+                          </td>
+                          <td>
+                            {req.status === 'pending' ? (
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn btn-success" 
+                                  style={{ padding: '6px 12px', fontSize: '13px' }}
+                                  onClick={() => handleAction('approved')}
+                                >
+                                  Accepter
+                                </button>
+                                <button 
+                                  className="btn btn-danger" 
+                                  style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626' }}
+                                  onClick={() => handleAction('rejected')}
+                                >
+                                  Refuser
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Traité</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {leaveRequests.length === 0 && (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+                          Aucune demande de congé enregistrée.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

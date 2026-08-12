@@ -1,6 +1,7 @@
 import { Truck } from './truck.entity';
 import { Client } from './client.entity';
 import { Worksite } from './worksite.entity';
+import { Employee } from './employee.entity';
 export declare enum MissionStatus {
     PLANNED = "planned",
     IN_PROGRESS = "in_progress",
@@ -27,6 +28,8 @@ export declare class Mission {
     truck: Truck;
     client: Client;
     worksite: Worksite;
+    employees: Employee[];
+    chefDeMission: Employee | null;
     createdAt: Date;
     updatedAt: Date;
 }

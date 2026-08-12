@@ -3,10 +3,15 @@ export declare class Employee {
     id: string;
     firstName: string;
     lastName: string;
-    pin: string;
+    username: string;
+    passwordHash: string;
+    mustChangePassword: boolean;
     badgeNumber: string;
     isActive: boolean;
     hourlyRate: number;
+    monthlySalary: number;
+    paidLeaveBalance: number;
+    rttBalance: number;
     phone: string;
     email: string;
     qualification: string;

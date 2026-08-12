@@ -11,4 +11,6 @@ export declare class CreateMissionDto {
     truckId?: string;
     clientId?: string;
     worksiteId?: string;
+    employeeIds?: string[];
+    chefDeMissionId?: string;
 }

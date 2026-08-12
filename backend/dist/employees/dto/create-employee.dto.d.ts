@@ -1,7 +1,11 @@
 export declare class CreateEmployeeDto {
     firstName: string;
     lastName: string;
-    pin: string;
+    username?: string;
+    password?: string;
+    monthlySalary?: number;
+    paidLeaveBalance?: number;
+    rttBalance?: number;
     badgeNumber?: string;
     roleId?: string;
     hourlyRate?: number;

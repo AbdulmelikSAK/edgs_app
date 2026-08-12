@@ -31,6 +31,7 @@ const core_1 = require("@nestjs/core");
 const production_module_1 = require("./production/production.module");
 const equipment_module_1 = require("./equipment/equipment.module");
 const billing_module_1 = require("./billing/billing.module");
+const leave_requests_module_1 = require("./leave-requests/leave-requests.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -69,6 +70,7 @@ exports.AppModule = AppModule = __decorate([
             production_module_1.ProductionModule,
             equipment_module_1.EquipmentModule,
             billing_module_1.BillingModule,
+            leave_requests_module_1.LeaveRequestsModule,
         ],
         providers: [
             seeder_service_1.SeederService,

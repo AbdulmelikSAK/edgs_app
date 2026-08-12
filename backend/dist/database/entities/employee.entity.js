@@ -16,10 +16,15 @@ let Employee = class Employee {
     id;
     firstName;
     lastName;
-    pin;
+    username;
+    passwordHash;
+    mustChangePassword;
     badgeNumber;
     isActive;
     hourlyRate;
+    monthlySalary;
+    paidLeaveBalance;
+    rttBalance;
     phone;
     email;
     qualification;
@@ -42,9 +47,17 @@ __decorate([
     __metadata("design:type", String)
 ], Employee.prototype, "lastName", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ unique: true, nullable: true }),
     __metadata("design:type", String)
-], Employee.prototype, "pin", void 0);
+], Employee.prototype, "username", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "passwordHash", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: true }),
+    __metadata("design:type", Boolean)
+], Employee.prototype, "mustChangePassword", void 0);
 __decorate([
     (0, typeorm_1.Column)({ unique: true, nullable: true }),
     __metadata("design:type", String)
@@ -57,6 +70,18 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 35.00 }),
     __metadata("design:type", Number)
 ], Employee.prototype, "hourlyRate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Employee.prototype, "monthlySalary", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
+    __metadata("design:type", Number)
+], Employee.prototype, "paidLeaveBalance", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
+    __metadata("design:type", Number)
+], Employee.prototype, "rttBalance", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
