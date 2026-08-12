@@ -12,14 +12,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WeeklyPlanning = void 0;
 const typeorm_1 = require("typeorm");
 const mission_entity_1 = require("./mission.entity");
-const truck_entity_1 = require("./truck.entity");
+const employee_entity_1 = require("./employee.entity");
 let WeeklyPlanning = class WeeklyPlanning {
     id;
     year;
     week;
     dayOfWeek;
     mission;
-    truck;
+    employees;
     notes;
     createdAt;
     updatedAt;
@@ -47,10 +47,10 @@ __decorate([
     __metadata("design:type", mission_entity_1.Mission)
 ], WeeklyPlanning.prototype, "mission", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => truck_entity_1.Truck, { nullable: true }),
-    (0, typeorm_1.JoinColumn)(),
-    __metadata("design:type", truck_entity_1.Truck)
-], WeeklyPlanning.prototype, "truck", void 0);
+    (0, typeorm_1.ManyToMany)(() => employee_entity_1.Employee),
+    (0, typeorm_1.JoinTable)({ name: 'planning_employees' }),
+    __metadata("design:type", Array)
+], WeeklyPlanning.prototype, "employees", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
     __metadata("design:type", String)

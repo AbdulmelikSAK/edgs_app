@@ -13,13 +13,13 @@ const planning_controller_1 = require("./planning.controller");
 const planning_service_1 = require("./planning.service");
 const weekly_planning_entity_1 = require("../database/entities/weekly-planning.entity");
 const mission_entity_1 = require("../database/entities/mission.entity");
-const truck_entity_1 = require("../database/entities/truck.entity");
+const employee_entity_1 = require("../database/entities/employee.entity");
 let PlanningModule = class PlanningModule {
 };
 exports.PlanningModule = PlanningModule;
 exports.PlanningModule = PlanningModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([weekly_planning_entity_1.WeeklyPlanning, mission_entity_1.Mission, truck_entity_1.Truck])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([weekly_planning_entity_1.WeeklyPlanning, mission_entity_1.Mission, employee_entity_1.Employee])],
         controllers: [planning_controller_1.PlanningController],
         providers: [planning_service_1.PlanningService],
     })

@@ -1,12 +1,12 @@
 import { Mission } from './mission.entity';
-import { Truck } from './truck.entity';
+import { Employee } from './employee.entity';
 export declare class WeeklyPlanning {
     id: string;
     year: number;
     week: number;
     dayOfWeek: number;
     mission: Mission;
-    truck: Truck;
+    employees: Employee[];
     notes: string;
     createdAt: Date;
     updatedAt: Date;

@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsUUID, Min, Max } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Min, Max, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -26,10 +26,11 @@ export class CreatePlanningDto {
   @IsUUID()
   missionId: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [String], example: ['uuid-1', 'uuid-2'] })
   @IsOptional()
-  @IsUUID()
-  truckId?: string;
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  employeeIds?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()

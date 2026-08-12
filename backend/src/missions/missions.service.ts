@@ -110,14 +110,23 @@ export class MissionsService {
     await this.missionRepo.delete(id);
   }
 
-  findTodayMissions(truckId: string): Promise<Mission[]> {
+  findTodayMissions(employeeId: string): Promise<Mission[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     return this.missionRepo.find({
-      where: { truck: { id: truckId }, scheduledDate: Between(today, tomorrow) },
-      relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+      where: [
+        {
+          employees: { id: employeeId },
+          scheduledDate: Between(today, tomorrow),
+        },
+        {
+          chefDeMission: { id: employeeId },
+          scheduledDate: Between(today, tomorrow),
+        }
+      ],
+      relations: { client: true, worksite: true, employees: true, chefDeMission: true },
     });
   }
 }

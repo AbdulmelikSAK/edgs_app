@@ -77,6 +77,10 @@ interface Employee {
   qualification?: string;
   pin?: string;
   isActive?: boolean;
+  username?: string;
+  monthlySalary?: number;
+  paidLeaveBalance?: number;
+  rttBalance?: number;
 }
 
 interface Equipment {
@@ -147,6 +151,7 @@ interface PlanningEntry {
   mission: Mission;
   truck?: Truck;
   notes?: string;
+  employees?: Employee[];
 }
 
 const getISOWeekAndYear = (d: Date) => {
@@ -270,11 +275,15 @@ function App() {
     firstName: '',
     lastName: '',
     badgeNumber: '',
-    pin: '',
-    hourlyRate: '45',
+    username: '',
+    password: '',
+    hourlyRate: '35',
+    monthlySalary: '',
+    paidLeaveBalance: '0',
+    rttBalance: '0',
     phone: '',
     email: '',
-    qualification: 'Ouvrier Qualifié',
+    qualification: 'Chauffeur Poids Lourd',
   });
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
 
@@ -312,7 +321,7 @@ function App() {
 
   const [planningForm, setPlanningForm] = useState({
     missionId: '',
-    truckId: '',
+    employeeIds: [] as string[],
     date: new Date().toISOString().split('T')[0],
     notes: '',
   });
@@ -754,16 +763,23 @@ function App() {
   const handleCreateOrUpdateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = {
+      const payload: any = {
         firstName: newEmployee.firstName,
         lastName: newEmployee.lastName,
         badgeNumber: newEmployee.badgeNumber,
-        pin: newEmployee.pin,
-        hourlyRate: Number(newEmployee.hourlyRate) || 45,
+        username: newEmployee.username || undefined,
+        hourlyRate: Number(newEmployee.hourlyRate) || 35,
+        monthlySalary: newEmployee.monthlySalary ? Number(newEmployee.monthlySalary) : undefined,
+        paidLeaveBalance: Number(newEmployee.paidLeaveBalance) || 0,
+        rttBalance: Number(newEmployee.rttBalance) || 0,
         phone: newEmployee.phone,
         email: newEmployee.email,
         qualification: newEmployee.qualification,
       };
+
+      if (newEmployee.password) {
+        payload.password = newEmployee.password;
+      }
 
       const url = editingEmployeeId 
         ? `${API_BASE_URL}/employees/${editingEmployeeId}` 
@@ -780,11 +796,15 @@ function App() {
           firstName: '',
           lastName: '',
           badgeNumber: '',
-          pin: '',
-          hourlyRate: '45',
+          username: '',
+          password: '',
+          hourlyRate: '35',
+          monthlySalary: '',
+          paidLeaveBalance: '0',
+          rttBalance: '0',
           phone: '',
           email: '',
-          qualification: 'Ouvrier Qualifié',
+          qualification: 'Chauffeur Poids Lourd',
         });
         setEditingEmployeeId(null);
         loadAllData();
@@ -1070,7 +1090,7 @@ function App() {
 
       const payload = {
         missionId: planningForm.missionId,
-        truckId: planningForm.truckId || undefined,
+        employeeIds: planningForm.employeeIds,
         year,
         week,
         dayOfWeek,
@@ -1086,7 +1106,7 @@ function App() {
       if (res.ok) {
         setPlanningForm({
           missionId: '',
-          truckId: '',
+          employeeIds: [],
           date: new Date().toISOString().split('T')[0],
           notes: '',
         });
@@ -1465,11 +1485,7 @@ function App() {
             Parc Véhicules
           </div>
 
-          {/* TAB 8: DRIVER ASSIGNMENTS */}
-          <div className={`nav-item ${activeTab === 'assignments' ? 'active' : ''}`} onClick={() => setActiveTab('assignments')}>
-            <UserCheck size={18} />
-            Affectation Conducteurs
-          </div>
+          {/* TAB 8 REMOVED */}
 
           {/* TAB 9: STOCKS */}
           <div className={`nav-item ${activeTab === 'stock' ? 'active' : ''}`} onClick={() => setActiveTab('stock')}>
@@ -2071,17 +2087,27 @@ function App() {
                       </select>
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Véhicule</label>
-                      <select 
-                        className="form-input" 
-                        value={planningForm.truckId} 
-                        onChange={e => setPlanningForm({ ...planningForm, truckId: e.target.value })}
-                      >
-                        <option value="">Sélectionner un véhicule...</option>
-                        {trucks.map(t => (
-                          <option key={t.id} value={t.id}>{t.plateNumber} - {t.model}</option>
-                        ))}
-                      </select>
+                      <label className="form-label">Salariés assignés</label>
+                      <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '8px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+                        {employees.map(emp => {
+                          const isChecked = planningForm.employeeIds?.includes(emp.id);
+                          return (
+                            <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked}
+                                onChange={() => {
+                                  const updatedIds = isChecked 
+                                    ? planningForm.employeeIds.filter(id => id !== emp.id)
+                                    : [...(planningForm.employeeIds || []), emp.id];
+                                  setPlanningForm({ ...planningForm, employeeIds: updatedIds });
+                                }}
+                              />
+                              {emp.firstName} {emp.lastName}
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div className="form-group">
                       <label className="form-label">Notes de planning</label>
@@ -2103,7 +2129,16 @@ function App() {
                   {planningView === 'week' ? (
                     <div>
                       <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Semaine en cours</h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontWeight: '700', marginBottom: '8px', color: 'var(--primary)', fontSize: '14px' }}>
+                        <div>Lun</div>
+                        <div>Mar</div>
+                        <div>Mer</div>
+                        <div>Jeu</div>
+                        <div>Ven</div>
+                        <div>Sam</div>
+                        <div>Dim</div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
                         {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((dayName, idx) => {
                           const dayIdx = idx + 1;
                           
@@ -2118,65 +2153,98 @@ function App() {
                             if (e.dayOfWeek !== dayIdx) return false;
                             if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
                             if (planningFilterEmployee) {
-                              const driver = e.truck?.id ? getDriverForTruckOnDate(e.truck.id, dayDate) : null;
-                              if (!driver || driver.id !== planningFilterEmployee) return false;
+                              if (!e.employees?.some(emp => emp.id === planningFilterEmployee)) return false;
                             }
                             return true;
                           });
 
                           const dayLeaves = getLeavesForDate(dayDate);
+                          const hasToday = dayDate.toDateString() === new Date().toDateString();
 
                           return (
-                            <div key={dayIdx} style={{ padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.01)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                <div style={{ fontWeight: '700', color: 'var(--primary)' }}>{dayName} {dateStr}</div>
-                                <button 
-                                  className="btn"
-                                  style={{ padding: '2px 8px', fontSize: '11px', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}
+                            <div 
+                              key={dayIdx} 
+                              style={{ 
+                                minHeight: '150px', 
+                                backgroundColor: 'rgba(255,255,255,0.02)', 
+                                border: hasToday ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
+                                borderRadius: '4px', 
+                                padding: '8px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: hasToday ? 'var(--primary)' : 'var(--text-secondary)' }}>
+                                  {dateStr}
+                                </span>
+                                <span 
+                                  style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold' }}
                                   onClick={() => {
                                     const localISO = new Date(dayDate.getTime() - dayDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                                    setPlanningForm({ ...planningForm, date: localISO });
+                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO });
                                   }}
                                 >
-                                  + Planifier ce jour
-                                </button>
+                                  +
+                                </span>
                               </div>
-                              
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
                                 {/* Leaves display */}
                                 {dayLeaves.map(req => {
                                   const emp = req.employee || employees.find((e: any) => e.id === req.employeeId);
-                                  let typeLabel = req.type === 'conge' ? 'Congé' : req.type === 'rtt' ? 'RTT' : req.type === 'sans_solde' ? 'Sans Solde' : 'Autre';
                                   return (
-                                    <div key={`leave-${req.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(245,158,11,0.08)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid #f59e0b', borderTop: '1px solid rgba(245,158,11,0.1)', borderRight: '1px solid rgba(245,158,11,0.1)', borderBottom: '1px solid rgba(245,158,11,0.1)' }}>
-                                      <div>
-                                        <span style={{ fontWeight: '600', color: '#f59e0b' }}>🌴 Absent: {emp ? `${emp.firstName} ${emp.lastName}` : 'Salarié'}</span>
-                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '12px' }}>{typeLabel} {req.isHalfDay && '(Demi-journée)'}</span>
-                                      </div>
+                                    <div 
+                                      key={`leave-${req.id}`} 
+                                      style={{ 
+                                        backgroundColor: 'rgba(245,158,11,0.08)', 
+                                        borderLeft: '2px solid #f59e0b', 
+                                        padding: '2px 4px', 
+                                        borderRadius: '2px', 
+                                        fontSize: '10px', 
+                                        color: '#f59e0b'
+                                      }}
+                                    >
+                                      🌴 {emp ? `${emp.firstName} ${emp.lastName.charAt(0)}.` : 'Salarié'} (Absent)
                                     </div>
                                   );
                                 })}
 
                                 {/* Regular planning entries */}
-                                {dayEntries.map(e => {
-                                  const driver = e.truck?.id ? getDriverForTruckOnDate(e.truck.id, dayDate) : null;
-                                  return (
-                                    <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', borderLeft: '4px solid var(--primary)', borderTop: '1px solid rgba(255,255,255,0.03)', borderRight: '1px solid rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                      <div>
-                                        <span style={{ fontWeight: '600' }}>{e.mission?.title}</span>
-                                        {e.truck && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '12px' }}>Camion: {e.truck.plateNumber}</span>}
-                                        {driver && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '12px' }}>Chauffeur: {driver.firstName} {driver.lastName}</span>}
-                                        {e.notes && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Note: {e.notes}</div>}
-                                      </div>
-                                      <button className="btn btn-danger" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => handleRemoveFromPlanning(e.id)}>
-                                        Retirer
-                                      </button>
+                                {dayEntries.map(e => (
+                                  <div 
+                                    key={e.id} 
+                                    style={{ 
+                                      backgroundColor: 'rgba(59,130,246,0.1)', 
+                                      borderLeft: '2px solid var(--primary)', 
+                                      padding: '2px 4px', 
+                                      borderRadius: '2px', 
+                                      fontSize: '10px', 
+                                      color: '#fff',
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center'
+                                    }}
+                                  >
+                                    <div style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                      <strong>{e.mission?.title}</strong> 
+                                      {e.employees && e.employees.length > 0 && ` (${e.employees.map(emp => emp.lastName).join(', ')})`}
                                     </div>
-                                  );
-                                })}
+                                    <span 
+                                      style={{ cursor: 'pointer', color: 'var(--danger)', marginLeft: '4px', fontWeight: 'bold' }} 
+                                      onClick={(evt) => {
+                                        evt.stopPropagation();
+                                        handleRemoveFromPlanning(e.id);
+                                      }}
+                                    >
+                                      ×
+                                    </span>
+                                  </div>
+                                ))}
 
                                 {dayEntries.length === 0 && dayLeaves.length === 0 && (
-                                  <div style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Aucun chantier programmé ce jour.</div>
+                                  <div style={{ color: 'var(--text-muted)', fontSize: '10px', textAlign: 'center', marginTop: '10px' }}>Vide</div>
                                 )}
                               </div>
                             </div>
@@ -2214,8 +2282,7 @@ function App() {
                             
                             if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
                             if (planningFilterEmployee) {
-                              const driver = e.truck?.id ? getDriverForTruckOnDate(e.truck.id, cellDate) : null;
-                              if (!driver || driver.id !== planningFilterEmployee) return false;
+                              if (!e.employees?.some(emp => emp.id === planningFilterEmployee)) return false;
                             }
                             return true;
                           });
@@ -2246,7 +2313,7 @@ function App() {
                                   style={{ fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer' }}
                                   onClick={() => {
                                     const localISO = new Date(cellDate.getTime() - cellDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                                    setPlanningForm({ ...planningForm, date: localISO });
+                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO });
                                   }}
                                 >
                                   +
@@ -2496,17 +2563,7 @@ function App() {
                       required
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Code PIN (Camion = 1 code unique)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="e.g. 1234" 
-                      value={newTruck.pinCode}
-                      onChange={e => setNewTruck({ ...newTruck, pinCode: e.target.value })}
-                      required
-                    />
-                  </div>
+                  {/* Code PIN non requis */}
                   <div className="form-group">
                     <label className="form-label">Kilométrage (km)</label>
                     <input 
@@ -2613,110 +2670,7 @@ function App() {
           </div>
         )}
 
-        {/* TAB 8: DRIVER ASSIGNMENTS (PV LOOKUP) */}
-        {activeTab === 'assignments' && (
-          <div>
-            <div style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Affectation des Conducteurs</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Historique des conducteurs et module d'identification du chauffeur lors de la réception d'un procès-verbal (PV).</p>
-            </div>
-
-            <div className="grid-3" style={{ marginBottom: '32px' }}>
-              <div className="glass-card">
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Identification pour PV</h3>
-                <form onSubmit={handlePvLookup}>
-                  <div className="form-group">
-                    <label className="form-label">Véhicule concerné</label>
-                    <select 
-                      className="form-input" 
-                      value={pvLookup.truckId} 
-                      onChange={e => setPvLookup({ ...pvLookup, truckId: e.target.value })}
-                      required
-                    >
-                      <option value="">Sélectionner un véhicule...</option>
-                      {trucks.map(t => (
-                        <option key={t.id} value={t.id}>{t.plateNumber} - {t.model}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Date du PV</label>
-                    <input 
-                      type="date" 
-                      className="form-input" 
-                      value={pvLookup.date} 
-                      onChange={e => setPvLookup({ ...pvLookup, date: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Heure du PV</label>
-                    <input 
-                      type="time" 
-                      className="form-input" 
-                      value={pvLookup.time} 
-                      onChange={e => setPvLookup({ ...pvLookup, time: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                    Rechercher le Conducteur
-                  </button>
-                </form>
-
-                {pvResult && (
-                  <div style={{ marginTop: '24px', padding: '16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
-                    <h4 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)', marginBottom: '8px' }}>Résultat de la recherche</h4>
-                    {pvResult.error ? (
-                      <div style={{ color: 'var(--danger)', fontSize: '13px' }}>{pvResult.error}</div>
-                    ) : (
-                      <div style={{ fontSize: '13px' }}>
-                        <div><b>Conducteur :</b> {pvResult.employee?.firstName} {pvResult.employee?.lastName}</div>
-                        <div><b>Badge :</b> {pvResult.employee?.badgeNumber}</div>
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                          Période d'affectation : du {new Date(pvResult.startDate).toLocaleString('fr-FR')} au {pvResult.endDate ? new Date(pvResult.endDate).toLocaleString('fr-FR') : 'Présent'}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Historique Global des Affectations</h3>
-                <div className="table-container">
-                  <table className="custom-table">
-                    <thead>
-                      <tr>
-                        <th>Véhicule</th>
-                        <th>Chauffeur</th>
-                        <th>Date de Début</th>
-                        <th>Date de Fin</th>
-                        <th>Note</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assignments.map(a => (
-                        <tr key={a.id}>
-                          <td style={{ fontWeight: '600' }}>{a.truck?.plateNumber}</td>
-                          <td>{a.employee?.firstName} {a.employee?.lastName}</td>
-                          <td>{new Date(a.startDate).toLocaleString('fr-FR')}</td>
-                          <td>{a.endDate ? new Date(a.endDate).toLocaleString('fr-FR') : <span className="badge badge-success">Actuel</span>}</td>
-                          <td>{a.notes || '--'}</td>
-                        </tr>
-                      ))}
-                      {assignments.length === 0 && (
-                        <tr>
-                          <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Aucune affectation passée enregistrée.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* TAB 8 REMOVED */}
 
         {/* TAB 9: STOCKS (LOADING TRUCKS) */}
         {activeTab === 'stock' && (
@@ -3046,13 +3000,53 @@ function App() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Code PIN (Application mobile)</label>
+                    <label className="form-label">Identifiant (Nom d'utilisateur)</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="e.g. 9812" 
-                      value={newEmployee.pin}
-                      onChange={e => setNewEmployee({ ...newEmployee, pin: e.target.value })}
+                      placeholder="jdupont" 
+                      value={newEmployee.username}
+                      onChange={e => setNewEmployee({ ...newEmployee, username: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Mot de passe par défaut (Min 6 caractères)</label>
+                    <input 
+                      type="password" 
+                      className="form-input" 
+                      placeholder={editingEmployeeId ? "(Inchangé si vide)" : "Par défaut: 123456"} 
+                      value={newEmployee.password}
+                      onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Salaire Mensuel (Optionnel)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 2500" 
+                      value={newEmployee.monthlySalary}
+                      onChange={e => setNewEmployee({ ...newEmployee, monthlySalary: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Solde Congés Payés (jours)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 25" 
+                      value={newEmployee.paidLeaveBalance}
+                      onChange={e => setNewEmployee({ ...newEmployee, paidLeaveBalance: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Solde RTT (jours)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="e.g. 10" 
+                      value={newEmployee.rttBalance}
+                      onChange={e => setNewEmployee({ ...newEmployee, rttBalance: e.target.value })}
                     />
                   </div>
                   <div className="form-group">
@@ -3098,7 +3092,7 @@ function App() {
                       {editingEmployeeId ? 'Enregistrer' : 'Créer'}
                     </button>
                     {editingEmployeeId && (
-                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingEmployeeId(null); setNewEmployee({ firstName: '', lastName: '', badgeNumber: '', pin: '', hourlyRate: '45', phone: '', email: '', qualification: 'Ouvrier Qualifié' }); }}>
+                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingEmployeeId(null); setNewEmployee({ firstName: '', lastName: '', badgeNumber: '', username: '', password: '', hourlyRate: '35', monthlySalary: '', paidLeaveBalance: '0', rttBalance: '0', phone: '', email: '', qualification: 'Chauffeur Poids Lourd' }); }}>
                         Annuler
                       </button>
                     )}
@@ -3148,11 +3142,15 @@ function App() {
                                     firstName: emp.firstName,
                                     lastName: emp.lastName,
                                     badgeNumber: emp.badgeNumber,
-                                    pin: emp.pin || '',
+                                    username: emp.username || '',
+                                    password: '',
                                     hourlyRate: String(emp.hourlyRate || 35),
+                                    monthlySalary: emp.monthlySalary ? String(emp.monthlySalary) : '',
+                                    paidLeaveBalance: String(emp.paidLeaveBalance || 0),
+                                    rttBalance: String(emp.rttBalance || 0),
                                     phone: emp.phone || '',
                                     email: emp.email || '',
-                                    qualification: emp.qualification || 'Ouvrier Qualifié',
+                                    qualification: emp.qualification || 'Chauffeur Poids Lourd',
                                   });
                                 }}
                               >

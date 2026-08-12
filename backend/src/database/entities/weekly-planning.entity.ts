@@ -1,6 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
 import { Mission } from './mission.entity';
-import { Truck } from './truck.entity';
+import { Employee } from './employee.entity';
 
 @Entity('weekly_planning')
 export class WeeklyPlanning {
@@ -20,9 +20,9 @@ export class WeeklyPlanning {
   @JoinColumn()
   mission: Mission;
 
-  @ManyToOne(() => Truck, { nullable: true })
-  @JoinColumn()
-  truck: Truck;
+  @ManyToMany(() => Employee)
+  @JoinTable({ name: 'planning_employees' })
+  employees: Employee[];
 
   @Column({ nullable: true, type: 'text' })
   notes: string;

@@ -4,10 +4,10 @@ import { PlanningController } from './planning.controller';
 import { PlanningService } from './planning.service';
 import { WeeklyPlanning } from '../database/entities/weekly-planning.entity';
 import { Mission } from '../database/entities/mission.entity';
-import { Truck } from '../database/entities/truck.entity';
+import { Employee } from '../database/entities/employee.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WeeklyPlanning, Mission, Truck])],
+  imports: [TypeOrmModule.forFeature([WeeklyPlanning, Mission, Employee])],
   controllers: [PlanningController],
   providers: [PlanningService],
 })

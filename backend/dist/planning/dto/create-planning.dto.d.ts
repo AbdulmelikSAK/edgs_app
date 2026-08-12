@@ -3,6 +3,6 @@ export declare class CreatePlanningDto {
     week: number;
     dayOfWeek: number;
     missionId: string;
-    truckId?: string;
+    employeeIds?: string[];
     notes?: string;
 }

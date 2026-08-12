@@ -31,8 +31,8 @@ let MissionsController = class MissionsController {
     findAll() {
         return this.missionsService.findAll();
     }
-    findToday(truckId) {
-        return this.missionsService.findTodayMissions(truckId);
+    findToday(employeeId) {
+        return this.missionsService.findTodayMissions(employeeId);
     }
     findByTruck(truckId) {
         return this.missionsService.findByTruck(truckId);
@@ -66,8 +66,8 @@ __decorate([
 ], MissionsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('today'),
-    (0, swagger_1.ApiQuery)({ name: 'truckId', required: true }),
-    __param(0, (0, common_1.Query)('truckId')),
+    (0, swagger_1.ApiQuery)({ name: 'employeeId', required: true }),
+    __param(0, (0, common_1.Query)('employeeId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)

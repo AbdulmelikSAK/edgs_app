@@ -18,23 +18,25 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const weekly_planning_entity_1 = require("../database/entities/weekly-planning.entity");
 const mission_entity_1 = require("../database/entities/mission.entity");
-const truck_entity_1 = require("../database/entities/truck.entity");
+const employee_entity_1 = require("../database/entities/employee.entity");
 let PlanningService = class PlanningService {
     planningRepo;
     missionRepo;
-    truckRepo;
-    constructor(planningRepo, missionRepo, truckRepo) {
+    employeeRepo;
+    constructor(planningRepo, missionRepo, employeeRepo) {
         this.planningRepo = planningRepo;
         this.missionRepo = missionRepo;
-        this.truckRepo = truckRepo;
+        this.employeeRepo = employeeRepo;
     }
     async create(dto) {
         const mission = await this.missionRepo.findOne({ where: { id: dto.missionId } });
-        const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
+        const employees = dto.employeeIds && dto.employeeIds.length > 0
+            ? await this.employeeRepo.findBy({ id: (0, typeorm_2.In)(dto.employeeIds) })
+            : [];
         const entry = this.planningRepo.create({
             ...dto,
             mission: mission,
-            truck: truck ?? undefined,
+            employees,
         });
         return this.planningRepo.save(entry);
     }
@@ -46,7 +48,7 @@ let PlanningService = class PlanningService {
                     client: true,
                     worksite: true,
                 },
-                truck: true,
+                employees: true,
             },
             order: { dayOfWeek: 'ASC' },
         });
@@ -60,7 +62,7 @@ exports.PlanningService = PlanningService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(weekly_planning_entity_1.WeeklyPlanning)),
     __param(1, (0, typeorm_1.InjectRepository)(mission_entity_1.Mission)),
-    __param(2, (0, typeorm_1.InjectRepository)(truck_entity_1.Truck)),
+    __param(2, (0, typeorm_1.InjectRepository)(employee_entity_1.Employee)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])

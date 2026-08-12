@@ -24,9 +24,9 @@ export class MissionsController {
   }
 
   @Get('today')
-  @ApiQuery({ name: 'truckId', required: true })
-  findToday(@Query('truckId') truckId: string) {
-    return this.missionsService.findTodayMissions(truckId);
+  @ApiQuery({ name: 'employeeId', required: true })
+  findToday(@Query('employeeId') employeeId: string) {
+    return this.missionsService.findTodayMissions(employeeId);
   }
 
   @Get('truck/:truckId')

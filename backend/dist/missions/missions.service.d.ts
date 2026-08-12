@@ -20,5 +20,5 @@ export declare class MissionsService {
     update(id: string, dto: UpdateMissionDto): Promise<Mission>;
     updateStatus(id: string, status: MissionStatus): Promise<Mission>;
     remove(id: string): Promise<void>;
-    findTodayMissions(truckId: string): Promise<Mission[]>;
+    findTodayMissions(employeeId: string): Promise<Mission[]>;
 }
