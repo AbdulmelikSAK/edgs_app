@@ -60,7 +60,7 @@ __decorate([
 ], Employee.prototype, "mustChangePassword", void 0);
 __decorate([
     (0, typeorm_1.Column)({ unique: true, nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], Employee.prototype, "badgeNumber", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: true }),
@@ -84,11 +84,11 @@ __decorate([
 ], Employee.prototype, "rttBalance", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], Employee.prototype, "phone", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], Employee.prototype, "email", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),

@@ -22,7 +22,7 @@ export class Employee {
   mustChangePassword: boolean;
 
   @Column({ unique: true, nullable: true })
-  badgeNumber: string;
+  badgeNumber: string | null;
 
   @Column({ default: true })
   isActive: boolean;
@@ -40,10 +40,10 @@ export class Employee {
   rttBalance: number;
 
   @Column({ nullable: true })
-  phone: string;
+  phone: string | null;
 
   @Column({ nullable: true })
-  email: string;
+  email: string | null;
 
   @Column({ nullable: true })
   qualification: string;

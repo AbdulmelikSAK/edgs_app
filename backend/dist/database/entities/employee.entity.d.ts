@@ -6,14 +6,14 @@ export declare class Employee {
     username: string;
     passwordHash: string;
     mustChangePassword: boolean;
-    badgeNumber: string;
+    badgeNumber: string | null;
     isActive: boolean;
     hourlyRate: number;
     monthlySalary: number;
     paidLeaveBalance: number;
     rttBalance: number;
-    phone: string;
-    email: string;
+    phone: string | null;
+    email: string | null;
     qualification: string;
     documents: string;
     role: Role;

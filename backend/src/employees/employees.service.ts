@@ -38,24 +38,28 @@ export class EmployeesService {
   }
 
   async create(dto: CreateEmployeeDto): Promise<Employee> {
-    const username = dto.username || (await this.getUniqueUsername(dto.firstName, dto.lastName));
+    const username = dto.username?.trim() || (await this.getUniqueUsername(dto.firstName, dto.lastName));
     const rawPassword = dto.password || '123456';
     const passwordHash = await bcrypt.hash(rawPassword, 10);
     const role = dto.roleId ? await this.roleRepo.findOne({ where: { id: dto.roleId } }) : null;
     
+    const badgeNumber = dto.badgeNumber?.trim() || null;
+    const phone = dto.phone?.trim() || null;
+    const email = dto.email?.trim() || null;
+
     const employee = this.employeeRepo.create({
       firstName: dto.firstName,
       lastName: dto.lastName,
       username,
       passwordHash,
       mustChangePassword: true,
-      badgeNumber: dto.badgeNumber,
+      badgeNumber,
       hourlyRate: dto.hourlyRate,
       monthlySalary: dto.monthlySalary,
       paidLeaveBalance: dto.paidLeaveBalance,
       rttBalance: dto.rttBalance,
-      phone: dto.phone,
-      email: dto.email,
+      phone,
+      email,
       qualification: dto.qualification,
       documents: dto.documents,
       role: role ?? undefined,
@@ -84,6 +88,25 @@ export class EmployeesService {
     // Copy other fields
     const { password, ...fields } = dto;
     Object.assign(emp, fields);
+
+    // Clean empty strings to null to avoid unique constraint violations
+    if (emp.badgeNumber !== undefined && (emp.badgeNumber === null || (typeof emp.badgeNumber === 'string' && emp.badgeNumber.trim() === ''))) {
+      emp.badgeNumber = null;
+    } else if (typeof emp.badgeNumber === 'string') {
+      emp.badgeNumber = emp.badgeNumber.trim();
+    }
+
+    if (emp.phone !== undefined && (emp.phone === null || (typeof emp.phone === 'string' && emp.phone.trim() === ''))) {
+      emp.phone = null;
+    } else if (typeof emp.phone === 'string') {
+      emp.phone = emp.phone.trim();
+    }
+
+    if (emp.email !== undefined && (emp.email === null || (typeof emp.email === 'string' && emp.email.trim() === ''))) {
+      emp.email = null;
+    } else if (typeof emp.email === 'string') {
+      emp.email = emp.email.trim();
+    }
     
     return this.employeeRepo.save(emp);
   }

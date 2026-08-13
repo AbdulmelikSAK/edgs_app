@@ -2989,14 +2989,13 @@ function App() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Numéro de Badge</label>
+                    <label className="form-label">Numéro de Badge (Optionnel)</label>
                     <input 
                       type="text" 
                       className="form-input" 
                       placeholder="e.g. BDG-982" 
                       value={newEmployee.badgeNumber}
                       onChange={e => setNewEmployee({ ...newEmployee, badgeNumber: e.target.value })}
-                      required
                     />
                   </div>
                   <div className="form-group">
