@@ -257,6 +257,8 @@ function App() {
     truckId: '',
     surfaceArea: '',
   });
+  const [missionPhotoFile, setMissionPhotoFile] = useState<File | null>(null);
+  const [photoInputKey, setPhotoInputKey] = useState(Date.now());
 
   const [newTruck, setNewTruck] = useState({
     plateNumber: '',
@@ -329,10 +331,11 @@ function App() {
   // Auth helpers
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const currentToken = token || localStorage.getItem('token');
-    const headers = {
-      'Content-Type': 'application/json',
+    const isFormData = options.body instanceof FormData;
+    const headers: Record<string, string> = {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {}),
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
     const res = await fetch(url, { ...options, headers });
     if (res.status === 401) {
@@ -640,6 +643,20 @@ function App() {
       });
 
       if (res.ok) {
+        const createdMission = await res.json();
+
+        if (missionPhotoFile) {
+          const formData = new FormData();
+          formData.append('file', missionPhotoFile);
+          formData.append('type', 'before');
+          formData.append('notes', 'Photo initiale du chantier');
+
+          await fetchWithAuth(`${API_BASE_URL}/photos/mission/${createdMission.id}`, {
+            method: 'POST',
+            body: formData,
+          });
+        }
+
         setNewMission({
           title: '',
           type: 'Sablage',
@@ -651,6 +668,8 @@ function App() {
           truckId: '',
           surfaceArea: '',
         });
+        setMissionPhotoFile(null);
+        setPhotoInputKey(Date.now());
         loadAllData();
       }
     } catch (err) {
@@ -1772,6 +1791,16 @@ function App() {
                         <option key={t.id} value={t.id}>{t.plateNumber} ({t.model})</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Photo du Chantier (Optionnel)</label>
+                    <input 
+                      key={photoInputKey}
+                      type="file" 
+                      accept="image/*"
+                      className="form-input" 
+                      onChange={e => setMissionPhotoFile(e.target.files ? e.target.files[0] : null)}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Description / Instructions</label>
