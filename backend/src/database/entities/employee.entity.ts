@@ -21,7 +21,7 @@ export class Employee {
   @Column({ default: true })
   mustChangePassword: boolean;
 
-  @Column({ unique: true, nullable: true })
+  @Column({ type: 'varchar', unique: true, nullable: true })
   badgeNumber: string | null;
 
   @Column({ default: true })
@@ -39,10 +39,10 @@ export class Employee {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
   rttBalance: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   email: string | null;
 
   @Column({ nullable: true })
