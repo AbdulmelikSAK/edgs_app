@@ -32,7 +32,9 @@ let BillingService = class BillingService {
         this.missionRepo = missionRepo;
     }
     async createQuote(dto) {
-        const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+        const client = await this.clientRepo.findOne({
+            where: { id: dto.clientId },
+        });
         if (!client)
             throw new common_1.NotFoundException('Client non trouvé');
         const mission = dto.missionId
@@ -69,7 +71,9 @@ let BillingService = class BillingService {
     async updateQuote(id, dto) {
         const quote = await this.findOneQuote(id);
         if (dto.clientId) {
-            const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+            const client = await this.clientRepo.findOne({
+                where: { id: dto.clientId },
+            });
             if (!client)
                 throw new common_1.NotFoundException('Client non trouvé');
             quote.client = client;
@@ -79,7 +83,9 @@ let BillingService = class BillingService {
                 quote.mission = null;
             }
             else {
-                const mission = await this.missionRepo.findOne({ where: { id: dto.missionId } });
+                const mission = await this.missionRepo.findOne({
+                    where: { id: dto.missionId },
+                });
                 quote.mission = mission;
             }
         }
@@ -104,7 +110,9 @@ let BillingService = class BillingService {
         await this.quoteRepo.remove(quote);
     }
     async createInvoice(dto) {
-        const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+        const client = await this.clientRepo.findOne({
+            where: { id: dto.clientId },
+        });
         if (!client)
             throw new common_1.NotFoundException('Client non trouvé');
         const quote = dto.quoteId
@@ -142,7 +150,9 @@ let BillingService = class BillingService {
     async updateInvoice(id, dto) {
         const invoice = await this.findOneInvoice(id);
         if (dto.clientId) {
-            const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+            const client = await this.clientRepo.findOne({
+                where: { id: dto.clientId },
+            });
             if (!client)
                 throw new common_1.NotFoundException('Client non trouvé');
             invoice.client = client;
@@ -154,7 +164,9 @@ let BillingService = class BillingService {
         if (dto.date !== undefined)
             invoice.date = dto.date ? new Date(dto.date) : new Date();
         if (dto.dueDate !== undefined)
-            invoice.dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
+            invoice.dueDate = dto.dueDate
+                ? new Date(dto.dueDate)
+                : undefined;
         if (dto.lines !== undefined)
             invoice.lines = dto.lines;
         if (dto.totalHT !== undefined)

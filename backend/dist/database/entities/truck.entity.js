@@ -89,7 +89,7 @@ __decorate([
     __metadata("design:type", String)
 ], Truck.prototype, "insuranceCardUrl", void 0);
 __decorate([
-    (0, typeorm_1.OneToMany)(() => truck_stock_entity_1.TruckStock, ts => ts.truck),
+    (0, typeorm_1.OneToMany)(() => truck_stock_entity_1.TruckStock, (ts) => ts.truck),
     __metadata("design:type", Array)
 ], Truck.prototype, "stocks", void 0);
 __decorate([

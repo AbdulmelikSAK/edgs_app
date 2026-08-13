@@ -52,19 +52,19 @@ __decorate([
     __metadata("design:type", String)
 ], CreateEmployeeDto.prototype, "password", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: 3000.00 }),
+    (0, swagger_1.ApiPropertyOptional)({ example: 3000.0 }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateEmployeeDto.prototype, "monthlySalary", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: 25.00 }),
+    (0, swagger_1.ApiPropertyOptional)({ example: 25.0 }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateEmployeeDto.prototype, "paidLeaveBalance", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: 10.00 }),
+    (0, swagger_1.ApiPropertyOptional)({ example: 10.0 }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
@@ -82,7 +82,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateEmployeeDto.prototype, "roleId", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: 35.00 }),
+    (0, swagger_1.ApiPropertyOptional)({ example: 35.0 }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)

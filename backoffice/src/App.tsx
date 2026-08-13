@@ -512,23 +512,19 @@ function App() {
         }
       }
 
-      // Populate photos dynamically from missions
-      const allPhotos: any[] = [];
-      await Promise.all(
-        mData.map(async (m: Mission) => {
-          const photoRes = await fetchWithAuth(`${API_BASE_URL}/photos/mission/${m.id}`);
-          if (photoRes.ok) {
-            const photos = await photoRes.json();
-            photos.forEach((ph: any) => {
-              allPhotos.push({
-                ...ph,
-                missionTitle: m.title,
-              });
-            });
-          }
-        })
-      );
-      setPhotosList(allPhotos);
+      // Populate photos dynamically in a single bulk request, but only when viewing the photos tab (lazy loading)
+      if (activeTab === 'photos') {
+        const photoRes = await fetchWithAuth(`${API_BASE_URL}/photos`);
+        if (photoRes.ok) {
+          const photos = await photoRes.json();
+          const mappedPhotos = photos.map((ph: any) => ({
+            ...ph,
+            missionTitle: ph.mission?.title || 'Sans Mission',
+            category: ph.type,
+          }));
+          setPhotosList(mappedPhotos);
+        }
+      }
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
     }

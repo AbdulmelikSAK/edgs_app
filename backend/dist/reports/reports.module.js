@@ -24,7 +24,14 @@ exports.ReportsModule = ReportsModule;
 exports.ReportsModule = ReportsModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([report_entity_1.Report, mission_entity_1.Mission, mission_photo_entity_1.MissionPhoto, time_entry_entity_1.TimeEntry, stock_movement_entity_1.StockMovement, gps_point_entity_1.GpsPoint]),
+            typeorm_1.TypeOrmModule.forFeature([
+                report_entity_1.Report,
+                mission_entity_1.Mission,
+                mission_photo_entity_1.MissionPhoto,
+                time_entry_entity_1.TimeEntry,
+                stock_movement_entity_1.StockMovement,
+                gps_point_entity_1.GpsPoint,
+            ]),
             photos_module_1.PhotosModule,
         ],
         controllers: [reports_controller_1.ReportsController],

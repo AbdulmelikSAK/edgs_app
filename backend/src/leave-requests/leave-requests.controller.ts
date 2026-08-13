@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LeaveRequestsService } from './leave-requests.service';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
@@ -25,14 +34,17 @@ export class LeaveRequestsController {
   }
 
   @Get('employee/:employeeId')
-  @ApiOperation({ summary: 'Obtenir les demandes de congés d\'un employé' })
+  @ApiOperation({ summary: "Obtenir les demandes de congés d'un employé" })
   findByEmployee(@Param('employeeId') employeeId: string) {
     return this.leaveService.findByEmployee(employeeId);
   }
 
   @Patch(':id/status')
-  @ApiOperation({ summary: 'Mettre à jour le statut d\'une demande' })
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateLeaveRequestStatusDto) {
+  @ApiOperation({ summary: "Mettre à jour le statut d'une demande" })
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateLeaveRequestStatusDto,
+  ) {
     return this.leaveService.updateStatus(id, dto);
   }
 

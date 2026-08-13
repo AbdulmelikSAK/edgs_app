@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MissionPhoto, PhotoType } from '../database/entities/mission-photo.entity';
+import {
+  MissionPhoto,
+  PhotoType,
+} from '../database/entities/mission-photo.entity';
 import { Mission } from '../database/entities/mission.entity';
 import { Employee } from '../database/entities/employee.entity';
 import { MinioService } from './minio.service';
@@ -23,12 +26,20 @@ export class PhotosService {
     employeeId?: string,
     notes?: string,
   ): Promise<MissionPhoto> {
-    const mission = await this.missionRepo.findOne({ where: { id: missionId } });
+    const mission = await this.missionRepo.findOne({
+      where: { id: missionId },
+    });
     if (!mission) throw new NotFoundException('Mission non trouvée');
-    const employee = employeeId ? await this.employeeRepo.findOne({ where: { id: employeeId } }) : null;
+    const employee = employeeId
+      ? await this.employeeRepo.findOne({ where: { id: employeeId } })
+      : null;
 
     const filename = `${missionId}/${randomUUID()}-${file.originalname}`;
-    const url = await this.minioService.uploadFile(filename, file.buffer, file.mimetype);
+    const url = await this.minioService.uploadFile(
+      filename,
+      file.buffer,
+      file.mimetype,
+    );
 
     const photo = this.photoRepo.create({
       mission,
@@ -46,6 +57,13 @@ export class PhotosService {
       where: { mission: { id: missionId } },
       relations: { takenBy: true },
       order: { createdAt: 'ASC' },
+    });
+  }
+
+  findAll(): Promise<MissionPhoto[]> {
+    return this.photoRepo.find({
+      relations: { takenBy: true, mission: true },
+      order: { createdAt: 'DESC' },
     });
   }
 

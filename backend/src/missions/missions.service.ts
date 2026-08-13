@@ -20,16 +20,23 @@ export class MissionsService {
   ) {}
 
   async create(dto: CreateMissionDto): Promise<Mission> {
-    const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
-    const client = dto.clientId ? await this.clientRepo.findOne({ where: { id: dto.clientId } }) : null;
-    const worksite = dto.worksiteId ? await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } }) : null;
-    
-    const employees = dto.employeeIds && dto.employeeIds.length > 0 
-      ? await this.employeeRepo.findBy({ id: In(dto.employeeIds) }) 
-      : [];
-      
-    const chefDeMission = dto.chefDeMissionId 
-      ? await this.employeeRepo.findOne({ where: { id: dto.chefDeMissionId } }) 
+    const truck = dto.truckId
+      ? await this.truckRepo.findOne({ where: { id: dto.truckId } })
+      : null;
+    const client = dto.clientId
+      ? await this.clientRepo.findOne({ where: { id: dto.clientId } })
+      : null;
+    const worksite = dto.worksiteId
+      ? await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } })
+      : null;
+
+    const employees =
+      dto.employeeIds && dto.employeeIds.length > 0
+        ? await this.employeeRepo.findBy({ id: In(dto.employeeIds) })
+        : [];
+
+    const chefDeMission = dto.chefDeMissionId
+      ? await this.employeeRepo.findOne({ where: { id: dto.chefDeMissionId } })
       : null;
 
     const mission = this.missionRepo.create({
@@ -45,7 +52,13 @@ export class MissionsService {
 
   findAll(): Promise<Mission[]> {
     return this.missionRepo.find({
-      relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: {
+        truck: true,
+        client: true,
+        worksite: true,
+        employees: true,
+        chefDeMission: true,
+      },
       order: { scheduledDate: 'DESC' },
     });
   }
@@ -53,14 +66,26 @@ export class MissionsService {
   findByTruck(truckId: string): Promise<Mission[]> {
     return this.missionRepo.find({
       where: { truck: { id: truckId }, status: MissionStatus.IN_PROGRESS },
-      relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: {
+        truck: true,
+        client: true,
+        worksite: true,
+        employees: true,
+        chefDeMission: true,
+      },
     });
   }
 
   async findOne(id: string): Promise<Mission> {
     const mission = await this.missionRepo.findOne({
       where: { id },
-      relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: {
+        truck: true,
+        client: true,
+        worksite: true,
+        employees: true,
+        chefDeMission: true,
+      },
     });
     if (!mission) throw new NotFoundException(`Mission ${id} non trouvée`);
     return mission;
@@ -69,30 +94,39 @@ export class MissionsService {
   async update(id: string, dto: UpdateMissionDto): Promise<Mission> {
     const mission = await this.findOne(id);
     if (dto.truckId) {
-      const truck = await this.truckRepo.findOne({ where: { id: dto.truckId } });
+      const truck = await this.truckRepo.findOne({
+        where: { id: dto.truckId },
+      });
       if (truck) mission.truck = truck;
     }
     if (dto.clientId) {
-      const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+      const client = await this.clientRepo.findOne({
+        where: { id: dto.clientId },
+      });
       if (client) mission.client = client;
     }
     if (dto.worksiteId) {
-      const worksite = await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } });
+      const worksite = await this.worksiteRepo.findOne({
+        where: { id: dto.worksiteId },
+      });
       if (worksite) mission.worksite = worksite;
     }
     if (dto.employeeIds) {
-      const employees = dto.employeeIds.length > 0 
-        ? await this.employeeRepo.findBy({ id: In(dto.employeeIds) }) 
-        : [];
+      const employees =
+        dto.employeeIds.length > 0
+          ? await this.employeeRepo.findBy({ id: In(dto.employeeIds) })
+          : [];
       mission.employees = employees;
     }
     if (dto.hasOwnProperty('chefDeMissionId')) {
-      const chefDeMission = dto.chefDeMissionId 
-        ? await this.employeeRepo.findOne({ where: { id: dto.chefDeMissionId } }) 
+      const chefDeMission = dto.chefDeMissionId
+        ? await this.employeeRepo.findOne({
+            where: { id: dto.chefDeMissionId },
+          })
         : null;
       mission.chefDeMission = chefDeMission;
     }
-    
+
     const { employeeIds, chefDeMissionId, ...fields } = dto;
     Object.assign(mission, fields);
     return this.missionRepo.save(mission);
@@ -124,9 +158,14 @@ export class MissionsService {
         {
           chefDeMission: { id: employeeId },
           scheduledDate: Between(today, tomorrow),
-        }
+        },
       ],
-      relations: { client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: {
+        client: true,
+        worksite: true,
+        employees: true,
+        chefDeMission: true,
+      },
     });
   }
 }

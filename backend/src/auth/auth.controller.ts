@@ -1,5 +1,18 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginEmployeeDto } from './dto/login-employee.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -24,7 +37,7 @@ export class AuthController {
   @ApiBearerAuth()
   @Post('employee/change-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Changer le mot de passe de l\'employé connecté' })
+  @ApiOperation({ summary: "Changer le mot de passe de l'employé connecté" })
   changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.id, dto.newPassword);
   }

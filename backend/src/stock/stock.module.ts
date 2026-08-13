@@ -12,7 +12,16 @@ import { StockItem } from '../database/entities/stock-item.entity';
 import { TruckStock } from '../database/entities/truck-stock.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([StockMovement, Truck, Mission, Employee, StockItem, TruckStock])],
+  imports: [
+    TypeOrmModule.forFeature([
+      StockMovement,
+      Truck,
+      Mission,
+      Employee,
+      StockItem,
+      TruckStock,
+    ]),
+  ],
   controllers: [StockController, StockItemsController, TruckStocksController],
   providers: [StockService],
   exports: [StockService],

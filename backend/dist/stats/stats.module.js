@@ -24,7 +24,18 @@ let StatsModule = class StatsModule {
 exports.StatsModule = StatsModule;
 exports.StatsModule = StatsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([mission_entity_1.Mission, time_entry_entity_1.TimeEntry, gps_point_entity_1.GpsPoint, stock_movement_entity_1.StockMovement, truck_entity_1.Truck, employee_entity_1.Employee, production_entry_entity_1.ProductionEntry, equipment_entity_1.Equipment])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([
+                mission_entity_1.Mission,
+                time_entry_entity_1.TimeEntry,
+                gps_point_entity_1.GpsPoint,
+                stock_movement_entity_1.StockMovement,
+                truck_entity_1.Truck,
+                employee_entity_1.Employee,
+                production_entry_entity_1.ProductionEntry,
+                equipment_entity_1.Equipment,
+            ]),
+        ],
         controllers: [stats_controller_1.StatsController],
         providers: [stats_service_1.StatsService],
     })

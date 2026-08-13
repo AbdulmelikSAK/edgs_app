@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
@@ -64,7 +73,10 @@ export class BillingController {
 
   @Put('invoices/:id')
   @ApiOperation({ summary: 'Modifier une facture' })
-  updateInvoice(@Param('id') id: string, @Body() dto: Partial<CreateInvoiceDto>) {
+  updateInvoice(
+    @Param('id') id: string,
+    @Body() dto: Partial<CreateInvoiceDto>,
+  ) {
     return this.billingService.updateInvoice(id, dto);
   }
 
@@ -79,7 +91,7 @@ export class BillingController {
   @ApiOperation({ summary: 'Convertir un devis accepté en facture' })
   convertQuote(
     @Param('id') id: string,
-    @Body() body: { invoiceNumber: string }
+    @Body() body: { invoiceNumber: string },
   ) {
     return this.billingService.convertQuoteToInvoice(id, body.invoiceNumber);
   }

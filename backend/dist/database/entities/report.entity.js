@@ -45,7 +45,11 @@ __decorate([
     __metadata("design:type", user_entity_1.User)
 ], Report.prototype, "generatedBy", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'enum', enum: ReportStatus, default: ReportStatus.GENERATING }),
+    (0, typeorm_1.Column)({
+        type: 'enum',
+        enum: ReportStatus,
+        default: ReportStatus.GENERATING,
+    }),
     __metadata("design:type", String)
 ], Report.prototype, "status", void 0);
 __decorate([

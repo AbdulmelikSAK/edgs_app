@@ -35,14 +35,20 @@ let StockService = class StockService {
         const truck = await this.truckRepo.findOne({ where: { id: dto.truckId } });
         if (!truck)
             throw new common_1.NotFoundException('Camion non trouvé');
-        const mission = dto.missionId ? await this.missionRepo.findOne({ where: { id: dto.missionId } }) : null;
-        const employee = dto.employeeId ? await this.employeeRepo.findOne({ where: { id: dto.employeeId } }) : null;
+        const mission = dto.missionId
+            ? await this.missionRepo.findOne({ where: { id: dto.missionId } })
+            : null;
+        const employee = dto.employeeId
+            ? await this.employeeRepo.findOne({ where: { id: dto.employeeId } })
+            : null;
         const stockBefore = truck.currentStock;
         let stockAfter = stockBefore;
-        if (dto.type === stock_movement_entity_1.StockMovementType.LOAD || dto.type === stock_movement_entity_1.StockMovementType.ADJUSTMENT) {
+        if (dto.type === stock_movement_entity_1.StockMovementType.LOAD ||
+            dto.type === stock_movement_entity_1.StockMovementType.ADJUSTMENT) {
             stockAfter = stockBefore + dto.quantity;
         }
-        else if (dto.type === stock_movement_entity_1.StockMovementType.CONSUME || dto.type === stock_movement_entity_1.StockMovementType.RETURN) {
+        else if (dto.type === stock_movement_entity_1.StockMovementType.CONSUME ||
+            dto.type === stock_movement_entity_1.StockMovementType.RETURN) {
             stockAfter = stockBefore - Math.abs(dto.quantity);
         }
         if (stockAfter < 0)

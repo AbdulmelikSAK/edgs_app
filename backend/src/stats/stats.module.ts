@@ -12,7 +12,18 @@ import { ProductionEntry } from '../database/entities/production-entry.entity';
 import { Equipment } from '../database/entities/equipment.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Mission, TimeEntry, GpsPoint, StockMovement, Truck, Employee, ProductionEntry, Equipment])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Mission,
+      TimeEntry,
+      GpsPoint,
+      StockMovement,
+      Truck,
+      Employee,
+      ProductionEntry,
+      Equipment,
+    ]),
+  ],
   controllers: [StatsController],
   providers: [StatsService],
 })

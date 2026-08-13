@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { MissionsService } from './missions.service';
 import { CreateMissionDto } from './dto/create-mission.dto';
@@ -45,7 +55,10 @@ export class MissionsController {
   }
 
   @Patch(':id/status/:status')
-  updateStatus(@Param('id') id: string, @Param('status') status: MissionStatus) {
+  updateStatus(
+    @Param('id') id: string,
+    @Param('status') status: MissionStatus,
+  ) {
     return this.missionsService.updateStatus(id, status);
   }
 

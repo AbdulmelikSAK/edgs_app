@@ -21,6 +21,8 @@ const truck_stock_entity_1 = require("../database/entities/truck-stock.entity");
 const truck_entity_1 = require("../database/entities/truck.entity");
 const stock_item_entity_1 = require("../database/entities/stock-item.entity");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const create_truck_stock_dto_1 = require("./dto/create-truck-stock.dto");
+const update_truck_stock_dto_1 = require("./dto/update-truck-stock.dto");
 let TruckStocksController = class TruckStocksController {
     tsRepo;
     truckRepo;
@@ -33,7 +35,7 @@ let TruckStocksController = class TruckStocksController {
     async findAll(res) {
         const list = await this.tsRepo.find({
             relations: { truck: true, stockItem: true },
-            order: { truck: { plateNumber: 'ASC' } }
+            order: { truck: { plateNumber: 'ASC' } },
         });
         res.setHeader('Content-Range', `truck-stocks 0-${list.length}/${list.length}`);
         res.setHeader('Access-Control-Expose-Headers', 'Content-Range');
@@ -42,31 +44,38 @@ let TruckStocksController = class TruckStocksController {
     findOne(id) {
         return this.tsRepo.findOne({
             where: { id },
-            relations: { truck: true, stockItem: true }
+            relations: { truck: true, stockItem: true },
         });
     }
-    async create(body) {
-        const truck = await this.truckRepo.findOneBy({ id: body.truckId });
-        const stockItem = await this.itemRepo.findOneBy({ id: body.stockItemId });
+    async create(dto) {
+        const truck = await this.truckRepo.findOneBy({ id: dto.truckId });
+        if (!truck)
+            throw new common_1.NotFoundException(`Camion ${dto.truckId} non trouvé`);
+        const stockItem = await this.itemRepo.findOneBy({ id: dto.stockItemId });
+        if (!stockItem)
+            throw new common_1.NotFoundException(`Article de stock ${dto.stockItemId} non trouvé`);
         let ts = await this.tsRepo.findOne({
-            where: { truck: { id: body.truckId }, stockItem: { id: body.stockItemId } }
+            where: { truck: { id: dto.truckId }, stockItem: { id: dto.stockItemId } },
         });
         if (ts) {
-            ts.quantity = body.quantity;
+            ts.quantity = dto.quantity;
         }
         else {
             ts = new truck_stock_entity_1.TruckStock();
             ts.truck = truck;
             ts.stockItem = stockItem;
-            ts.quantity = body.quantity;
+            ts.quantity = dto.quantity;
         }
         return this.tsRepo.save(ts);
     }
-    async update(id, body) {
-        await this.tsRepo.update(id, { quantity: body.quantity });
+    async update(id, dto) {
+        const ts = await this.tsRepo.findOneBy({ id });
+        if (!ts)
+            throw new common_1.NotFoundException(`Stock camion ${id} non trouvé`);
+        await this.tsRepo.update(id, { quantity: dto.quantity });
         return this.tsRepo.findOne({
             where: { id },
-            relations: { truck: true, stockItem: true }
+            relations: { truck: true, stockItem: true },
         });
     }
     async remove(id) {
@@ -94,7 +103,7 @@ __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [create_truck_stock_dto_1.CreateTruckStockDto]),
     __metadata("design:returntype", Promise)
 ], TruckStocksController.prototype, "create", null);
 __decorate([
@@ -102,7 +111,7 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, update_truck_stock_dto_1.UpdateTruckStockDto]),
     __metadata("design:returntype", Promise)
 ], TruckStocksController.prototype, "update", null);
 __decorate([

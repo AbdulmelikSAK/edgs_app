@@ -127,7 +127,9 @@ __decorate([
 ], TrucksController.prototype, "getAssignments", null);
 __decorate([
     (0, common_1.Get)('assignments/search'),
-    (0, swagger_1.ApiOperation)({ summary: 'Rechercher le conducteur responsable à une date donnée pour les PV' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Rechercher le conducteur responsable à une date donnée pour les PV',
+    }),
     __param(0, (0, common_1.Query)('plateNumber')),
     __param(1, (0, common_1.Query)('date')),
     __metadata("design:type", Function),

@@ -26,15 +26,26 @@ let WorksitesService = class WorksitesService {
         this.clientRepo = clientRepo;
     }
     async create(dto) {
-        const client = dto.clientId ? await this.clientRepo.findOne({ where: { id: dto.clientId } }) : null;
-        const ws = this.worksiteRepo.create({ ...dto, client: client ?? undefined });
+        const client = dto.clientId
+            ? await this.clientRepo.findOne({ where: { id: dto.clientId } })
+            : null;
+        const ws = this.worksiteRepo.create({
+            ...dto,
+            client: client ?? undefined,
+        });
         return this.worksiteRepo.save(ws);
     }
     findAll() {
-        return this.worksiteRepo.find({ relations: { client: true }, where: { isActive: true } });
+        return this.worksiteRepo.find({
+            relations: { client: true },
+            where: { isActive: true },
+        });
     }
     async findOne(id) {
-        const ws = await this.worksiteRepo.findOne({ where: { id }, relations: { client: true } });
+        const ws = await this.worksiteRepo.findOne({
+            where: { id },
+            relations: { client: true },
+        });
         if (!ws)
             throw new common_1.NotFoundException(`Chantier ${id} non trouvé`);
         return ws;
@@ -42,7 +53,9 @@ let WorksitesService = class WorksitesService {
     async update(id, dto) {
         const ws = await this.findOne(id);
         if (dto.clientId) {
-            const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+            const client = await this.clientRepo.findOne({
+                where: { id: dto.clientId },
+            });
             if (client)
                 ws.client = client;
         }

@@ -61,7 +61,9 @@ __decorate([
     __metadata("design:type", String)
 ], CreateInvoiceDto.prototype, "dueDate", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: '[{"description":"Sablage béton","quantity":150,"unitPrice":35}]' }),
+    (0, swagger_1.ApiProperty)({
+        example: '[{"description":"Sablage béton","quantity":150,"unitPrice":35}]',
+    }),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateInvoiceDto.prototype, "lines", void 0);

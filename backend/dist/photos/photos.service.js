@@ -33,10 +33,14 @@ let PhotosService = class PhotosService {
         this.minioService = minioService;
     }
     async uploadPhoto(missionId, file, type = mission_photo_entity_1.PhotoType.DURING, employeeId, notes) {
-        const mission = await this.missionRepo.findOne({ where: { id: missionId } });
+        const mission = await this.missionRepo.findOne({
+            where: { id: missionId },
+        });
         if (!mission)
             throw new common_1.NotFoundException('Mission non trouvée');
-        const employee = employeeId ? await this.employeeRepo.findOne({ where: { id: employeeId } }) : null;
+        const employee = employeeId
+            ? await this.employeeRepo.findOne({ where: { id: employeeId } })
+            : null;
         const filename = `${missionId}/${(0, crypto_1.randomUUID)()}-${file.originalname}`;
         const url = await this.minioService.uploadFile(filename, file.buffer, file.mimetype);
         const photo = this.photoRepo.create({
@@ -54,6 +58,12 @@ let PhotosService = class PhotosService {
             where: { mission: { id: missionId } },
             relations: { takenBy: true },
             order: { createdAt: 'ASC' },
+        });
+    }
+    findAll() {
+        return this.photoRepo.find({
+            relations: { takenBy: true, mission: true },
+            order: { createdAt: 'DESC' },
         });
     }
     async remove(id) {

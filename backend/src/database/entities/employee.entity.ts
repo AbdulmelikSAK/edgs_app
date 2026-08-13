@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+  JoinColumn,
+} from 'typeorm';
 import { Role } from './role.entity';
 
 @Entity('employees')
@@ -27,16 +35,16 @@ export class Employee {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 35.00 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 35.0 })
   hourlyRate: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   monthlySalary: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.0 })
   paidLeaveBalance: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.0 })
   rttBalance: number;
 
   @Column({ type: 'varchar', nullable: true })

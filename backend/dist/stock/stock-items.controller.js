@@ -19,6 +19,8 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const stock_item_entity_1 = require("../database/entities/stock-item.entity");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const create_stock_item_dto_1 = require("./dto/create-stock-item.dto");
+const update_stock_item_dto_1 = require("./dto/update-stock-item.dto");
 let StockItemsController = class StockItemsController {
     itemRepo;
     constructor(itemRepo) {
@@ -33,12 +35,12 @@ let StockItemsController = class StockItemsController {
     findOne(id) {
         return this.itemRepo.findOneBy({ id });
     }
-    create(body) {
-        const item = this.itemRepo.create(body);
+    create(dto) {
+        const item = this.itemRepo.create(dto);
         return this.itemRepo.save(item);
     }
-    async update(id, body) {
-        await this.itemRepo.update(id, body);
+    async update(id, dto) {
+        await this.itemRepo.update(id, dto);
         return this.itemRepo.findOneBy({ id });
     }
     async remove(id) {
@@ -66,7 +68,7 @@ __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [create_stock_item_dto_1.CreateStockItemDto]),
     __metadata("design:returntype", void 0)
 ], StockItemsController.prototype, "create", null);
 __decorate([
@@ -74,7 +76,7 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, update_stock_item_dto_1.UpdateStockItemDto]),
     __metadata("design:returntype", Promise)
 ], StockItemsController.prototype, "update", null);
 __decorate([

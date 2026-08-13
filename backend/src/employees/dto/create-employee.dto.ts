@@ -20,17 +20,17 @@ export class CreateEmployeeDto {
   @IsString()
   password?: string;
 
-  @ApiPropertyOptional({ example: 3000.00 })
+  @ApiPropertyOptional({ example: 3000.0 })
   @IsOptional()
   @IsNumber()
   monthlySalary?: number;
 
-  @ApiPropertyOptional({ example: 25.00 })
+  @ApiPropertyOptional({ example: 25.0 })
   @IsOptional()
   @IsNumber()
   paidLeaveBalance?: number;
 
-  @ApiPropertyOptional({ example: 10.00 })
+  @ApiPropertyOptional({ example: 10.0 })
   @IsOptional()
   @IsNumber()
   rttBalance?: number;
@@ -45,7 +45,7 @@ export class CreateEmployeeDto {
   @IsString()
   roleId?: string;
 
-  @ApiPropertyOptional({ example: 35.00 })
+  @ApiPropertyOptional({ example: 35.0 })
   @IsOptional()
   @IsNumber()
   hourlyRate?: number;

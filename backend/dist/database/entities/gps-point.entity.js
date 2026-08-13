@@ -31,11 +31,13 @@ __decorate([
     __metadata("design:type", String)
 ], GpsPoint.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => truck_entity_1.Truck),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", truck_entity_1.Truck)
 ], GpsPoint.prototype, "truck", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => mission_entity_1.Mission, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", mission_entity_1.Mission)
@@ -65,6 +67,7 @@ __decorate([
     __metadata("design:type", Boolean)
 ], GpsPoint.prototype, "isOutOfZone", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
 ], GpsPoint.prototype, "createdAt", void 0);

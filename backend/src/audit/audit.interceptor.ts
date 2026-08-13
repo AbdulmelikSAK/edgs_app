@@ -1,4 +1,9 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,12 +27,15 @@ export class AuditInterceptor implements NestInterceptor {
         tap(async (response) => {
           try {
             const auditEntry = this.auditRepo.create({
-              user: user && user.type === 'user' ? { id: user.sub } as any : null,
+              user: user && user.type === 'user' ? { id: user.id } as any : undefined,
               action: `${method} ${url}`,
               entityType: url.split('/')[1] || 'Unknown',
               entityId: response?.id || body?.id || null,
               newValues: body ? { ...body } : null,
-              ipAddress: ip || request.headers['x-forwarded-for'] || request.socket.remoteAddress,
+              ipAddress:
+                ip ||
+                request.headers['x-forwarded-for'] ||
+                request.socket.remoteAddress,
             });
             await this.auditRepo.save(auditEntry);
           } catch (e) {

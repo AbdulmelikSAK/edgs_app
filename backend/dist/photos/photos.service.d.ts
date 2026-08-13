@@ -11,5 +11,6 @@ export declare class PhotosService {
     constructor(photoRepo: Repository<MissionPhoto>, missionRepo: Repository<Mission>, employeeRepo: Repository<Employee>, minioService: MinioService);
     uploadPhoto(missionId: string, file: Express.Multer.File, type?: PhotoType, employeeId?: string, notes?: string): Promise<MissionPhoto>;
     findByMission(missionId: string): Promise<MissionPhoto[]>;
+    findAll(): Promise<MissionPhoto[]>;
     remove(id: string): Promise<void>;
 }

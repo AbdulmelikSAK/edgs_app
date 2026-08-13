@@ -33,8 +33,12 @@ let EquipmentService = class EquipmentService {
             name: dto.name,
             serialNumber: dto.serialNumber,
             purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : undefined,
-            lastMaintenanceDate: dto.lastMaintenanceDate ? new Date(dto.lastMaintenanceDate) : undefined,
-            nextMaintenanceDate: dto.nextMaintenanceDate ? new Date(dto.nextMaintenanceDate) : undefined,
+            lastMaintenanceDate: dto.lastMaintenanceDate
+                ? new Date(dto.lastMaintenanceDate)
+                : undefined,
+            nextMaintenanceDate: dto.nextMaintenanceDate
+                ? new Date(dto.nextMaintenanceDate)
+                : undefined,
             status: dto.status ?? 'Disponible',
             notes: dto.notes,
             assignedTruck: truck ?? undefined,
@@ -63,7 +67,9 @@ let EquipmentService = class EquipmentService {
                 equipment.assignedTruck = null;
             }
             else {
-                const truck = await this.truckRepo.findOne({ where: { id: dto.assignedTruckId } });
+                const truck = await this.truckRepo.findOne({
+                    where: { id: dto.assignedTruckId },
+                });
                 if (!truck)
                     throw new common_1.NotFoundException('Camion non trouvé');
                 equipment.assignedTruck = truck;
@@ -74,7 +80,9 @@ let EquipmentService = class EquipmentService {
         if (dto.serialNumber !== undefined)
             equipment.serialNumber = dto.serialNumber;
         if (dto.purchaseDate !== undefined)
-            equipment.purchaseDate = dto.purchaseDate ? new Date(dto.purchaseDate) : null;
+            equipment.purchaseDate = dto.purchaseDate
+                ? new Date(dto.purchaseDate)
+                : null;
         if (dto.lastMaintenanceDate !== undefined)
             equipment.lastMaintenanceDate = dto.lastMaintenanceDate
                 ? new Date(dto.lastMaintenanceDate)

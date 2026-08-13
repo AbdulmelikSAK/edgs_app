@@ -21,7 +21,9 @@ let MissionsModule = class MissionsModule {
 exports.MissionsModule = MissionsModule;
 exports.MissionsModule = MissionsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([mission_entity_1.Mission, truck_entity_1.Truck, client_entity_1.Client, worksite_entity_1.Worksite, employee_entity_1.Employee])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([mission_entity_1.Mission, truck_entity_1.Truck, client_entity_1.Client, worksite_entity_1.Worksite, employee_entity_1.Employee]),
+        ],
         controllers: [missions_controller_1.MissionsController],
         providers: [missions_service_1.MissionsService],
         exports: [missions_service_1.MissionsService],

@@ -5,6 +5,8 @@ import { CreateProductionEntryDto } from './dto/create-production-entry.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('production')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('production')
 export class ProductionController {
   constructor(private readonly productionService: ProductionService) {}

@@ -44,9 +44,16 @@ let ReportsService = class ReportsService {
         });
         if (!mission)
             throw new common_1.NotFoundException('Mission non trouvée');
-        const photos = await this.photoRepo.find({ where: { mission: { id: missionId } } });
-        const timeEntries = await this.timeRepo.find({ where: { mission: { id: missionId } }, relations: { employee: true } });
-        const stockMovements = await this.stockRepo.find({ where: { mission: { id: missionId } } });
+        const photos = await this.photoRepo.find({
+            where: { mission: { id: missionId } },
+        });
+        const timeEntries = await this.timeRepo.find({
+            where: { mission: { id: missionId } },
+            relations: { employee: true },
+        });
+        const stockMovements = await this.stockRepo.find({
+            where: { mission: { id: missionId } },
+        });
         const report = this.reportRepo.create({
             mission,
             status: report_entity_1.ReportStatus.GENERATING,
@@ -68,7 +75,9 @@ let ReportsService = class ReportsService {
         return this.reportRepo.save(report);
     }
     buildReportHtml(mission, photos, timeEntries, stock) {
-        const totalSandBags = stock.filter(s => s.type === 'consume').reduce((sum, s) => sum + s.quantity, 0);
+        const totalSandBags = stock
+            .filter((s) => s.type === 'consume')
+            .reduce((sum, s) => sum + s.quantity, 0);
         const workHours = this.calculateWorkHours(timeEntries);
         return `<!DOCTYPE html>
 <html lang="fr">
@@ -112,12 +121,12 @@ let ReportsService = class ReportsService {
 <h2>Pointages (${timeEntries.length})</h2>
 <table>
 <tr><th>Employé</th><th>Type</th><th>Heure</th><th>Position</th></tr>
-${timeEntries.map(t => `<tr><td>${t.employee?.firstName} ${t.employee?.lastName}</td><td>${t.type}</td><td>${new Date(t.timestamp).toLocaleString('fr-FR')}</td><td>${t.latitude ? t.latitude.toFixed(4) + ', ' + t.longitude.toFixed(4) : 'N/A'}</td></tr>`).join('')}
+${timeEntries.map((t) => `<tr><td>${t.employee?.firstName} ${t.employee?.lastName}</td><td>${t.type}</td><td>${new Date(t.timestamp).toLocaleString('fr-FR')}</td><td>${t.latitude ? t.latitude.toFixed(4) + ', ' + t.longitude.toFixed(4) : 'N/A'}</td></tr>`).join('')}
 </table>
 
 <h2>Photos (${photos.length})</h2>
 <div class="photo-grid">
-${photos.map(p => `<img src="${p.url}" alt="${p.type}" />`).join('')}
+${photos.map((p) => `<img src="${p.url}" alt="${p.type}" />`).join('')}
 </div>
 
 ${mission.notes ? `<h2>Notes</h2><p>${mission.notes}</p>` : ''}
@@ -126,8 +135,8 @@ ${mission.notes ? `<h2>Notes</h2><p>${mission.notes}</p>` : ''}
 </body></html>`;
     }
     calculateWorkHours(timeEntries) {
-        const starts = timeEntries.filter(t => t.type === 'day_start' || t.type === 'mission_start');
-        const ends = timeEntries.filter(t => t.type === 'day_end' || t.type === 'mission_end');
+        const starts = timeEntries.filter((t) => t.type === 'day_start' || t.type === 'mission_start');
+        const ends = timeEntries.filter((t) => t.type === 'day_end' || t.type === 'mission_end');
         if (!starts.length || !ends.length)
             return 0;
         const start = new Date(starts[0].timestamp).getTime();
@@ -139,13 +148,16 @@ ${mission.notes ? `<h2>Notes</h2><p>${mission.notes}</p>` : ''}
             relations: { mission: true },
             order: { createdAt: 'DESC' },
         });
-        return list.map(r => {
+        return list.map((r) => {
             r.url = `/reports/view/${r.id}`;
             return r;
         });
     }
     async findOne(id) {
-        const r = await this.reportRepo.findOne({ where: { id }, relations: { mission: true } });
+        const r = await this.reportRepo.findOne({
+            where: { id },
+            relations: { mission: true },
+        });
         if (!r)
             throw new common_1.NotFoundException('Rapport non trouvé');
         r.url = `/reports/view/${r.id}`;

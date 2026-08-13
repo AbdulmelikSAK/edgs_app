@@ -45,25 +45,30 @@ __decorate([
     __metadata("design:type", String)
 ], TimeEntry.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => employee_entity_1.Employee),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", employee_entity_1.Employee)
 ], TimeEntry.prototype, "employee", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => truck_entity_1.Truck, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", truck_entity_1.Truck)
 ], TimeEntry.prototype, "truck", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => mission_entity_1.Mission, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", mission_entity_1.Mission)
 ], TimeEntry.prototype, "mission", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ type: 'enum', enum: TimeEntryType }),
     __metadata("design:type", String)
 ], TimeEntry.prototype, "type", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ type: 'timestamp' }),
     __metadata("design:type", Date)
 ], TimeEntry.prototype, "timestamp", void 0);

@@ -34,7 +34,7 @@ import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
         url: config.get<string>('DATABASE_URL'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        synchronize: true,
+        synchronize: config.get('NODE_ENV') !== 'production',
         logging: config.get('NODE_ENV') === 'development',
         autoLoadEntities: true,
       }),

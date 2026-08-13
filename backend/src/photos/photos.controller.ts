@@ -1,4 +1,14 @@
-import { Controller, Post, Get, Delete, Param, UseGuards, UseInterceptors, UploadedFile, Body } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Param,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  Body,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PhotosService } from './photos.service';
@@ -33,7 +43,18 @@ export class PhotosController {
     @Body('employeeId') employeeId?: string,
     @Body('notes') notes?: string,
   ) {
-    return this.photosService.uploadPhoto(missionId, file, type, employeeId, notes);
+    return this.photosService.uploadPhoto(
+      missionId,
+      file,
+      type,
+      employeeId,
+      notes,
+    );
+  }
+
+  @Get()
+  findAll() {
+    return this.photosService.findAll();
   }
 
   @Get('mission/:missionId')

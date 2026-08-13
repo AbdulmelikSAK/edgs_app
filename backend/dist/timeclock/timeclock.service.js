@@ -32,11 +32,17 @@ let TimeclockService = class TimeclockService {
         this.truckRepo = truckRepo;
     }
     async createEntry(dto) {
-        const employee = await this.employeeRepo.findOne({ where: { id: dto.employeeId } });
+        const employee = await this.employeeRepo.findOne({
+            where: { id: dto.employeeId },
+        });
         if (!employee)
             throw new common_1.NotFoundException('Employé non trouvé');
-        const mission = dto.missionId ? await this.missionRepo.findOne({ where: { id: dto.missionId } }) : null;
-        const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
+        const mission = dto.missionId
+            ? await this.missionRepo.findOne({ where: { id: dto.missionId } })
+            : null;
+        const truck = dto.truckId
+            ? await this.truckRepo.findOne({ where: { id: dto.truckId } })
+            : null;
         const entry = this.timeEntryRepo.create({
             employee,
             mission: mission ?? undefined,

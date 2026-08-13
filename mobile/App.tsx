@@ -297,8 +297,10 @@ export default function App() {
           'Authorization': `Bearer ${currentToken}`
         };
 
+        let res: Response;
+
         if (op.type === 'day_start' || op.type === 'day_end' || op.type === 'pause_start' || op.type === 'pause_end') {
-          await fetch(`${serverUrl}/timeclock`, {
+          res = await fetch(`${serverUrl}/timeclock`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -311,14 +313,14 @@ export default function App() {
               isSyncedFromOffline: true
             })
           });
-        }
-
-        if (op.type === 'start_mission') {
-          await fetch(`${serverUrl}/missions/${payload.missionId}/status/in_progress`, {
+        } else if (op.type === 'start_mission') {
+          const res1 = await fetch(`${serverUrl}/missions/${payload.missionId}/status/in_progress`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${currentToken}` }
           });
-          await fetch(`${serverUrl}/timeclock`, {
+          if (!res1.ok) throw new Error(`Failed to update mission status to in_progress (status ${res1.status})`);
+
+          res = await fetch(`${serverUrl}/timeclock`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -329,14 +331,14 @@ export default function App() {
               isSyncedFromOffline: true
             })
           });
-        }
-
-        if (op.type === 'end_mission') {
-          await fetch(`${serverUrl}/missions/${payload.missionId}/status/completed`, {
+        } else if (op.type === 'end_mission') {
+          const res1 = await fetch(`${serverUrl}/missions/${payload.missionId}/status/completed`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${currentToken}` }
           });
-          await fetch(`${serverUrl}/timeclock`, {
+          if (!res1.ok) throw new Error(`Failed to update mission status to completed (status ${res1.status})`);
+
+          res = await fetch(`${serverUrl}/timeclock`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -348,10 +350,8 @@ export default function App() {
               isSyncedFromOffline: true
             })
           });
-        }
-
-        if (op.type === 'stock_movement') {
-          await fetch(`${serverUrl}/stock/movement`, {
+        } else if (op.type === 'stock_movement') {
+          res = await fetch(`${serverUrl}/stock/movement`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -361,10 +361,8 @@ export default function App() {
               notes: 'Synchro Offline'
             })
           });
-        }
-
-        if (op.type === 'gps') {
-          await fetch(`${serverUrl}/gps/track`, {
+        } else if (op.type === 'gps') {
+          res = await fetch(`${serverUrl}/gps/track`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -377,16 +375,51 @@ export default function App() {
               isSyncedFromOffline: true
             })
           });
+        } else if (op.type === 'photo') {
+          const formData = new FormData();
+          formData.append('file', {
+            uri: payload.uri,
+            name: 'photo.jpg',
+            type: 'image/jpeg'
+          } as any);
+          formData.append('type', payload.type);
+          formData.append('employeeId', payload.employeeId || '');
+          formData.append('notes', 'Photo mobile synchro');
+
+          res = await fetch(`${serverUrl}/photos/mission/${payload.missionId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+            body: formData
+          });
+        } else {
+          console.warn(`Unknown offline operation type: ${op.type}`);
+          db.runSync('DELETE FROM pending_sync WHERE id = ?', [op.id]);
+          continue;
+        }
+
+        if (res && res.ok) {
+          db.runSync('DELETE FROM pending_sync WHERE id = ?', [op.id]);
+        } else {
+          const statusText = res ? `status ${res.status}` : 'no response';
+          throw new Error(`Sync operation '${op.type}' failed with ${statusText}`);
         }
       }
 
-      db.execSync('DELETE FROM pending_sync');
-      setSyncQueue([]);
-      Alert.alert('Synchronisation', 'Toutes les opérations hors-ligne ont été synchronisées.');
+      const remaining: any[] = db.getAllSync('SELECT * FROM pending_sync');
+      setSyncQueue(remaining);
+
+      if (remaining.length === 0) {
+        Alert.alert('Synchronisation', 'Toutes les opérations hors-ligne ont été synchronisées.');
+      } else {
+        Alert.alert('Synchronisation', `${remaining.length} opérations n'ont pas pu être synchronisées.`);
+      }
       loadCachedData();
     } catch (e) {
       console.error('Error during synchronization:', e);
-      Alert.alert('Erreur synchro', 'Certaines données n\'ont pas pu être retransmises.');
+      const remaining: any[] = db.getAllSync('SELECT * FROM pending_sync');
+      setSyncQueue(remaining);
+      Alert.alert('Erreur synchro', 'Certaines données n\'ont pas pu être retransmises. La synchronisation reprendra ultérieurement.');
+      loadCachedData();
     }
   };
 

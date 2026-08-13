@@ -67,7 +67,7 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Employee.prototype, "isActive", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 35.00 }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 35.0 }),
     __metadata("design:type", Number)
 ], Employee.prototype, "hourlyRate", void 0);
 __decorate([
@@ -75,11 +75,11 @@ __decorate([
     __metadata("design:type", Number)
 ], Employee.prototype, "monthlySalary", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.0 }),
     __metadata("design:type", Number)
 ], Employee.prototype, "paidLeaveBalance", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.0 }),
     __metadata("design:type", Number)
 ], Employee.prototype, "rttBalance", void 0);
 __decorate([

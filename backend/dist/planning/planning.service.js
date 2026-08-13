@@ -29,7 +29,9 @@ let PlanningService = class PlanningService {
         this.employeeRepo = employeeRepo;
     }
     async create(dto) {
-        const mission = await this.missionRepo.findOne({ where: { id: dto.missionId } });
+        const mission = await this.missionRepo.findOne({
+            where: { id: dto.missionId },
+        });
         const employees = dto.employeeIds && dto.employeeIds.length > 0
             ? await this.employeeRepo.findBy({ id: (0, typeorm_2.In)(dto.employeeIds) })
             : [];

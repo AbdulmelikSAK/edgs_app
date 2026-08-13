@@ -30,12 +30,14 @@ let AuditInterceptor = class AuditInterceptor {
             return next.handle().pipe((0, operators_1.tap)(async (response) => {
                 try {
                     const auditEntry = this.auditRepo.create({
-                        user: user && user.type === 'user' ? { id: user.sub } : null,
+                        user: user && user.type === 'user' ? { id: user.id } : undefined,
                         action: `${method} ${url}`,
                         entityType: url.split('/')[1] || 'Unknown',
                         entityId: response?.id || body?.id || null,
                         newValues: body ? { ...body } : null,
-                        ipAddress: ip || request.headers['x-forwarded-for'] || request.socket.remoteAddress,
+                        ipAddress: ip ||
+                            request.headers['x-forwarded-for'] ||
+                            request.socket.remoteAddress,
                     });
                     await this.auditRepo.save(auditEntry);
                 }

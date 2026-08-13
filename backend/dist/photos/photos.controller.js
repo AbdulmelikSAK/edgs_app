@@ -27,6 +27,9 @@ let PhotosController = class PhotosController {
     uploadPhoto(missionId, file, type, employeeId, notes) {
         return this.photosService.uploadPhoto(missionId, file, type, employeeId, notes);
     }
+    findAll() {
+        return this.photosService.findAll();
+    }
     findByMission(missionId) {
         return this.photosService.findByMission(missionId);
     }
@@ -59,6 +62,12 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String, String, String]),
     __metadata("design:returntype", void 0)
 ], PhotosController.prototype, "uploadPhoto", null);
+__decorate([
+    (0, common_1.Get)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PhotosController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('mission/:missionId'),
     __param(0, (0, common_1.Param)('missionId')),

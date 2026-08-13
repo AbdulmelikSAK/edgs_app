@@ -23,7 +23,9 @@ export class BillingService {
 
   // --- QUOTES ---
   async createQuote(dto: CreateQuoteDto): Promise<Quote> {
-    const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+    const client = await this.clientRepo.findOne({
+      where: { id: dto.clientId },
+    });
     if (!client) throw new NotFoundException('Client non trouvé');
 
     const mission = dto.missionId
@@ -65,7 +67,9 @@ export class BillingService {
     const quote = await this.findOneQuote(id);
 
     if (dto.clientId) {
-      const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+      const client = await this.clientRepo.findOne({
+        where: { id: dto.clientId },
+      });
       if (!client) throw new NotFoundException('Client non trouvé');
       quote.client = client;
     }
@@ -74,14 +78,17 @@ export class BillingService {
       if (dto.missionId === null) {
         quote.mission = null as any;
       } else {
-        const mission = await this.missionRepo.findOne({ where: { id: dto.missionId } });
+        const mission = await this.missionRepo.findOne({
+          where: { id: dto.missionId },
+        });
         quote.mission = mission!;
       }
     }
 
     if (dto.quoteNumber !== undefined) quote.quoteNumber = dto.quoteNumber;
     if (dto.status !== undefined) quote.status = dto.status;
-    if (dto.date !== undefined) quote.date = dto.date ? new Date(dto.date) : new Date();
+    if (dto.date !== undefined)
+      quote.date = dto.date ? new Date(dto.date) : new Date();
     if (dto.lines !== undefined) quote.lines = dto.lines;
     if (dto.totalHT !== undefined) quote.totalHT = dto.totalHT;
     if (dto.vatRate !== undefined) quote.vatRate = dto.vatRate;
@@ -97,7 +104,9 @@ export class BillingService {
 
   // --- INVOICES ---
   async createInvoice(dto: CreateInvoiceDto): Promise<Invoice> {
-    const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+    const client = await this.clientRepo.findOne({
+      where: { id: dto.clientId },
+    });
     if (!client) throw new NotFoundException('Client non trouvé');
 
     const quote = dto.quoteId
@@ -136,19 +145,29 @@ export class BillingService {
     return invoice;
   }
 
-  async updateInvoice(id: string, dto: Partial<CreateInvoiceDto>): Promise<Invoice> {
+  async updateInvoice(
+    id: string,
+    dto: Partial<CreateInvoiceDto>,
+  ): Promise<Invoice> {
     const invoice = await this.findOneInvoice(id);
 
     if (dto.clientId) {
-      const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+      const client = await this.clientRepo.findOne({
+        where: { id: dto.clientId },
+      });
       if (!client) throw new NotFoundException('Client non trouvé');
       invoice.client = client;
     }
 
-    if (dto.invoiceNumber !== undefined) invoice.invoiceNumber = dto.invoiceNumber;
+    if (dto.invoiceNumber !== undefined)
+      invoice.invoiceNumber = dto.invoiceNumber;
     if (dto.status !== undefined) invoice.status = dto.status;
-    if (dto.date !== undefined) invoice.date = dto.date ? new Date(dto.date) : new Date();
-    if (dto.dueDate !== undefined) invoice.dueDate = dto.dueDate ? new Date(dto.dueDate) : (undefined as any);
+    if (dto.date !== undefined)
+      invoice.date = dto.date ? new Date(dto.date) : new Date();
+    if (dto.dueDate !== undefined)
+      invoice.dueDate = dto.dueDate
+        ? new Date(dto.dueDate)
+        : (undefined as any);
     if (dto.lines !== undefined) invoice.lines = dto.lines;
     if (dto.totalHT !== undefined) invoice.totalHT = dto.totalHT;
     if (dto.vatRate !== undefined) invoice.vatRate = dto.vatRate;
@@ -163,7 +182,10 @@ export class BillingService {
   }
 
   // --- CONVERSION ---
-  async convertQuoteToInvoice(quoteId: string, invoiceNumber: string): Promise<Invoice> {
+  async convertQuoteToInvoice(
+    quoteId: string,
+    invoiceNumber: string,
+  ): Promise<Invoice> {
     const quote = await this.findOneQuote(quoteId);
     if (quote.status === 'Facturé') {
       throw new Error('Ce devis a déjà été facturé.');

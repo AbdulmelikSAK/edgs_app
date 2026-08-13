@@ -35,9 +35,15 @@ let MissionsService = class MissionsService {
         this.employeeRepo = employeeRepo;
     }
     async create(dto) {
-        const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
-        const client = dto.clientId ? await this.clientRepo.findOne({ where: { id: dto.clientId } }) : null;
-        const worksite = dto.worksiteId ? await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } }) : null;
+        const truck = dto.truckId
+            ? await this.truckRepo.findOne({ where: { id: dto.truckId } })
+            : null;
+        const client = dto.clientId
+            ? await this.clientRepo.findOne({ where: { id: dto.clientId } })
+            : null;
+        const worksite = dto.worksiteId
+            ? await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } })
+            : null;
         const employees = dto.employeeIds && dto.employeeIds.length > 0
             ? await this.employeeRepo.findBy({ id: (0, typeorm_2.In)(dto.employeeIds) })
             : [];
@@ -56,20 +62,38 @@ let MissionsService = class MissionsService {
     }
     findAll() {
         return this.missionRepo.find({
-            relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+            relations: {
+                truck: true,
+                client: true,
+                worksite: true,
+                employees: true,
+                chefDeMission: true,
+            },
             order: { scheduledDate: 'DESC' },
         });
     }
     findByTruck(truckId) {
         return this.missionRepo.find({
             where: { truck: { id: truckId }, status: mission_entity_1.MissionStatus.IN_PROGRESS },
-            relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+            relations: {
+                truck: true,
+                client: true,
+                worksite: true,
+                employees: true,
+                chefDeMission: true,
+            },
         });
     }
     async findOne(id) {
         const mission = await this.missionRepo.findOne({
             where: { id },
-            relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+            relations: {
+                truck: true,
+                client: true,
+                worksite: true,
+                employees: true,
+                chefDeMission: true,
+            },
         });
         if (!mission)
             throw new common_1.NotFoundException(`Mission ${id} non trouvée`);
@@ -78,17 +102,23 @@ let MissionsService = class MissionsService {
     async update(id, dto) {
         const mission = await this.findOne(id);
         if (dto.truckId) {
-            const truck = await this.truckRepo.findOne({ where: { id: dto.truckId } });
+            const truck = await this.truckRepo.findOne({
+                where: { id: dto.truckId },
+            });
             if (truck)
                 mission.truck = truck;
         }
         if (dto.clientId) {
-            const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
+            const client = await this.clientRepo.findOne({
+                where: { id: dto.clientId },
+            });
             if (client)
                 mission.client = client;
         }
         if (dto.worksiteId) {
-            const worksite = await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } });
+            const worksite = await this.worksiteRepo.findOne({
+                where: { id: dto.worksiteId },
+            });
             if (worksite)
                 mission.worksite = worksite;
         }
@@ -100,7 +130,9 @@ let MissionsService = class MissionsService {
         }
         if (dto.hasOwnProperty('chefDeMissionId')) {
             const chefDeMission = dto.chefDeMissionId
-                ? await this.employeeRepo.findOne({ where: { id: dto.chefDeMissionId } })
+                ? await this.employeeRepo.findOne({
+                    where: { id: dto.chefDeMissionId },
+                })
                 : null;
             mission.chefDeMission = chefDeMission;
         }
@@ -134,9 +166,14 @@ let MissionsService = class MissionsService {
                 {
                     chefDeMission: { id: employeeId },
                     scheduledDate: (0, typeorm_2.Between)(today, tomorrow),
-                }
+                },
             ],
-            relations: { client: true, worksite: true, employees: true, chefDeMission: true },
+            relations: {
+                client: true,
+                worksite: true,
+                employees: true,
+                chefDeMission: true,
+            },
         });
     }
 };

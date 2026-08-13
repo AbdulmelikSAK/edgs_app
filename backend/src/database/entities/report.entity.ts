@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  JoinColumn,
+} from 'typeorm';
 import { Mission } from './mission.entity';
 import { User } from './user.entity';
 
@@ -21,7 +28,11 @@ export class Report {
   @JoinColumn()
   generatedBy: User;
 
-  @Column({ type: 'enum', enum: ReportStatus, default: ReportStatus.GENERATING })
+  @Column({
+    type: 'enum',
+    enum: ReportStatus,
+    default: ReportStatus.GENERATING,
+  })
   status: ReportStatus;
 
   @Column({ nullable: true })

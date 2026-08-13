@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { Employee } from './employee.entity';
 import { Mission } from './mission.entity';
 import { Truck } from './truck.entity';
@@ -17,21 +25,26 @@ export class TimeEntry {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @ManyToOne(() => Employee)
   @JoinColumn()
   employee: Employee;
 
+  @Index()
   @ManyToOne(() => Truck, { nullable: true })
   @JoinColumn()
   truck: Truck;
 
+  @Index()
   @ManyToOne(() => Mission, { nullable: true })
   @JoinColumn()
   mission: Mission;
 
+  @Index()
   @Column({ type: 'enum', enum: TimeEntryType })
   type: TimeEntryType;
 
+  @Index()
   @Column({ type: 'timestamp' })
   timestamp: Date;
 

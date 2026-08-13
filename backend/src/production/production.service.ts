@@ -18,7 +18,9 @@ export class ProductionService {
   ) {}
 
   async create(dto: CreateProductionEntryDto): Promise<ProductionEntry> {
-    const mission = await this.missionRepo.findOne({ where: { id: dto.missionId } });
+    const mission = await this.missionRepo.findOne({
+      where: { id: dto.missionId },
+    });
     if (!mission) throw new NotFoundException('Mission non trouvée');
 
     const employee = dto.employeeId
@@ -41,7 +43,10 @@ export class ProductionService {
     const allProductionForMission = await this.productionRepo.find({
       where: { mission: { id: mission.id } },
     });
-    const totalQty = allProductionForMission.reduce((sum, p) => sum + Number(p.quantity), 0);
+    const totalQty = allProductionForMission.reduce(
+      (sum, p) => sum + Number(p.quantity),
+      0,
+    );
     mission.surfaceArea = totalQty;
     await this.missionRepo.save(mission);
 
@@ -88,7 +93,8 @@ export class ProductionService {
       breakdown: Object.keys(statsByType).map((name) => ({
         name,
         quantity: statsByType[name],
-        percentage: total > 0 ? Math.round((statsByType[name] / total) * 100) : 0,
+        percentage:
+          total > 0 ? Math.round((statsByType[name] / total) * 100) : 0,
       })),
     };
   }

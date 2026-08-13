@@ -1,7 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { StockMovement, StockMovementType } from '../database/entities/stock-movement.entity';
+import {
+  StockMovement,
+  StockMovementType,
+} from '../database/entities/stock-movement.entity';
 import { Truck } from '../database/entities/truck.entity';
 import { Mission } from '../database/entities/mission.entity';
 import { Employee } from '../database/entities/employee.entity';
@@ -10,24 +17,39 @@ import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 @Injectable()
 export class StockService {
   constructor(
-    @InjectRepository(StockMovement) private stockRepo: Repository<StockMovement>,
+    @InjectRepository(StockMovement)
+    private stockRepo: Repository<StockMovement>,
     @InjectRepository(Truck) private truckRepo: Repository<Truck>,
     @InjectRepository(Mission) private missionRepo: Repository<Mission>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
   ) {}
 
-  async createMovement(dto: CreateStockMovementDto): Promise<{ movement: StockMovement; alert: boolean; currentStock: number }> {
+  async createMovement(dto: CreateStockMovementDto): Promise<{
+    movement: StockMovement;
+    alert: boolean;
+    currentStock: number;
+  }> {
     const truck = await this.truckRepo.findOne({ where: { id: dto.truckId } });
     if (!truck) throw new NotFoundException('Camion non trouvé');
-    const mission = dto.missionId ? await this.missionRepo.findOne({ where: { id: dto.missionId } }) : null;
-    const employee = dto.employeeId ? await this.employeeRepo.findOne({ where: { id: dto.employeeId } }) : null;
+    const mission = dto.missionId
+      ? await this.missionRepo.findOne({ where: { id: dto.missionId } })
+      : null;
+    const employee = dto.employeeId
+      ? await this.employeeRepo.findOne({ where: { id: dto.employeeId } })
+      : null;
 
     const stockBefore = truck.currentStock;
     let stockAfter = stockBefore;
 
-    if (dto.type === StockMovementType.LOAD || dto.type === StockMovementType.ADJUSTMENT) {
+    if (
+      dto.type === StockMovementType.LOAD ||
+      dto.type === StockMovementType.ADJUSTMENT
+    ) {
       stockAfter = stockBefore + dto.quantity;
-    } else if (dto.type === StockMovementType.CONSUME || dto.type === StockMovementType.RETURN) {
+    } else if (
+      dto.type === StockMovementType.CONSUME ||
+      dto.type === StockMovementType.RETURN
+    ) {
       stockAfter = stockBefore - Math.abs(dto.quantity);
     }
 

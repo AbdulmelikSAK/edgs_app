@@ -27,14 +27,14 @@ export class TrucksService {
     return this.truckRepo.find({
       where: { isActive: true },
       relations: { stocks: { stockItem: true } },
-      order: { plateNumber: 'ASC' }
+      order: { plateNumber: 'ASC' },
     });
   }
 
   async findOne(id: string): Promise<Truck> {
     const truck = await this.truckRepo.findOne({
       where: { id },
-      relations: { stocks: { stockItem: true } }
+      relations: { stocks: { stockItem: true } },
     });
     if (!truck) throw new NotFoundException(`Camion ${id} non trouvé`);
     return truck;
@@ -66,14 +66,21 @@ export class TrucksService {
       .getMany();
   }
 
-  async assignTruck(truckId: string, employeeId: string, startDate?: string, notes?: string): Promise<TruckAssignment> {
+  async assignTruck(
+    truckId: string,
+    employeeId: string,
+    startDate?: string,
+    notes?: string,
+  ): Promise<TruckAssignment> {
     const truck = await this.findOne(truckId);
-    const employee = await this.employeeRepo.findOne({ where: { id: employeeId } });
+    const employee = await this.employeeRepo.findOne({
+      where: { id: employeeId },
+    });
     if (!employee) throw new NotFoundException('Employé non trouvé');
 
     // Close any previous active assignment for this truck
     const activeTruckAss = await this.assignmentRepo.findOne({
-      where: { truck: { id: truckId }, endDate: IsNull() }
+      where: { truck: { id: truckId }, endDate: IsNull() },
     });
     if (activeTruckAss) {
       activeTruckAss.endDate = new Date();
@@ -82,7 +89,7 @@ export class TrucksService {
 
     // Close any previous active assignment for this employee
     const activeEmpAss = await this.assignmentRepo.findOne({
-      where: { employee: { id: employeeId }, endDate: IsNull() }
+      where: { employee: { id: employeeId }, endDate: IsNull() },
     });
     if (activeEmpAss) {
       activeEmpAss.endDate = new Date();
@@ -99,8 +106,13 @@ export class TrucksService {
     return this.assignmentRepo.save(assignment);
   }
 
-  async unassignTruck(assignmentId: string, endDate?: string): Promise<TruckAssignment> {
-    const ass = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+  async unassignTruck(
+    assignmentId: string,
+    endDate?: string,
+  ): Promise<TruckAssignment> {
+    const ass = await this.assignmentRepo.findOne({
+      where: { id: assignmentId },
+    });
     if (!ass) throw new NotFoundException('Affectation non trouvée');
     ass.endDate = endDate ? new Date(endDate) : new Date();
     return this.assignmentRepo.save(ass);
@@ -111,16 +123,19 @@ export class TrucksService {
       return this.assignmentRepo.find({
         where: { truck: { id: truckId } },
         relations: { truck: true, employee: true },
-        order: { startDate: 'DESC' }
+        order: { startDate: 'DESC' },
       });
     }
     return this.assignmentRepo.find({
       relations: { truck: true, employee: true },
-      order: { startDate: 'DESC' }
+      order: { startDate: 'DESC' },
     });
   }
 
-  async searchDriverByDate(plateNumber: string, dateStr: string): Promise<Employee | null> {
+  async searchDriverByDate(
+    plateNumber: string,
+    dateStr: string,
+  ): Promise<Employee | null> {
     const date = new Date(dateStr);
 
     // Find assignment where startDate <= date AND (endDate >= date OR endDate IS NULL)
@@ -129,15 +144,15 @@ export class TrucksService {
         {
           truck: { plateNumber },
           startDate: LessThanOrEqual(date),
-          endDate: MoreThanOrEqual(date)
+          endDate: MoreThanOrEqual(date),
         },
         {
           truck: { plateNumber },
           startDate: LessThanOrEqual(date),
-          endDate: IsNull()
-        }
+          endDate: IsNull(),
+        },
       ],
-      relations: { employee: true }
+      relations: { employee: true },
     });
 
     return ass ? ass.employee : null;

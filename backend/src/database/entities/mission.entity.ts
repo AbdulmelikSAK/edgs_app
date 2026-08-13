@@ -1,4 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  ManyToMany,
+  JoinTable,
+  CreateDateColumn,
+  UpdateDateColumn,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { Truck } from './truck.entity';
 import { Client } from './client.entity';
 import { Worksite } from './worksite.entity';
@@ -34,6 +45,7 @@ export class Mission {
   @Column({ type: 'enum', enum: MissionStatus, default: MissionStatus.PLANNED })
   status: MissionStatus;
 
+  @Index()
   @Column({ type: 'timestamp' })
   scheduledDate: Date;
 
@@ -61,14 +73,17 @@ export class Mission {
   @Column({ nullable: true, type: 'text' })
   notes: string;
 
+  @Index()
   @ManyToOne(() => Truck, { nullable: true })
   @JoinColumn()
   truck: Truck;
 
+  @Index()
   @ManyToOne(() => Client, { nullable: true })
   @JoinColumn()
   client: Client;
 
+  @Index()
   @ManyToOne(() => Worksite, { nullable: true })
   @JoinColumn()
   worksite: Worksite;
@@ -77,6 +92,7 @@ export class Mission {
   @JoinTable({ name: 'mission_employees' })
   employees: Employee[];
 
+  @Index()
   @ManyToOne(() => Employee, { nullable: true })
   @JoinColumn({ name: 'chef_de_mission_id' })
   chefDeMission: Employee | null;

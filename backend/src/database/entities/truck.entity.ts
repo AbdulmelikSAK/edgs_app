@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
 import { TruckStock } from './truck-stock.entity';
 
 @Entity('trucks')
@@ -45,7 +52,7 @@ export class Truck {
   @Column({ nullable: true })
   insuranceCardUrl: string;
 
-  @OneToMany(() => TruckStock, ts => ts.truck)
+  @OneToMany(() => TruckStock, (ts) => ts.truck)
   stocks: TruckStock[];
 
   @CreateDateColumn()

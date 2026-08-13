@@ -9,17 +9,21 @@ import { CreatePlanningDto } from './dto/create-planning.dto';
 @Injectable()
 export class PlanningService {
   constructor(
-    @InjectRepository(WeeklyPlanning) private planningRepo: Repository<WeeklyPlanning>,
+    @InjectRepository(WeeklyPlanning)
+    private planningRepo: Repository<WeeklyPlanning>,
     @InjectRepository(Mission) private missionRepo: Repository<Mission>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
-  ) { }
+  ) {}
 
   async create(dto: CreatePlanningDto): Promise<WeeklyPlanning> {
-    const mission = await this.missionRepo.findOne({ where: { id: dto.missionId } });
-    
-    const employees = dto.employeeIds && dto.employeeIds.length > 0
-      ? await this.employeeRepo.findBy({ id: In(dto.employeeIds) })
-      : [];
+    const mission = await this.missionRepo.findOne({
+      where: { id: dto.missionId },
+    });
+
+    const employees =
+      dto.employeeIds && dto.employeeIds.length > 0
+        ? await this.employeeRepo.findBy({ id: In(dto.employeeIds) })
+        : [];
 
     const entry = this.planningRepo.create({
       ...dto,

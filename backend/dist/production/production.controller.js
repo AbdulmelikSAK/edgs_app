@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const production_service_1 = require("./production.service");
 const create_production_entry_dto_1 = require("./dto/create-production-entry.dto");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let ProductionController = class ProductionController {
     productionService;
     constructor(productionService) {
@@ -58,6 +59,8 @@ __decorate([
 ], ProductionController.prototype, "getStatsToday", null);
 exports.ProductionController = ProductionController = __decorate([
     (0, swagger_1.ApiTags)('production'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('production'),
     __metadata("design:paramtypes", [production_service_1.ProductionService])
 ], ProductionController);

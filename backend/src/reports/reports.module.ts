@@ -12,7 +12,14 @@ import { PhotosModule } from '../photos/photos.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Report, Mission, MissionPhoto, TimeEntry, StockMovement, GpsPoint]),
+    TypeOrmModule.forFeature([
+      Report,
+      Mission,
+      MissionPhoto,
+      TimeEntry,
+      StockMovement,
+      GpsPoint,
+    ]),
     PhotosModule,
   ],
   controllers: [ReportsController],

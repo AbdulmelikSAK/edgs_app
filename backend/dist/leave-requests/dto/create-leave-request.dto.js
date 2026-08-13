@@ -49,7 +49,7 @@ __decorate([
     __metadata("design:type", Boolean)
 ], CreateLeaveRequestDto.prototype, "isHalfDay", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: 'Vacances d\'été' }),
+    (0, swagger_1.ApiPropertyOptional)({ example: "Vacances d'été" }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)

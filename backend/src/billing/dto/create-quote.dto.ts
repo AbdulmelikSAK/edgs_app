@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsNumber, IsUUID, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsUUID,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -26,7 +32,9 @@ export class CreateQuoteDto {
   @IsDateString()
   date?: string;
 
-  @ApiProperty({ example: '[{"description":"Sablage béton","quantity":150,"unitPrice":35}]' })
+  @ApiProperty({
+    example: '[{"description":"Sablage béton","quantity":150,"unitPrice":35}]',
+  })
   @IsString()
   lines: string; // JSON string
 

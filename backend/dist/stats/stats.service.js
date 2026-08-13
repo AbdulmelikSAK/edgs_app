@@ -48,7 +48,7 @@ let StatsService = class StatsService {
         if (from && to)
             where.scheduledDate = (0, typeorm_2.Between)(new Date(from), new Date(to));
         const missions = await this.missionRepo.find({ where });
-        const completed = missions.filter(m => m.status === mission_entity_1.MissionStatus.COMPLETED);
+        const completed = missions.filter((m) => m.status === mission_entity_1.MissionStatus.COMPLETED);
         const totalRevenue = completed.reduce((sum, m) => sum + (Number(m.actualPrice) || 0), 0);
         const totalEstimated = completed.reduce((sum, m) => sum + (Number(m.estimatedPrice) || 0), 0);
         const totalSurface = completed.reduce((sum, m) => sum + (Number(m.surfaceArea) || 0), 0);
@@ -59,14 +59,18 @@ let StatsService = class StatsService {
             missions: {
                 total: missions.length,
                 completed: completed.length,
-                inProgress: missions.filter(m => m.status === mission_entity_1.MissionStatus.IN_PROGRESS).length,
-                planned: missions.filter(m => m.status === mission_entity_1.MissionStatus.PLANNED).length,
-                cancelled: missions.filter(m => m.status === mission_entity_1.MissionStatus.CANCELLED).length,
+                inProgress: missions.filter((m) => m.status === mission_entity_1.MissionStatus.IN_PROGRESS).length,
+                planned: missions.filter((m) => m.status === mission_entity_1.MissionStatus.PLANNED)
+                    .length,
+                cancelled: missions.filter((m) => m.status === mission_entity_1.MissionStatus.CANCELLED)
+                    .length,
             },
             financial: {
                 totalRevenue,
                 totalEstimated,
-                profitability: totalEstimated > 0 ? ((totalRevenue / totalEstimated) * 100).toFixed(1) + '%' : 'N/A',
+                profitability: totalEstimated > 0
+                    ? ((totalRevenue / totalEstimated) * 100).toFixed(1) + '%'
+                    : 'N/A',
             },
             operational: {
                 totalSurfaceArea: totalSurface,
@@ -77,14 +81,19 @@ let StatsService = class StatsService {
         };
     }
     async getTruckStats(truckId) {
-        const missions = await this.missionRepo.find({ where: { truck: { id: truckId } } });
-        const stockMovements = await this.stockRepo.find({ where: { truck: { id: truckId } } });
+        const missions = await this.missionRepo.find({
+            where: { truck: { id: truckId } },
+        });
+        const stockMovements = await this.stockRepo.find({
+            where: { truck: { id: truckId } },
+        });
         const totalConsumed = stockMovements
-            .filter(s => s.type === stock_movement_entity_1.StockMovementType.CONSUME)
+            .filter((s) => s.type === stock_movement_entity_1.StockMovementType.CONSUME)
             .reduce((sum, s) => sum + s.quantity, 0);
         return {
             missions: missions.length,
-            completed: missions.filter(m => m.status === mission_entity_1.MissionStatus.COMPLETED).length,
+            completed: missions.filter((m) => m.status === mission_entity_1.MissionStatus.COMPLETED)
+                .length,
             totalRevenue: missions.reduce((s, m) => s + (Number(m.actualPrice) || 0), 0),
             totalSurface: missions.reduce((s, m) => s + (Number(m.surfaceArea) || 0), 0),
             sandBagsConsumed: totalConsumed,
@@ -95,15 +104,17 @@ let StatsService = class StatsService {
         startOfToday.setHours(0, 0, 0, 0);
         const endOfToday = new Date();
         endOfToday.setHours(23, 59, 59, 999);
-        const employees = await this.employeeRepo.find({ where: { isActive: true } });
+        const employees = await this.employeeRepo.find({
+            where: { isActive: true },
+        });
         const timeEntriesToday = await this.timeRepo.find({
             where: { timestamp: (0, typeorm_2.Between)(startOfToday, endOfToday) },
             relations: { employee: true },
         });
         const presentEmployeeIds = new Set();
-        employees.forEach(emp => {
+        employees.forEach((emp) => {
             const empEntries = timeEntriesToday
-                .filter(t => t.employee.id === emp.id)
+                .filter((t) => t.employee.id === emp.id)
                 .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
             if (empEntries.length > 0) {
                 const lastEntry = empEntries[empEntries.length - 1];
@@ -119,15 +130,15 @@ let StatsService = class StatsService {
             relations: { client: true, worksite: true },
         });
         let totalMinutesToday = 0;
-        employees.forEach(emp => {
+        employees.forEach((emp) => {
             const empEntries = timeEntriesToday
-                .filter(t => t.employee.id === emp.id)
+                .filter((t) => t.employee.id === emp.id)
                 .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
             let clockedInTime = null;
             let totalEmpMs = 0;
             let pauseStartTime = null;
             let totalPauseMs = 0;
-            empEntries.forEach(entry => {
+            empEntries.forEach((entry) => {
                 if (entry.type === time_entry_entity_1.TimeEntryType.DAY_START) {
                     clockedInTime = entry.timestamp;
                 }
@@ -149,7 +160,8 @@ let StatsService = class StatsService {
             }
             if (pauseStartTime) {
                 const limitTime = new Date().getTime() < endOfToday.getTime() ? new Date() : endOfToday;
-                totalPauseMs += limitTime.getTime() - pauseStartTime.getTime();
+                totalPauseMs +=
+                    limitTime.getTime() - pauseStartTime.getTime();
             }
             const workedMs = Math.max(0, totalEmpMs - totalPauseMs);
             totalMinutesToday += workedMs / (1000 * 60);
@@ -162,23 +174,28 @@ let StatsService = class StatsService {
         });
         const m2RealisesToday = productionToday.reduce((sum, p) => sum + Number(p.quantity), 0);
         const prodBreakdownByType = {};
-        productionToday.forEach(p => {
+        productionToday.forEach((p) => {
             const type = p.prestationType || 'Autre';
-            prodBreakdownByType[type] = (prodBreakdownByType[type] || 0) + Number(p.quantity);
+            prodBreakdownByType[type] =
+                (prodBreakdownByType[type] || 0) + Number(p.quantity);
         });
-        const breakdown = Object.keys(prodBreakdownByType).map(name => {
+        const breakdown = Object.keys(prodBreakdownByType).map((name) => {
             const quantity = prodBreakdownByType[name];
             return {
                 name,
                 quantity,
-                percentage: m2RealisesToday > 0 ? Math.round((quantity / m2RealisesToday) * 100) : 0,
+                percentage: m2RealisesToday > 0
+                    ? Math.round((quantity / m2RealisesToday) * 100)
+                    : 0,
             };
         });
         const allMissions = await this.missionRepo.find({
             relations: { client: true, worksite: true },
         });
         const avancementChantiers = await Promise.all(allMissions.map(async (m) => {
-            const prod = await this.productionRepo.find({ where: { mission: { id: m.id } } });
+            const prod = await this.productionRepo.find({
+                where: { mission: { id: m.id } },
+            });
             const totalRealised = prod.reduce((sum, p) => sum + Number(p.quantity), 0);
             const totalPlanned = Number(m.surfaceArea) || 350;
             const percentage = Math.min(100, Math.round((totalRealised / totalPlanned) * 100));
@@ -198,15 +215,17 @@ let StatsService = class StatsService {
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
         const fifteenDaysFromNow = new Date();
         fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
-        trucks.forEach(t => {
-            if (t.controlTechniqueDate && new Date(t.controlTechniqueDate) <= thirtyDaysFromNow) {
+        trucks.forEach((t) => {
+            if (t.controlTechniqueDate &&
+                new Date(t.controlTechniqueDate) <= thirtyDaysFromNow) {
                 alertes.push({
                     type: 'vehicle_ct',
                     message: `Contrôle technique requis pour le camion ${t.plateNumber} (${t.model}) sous 30 jours`,
                     severity: 'warning',
                 });
             }
-            if (t.insuranceExpirationDate && new Date(t.insuranceExpirationDate) <= thirtyDaysFromNow) {
+            if (t.insuranceExpirationDate &&
+                new Date(t.insuranceExpirationDate) <= thirtyDaysFromNow) {
                 alertes.push({
                     type: 'vehicle_insurance',
                     message: `Assurance expirant le ${new Date(t.insuranceExpirationDate).toLocaleDateString('fr-FR')} pour le camion ${t.plateNumber}`,
@@ -214,8 +233,9 @@ let StatsService = class StatsService {
                 });
             }
         });
-        equipments.forEach(eq => {
-            if (eq.nextMaintenanceDate && new Date(eq.nextMaintenanceDate) <= fifteenDaysFromNow) {
+        equipments.forEach((eq) => {
+            if (eq.nextMaintenanceDate &&
+                new Date(eq.nextMaintenanceDate) <= fifteenDaysFromNow) {
                 alertes.push({
                     type: 'equipment_maintenance',
                     message: `Visite d'entretien recommandée pour l'équipement: ${eq.name} (${eq.serialNumber || 'sans n/s'})`,
@@ -244,33 +264,40 @@ let StatsService = class StatsService {
         }
         const rentabilitéChantiers = await Promise.all(allMissions.map(async (m) => {
             const caPrevisionnel = Number(m.estimatedPrice) || 125000;
-            const prod = await this.productionRepo.find({ where: { mission: { id: m.id } } });
+            const prod = await this.productionRepo.find({
+                where: { mission: { id: m.id } },
+            });
             const totalRealised = prod.reduce((sum, p) => sum + Number(p.quantity), 0);
             const totalPlanned = Number(m.surfaceArea) || 350;
-            const progress = Math.min(100, (totalRealised / totalPlanned));
+            const progress = Math.min(100, totalRealised / totalPlanned);
             const caRealise = m.status === mission_entity_1.MissionStatus.COMPLETED
-                ? (Number(m.actualPrice) || caPrevisionnel)
+                ? Number(m.actualPrice) || caPrevisionnel
                 : Math.round(progress * caPrevisionnel);
             const timeEntries = await this.timeRepo.find({
                 where: { mission: { id: m.id } },
                 relations: { employee: true },
             });
-            let totalEmpMs = 0;
+            const totalEmpMs = 0;
             const empHoursMap = new Map();
-            timeEntries.forEach(entry => {
+            timeEntries.forEach((entry) => {
                 const empId = entry.employee.id;
                 const rate = Number(entry.employee.hourlyRate) || 35;
                 empHoursMap.set(empId, (empHoursMap.get(empId) || 0) + 8);
             });
             let mainDOeuvreCost = 0;
             empHoursMap.forEach((hrs, empId) => {
-                const emp = employees.find(e => e.id === empId);
+                const emp = employees.find((e) => e.id === empId);
                 const rate = emp ? Number(emp.hourlyRate) : 35;
                 mainDOeuvreCost += hrs * rate;
             });
-            const displacementCost = timeEntries.filter(t => t.displacementMode === 'grand_deplacement').length * 120
-                + timeEntries.filter(t => t.displacementMode === 'petit_deplacement').length * 40
-                + timeEntries.filter(t => t.displacementMode === 'panier').length * 20;
+            const displacementCost = timeEntries.filter((t) => t.displacementMode === 'grand_deplacement')
+                .length *
+                120 +
+                timeEntries.filter((t) => t.displacementMode === 'petit_deplacement')
+                    .length *
+                    40 +
+                timeEntries.filter((t) => t.displacementMode === 'panier').length *
+                    20;
             const sandCost = (m.sandBagsUsed || 0) * 8;
             const fuelCost = (Number(m.fuelConsumption) || 0) * 1.8;
             const coutReel = mainDOeuvreCost + displacementCost + sandCost + fuelCost;

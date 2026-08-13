@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LeaveRequest, LeaveType, LeaveStatus } from '../database/entities/leave-request.entity';
+import {
+  LeaveRequest,
+  LeaveType,
+  LeaveStatus,
+} from '../database/entities/leave-request.entity';
 import { Employee } from '../database/entities/employee.entity';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { UpdateLeaveRequestStatusDto } from './dto/update-leave-request-status.dto';
@@ -15,7 +23,11 @@ export class LeaveRequestsService {
     private employeeRepo: Repository<Employee>,
   ) {}
 
-  private calculateDuration(startDate: Date, endDate: Date, isHalfDay: boolean): number {
+  private calculateDuration(
+    startDate: Date,
+    endDate: Date,
+    isHalfDay: boolean,
+  ): number {
     if (isHalfDay) return 0.5;
 
     let count = 0;
@@ -36,7 +48,9 @@ export class LeaveRequestsService {
   }
 
   async create(dto: CreateLeaveRequestDto): Promise<LeaveRequest> {
-    const employee = await this.employeeRepo.findOne({ where: { id: dto.employeeId } });
+    const employee = await this.employeeRepo.findOne({
+      where: { id: dto.employeeId },
+    });
     if (!employee) throw new NotFoundException('Employé non trouvé');
 
     const start = new Date(dto.startDate);
@@ -44,7 +58,9 @@ export class LeaveRequestsService {
     const isHalfDay = !!dto.isHalfDay;
 
     if (start > end) {
-      throw new BadRequestException('La date de début doit être antérieure à la date de fin');
+      throw new BadRequestException(
+        'La date de début doit être antérieure à la date de fin',
+      );
     }
 
     const duration = this.calculateDuration(start, end, isHalfDay);
@@ -52,17 +68,24 @@ export class LeaveRequestsService {
     // If it's conge or rtt, verify balance
     if (dto.type === LeaveType.CONGE) {
       if (Number(employee.paidLeaveBalance) < duration) {
-        throw new BadRequestException(`Solde de congés payés insuffisant. Requis: ${duration}j, Disponible: ${employee.paidLeaveBalance}j`);
+        throw new BadRequestException(
+          `Solde de congés payés insuffisant. Requis: ${duration}j, Disponible: ${employee.paidLeaveBalance}j`,
+        );
       }
     } else if (dto.type === LeaveType.RTT) {
       if (Number(employee.rttBalance) < duration) {
-        throw new BadRequestException(`Solde de RTT insuffisant. Requis: ${duration}j, Disponible: ${employee.rttBalance}j`);
+        throw new BadRequestException(
+          `Solde de RTT insuffisant. Requis: ${duration}j, Disponible: ${employee.rttBalance}j`,
+        );
       }
     }
 
     // Auto-approve absences (sans_solde, autre)
-    const requiresValidation = dto.type === LeaveType.CONGE || dto.type === LeaveType.RTT;
-    const status = requiresValidation ? LeaveStatus.PENDING : LeaveStatus.APPROVED;
+    const requiresValidation =
+      dto.type === LeaveType.CONGE || dto.type === LeaveType.RTT;
+    const status = requiresValidation
+      ? LeaveStatus.PENDING
+      : LeaveStatus.APPROVED;
 
     const request = this.leaveRepo.create({
       employee,
@@ -79,7 +102,8 @@ export class LeaveRequestsService {
     // If auto-approved conge/rtt (unlikely based on type, but for safety), deduct balance
     if (status === LeaveStatus.APPROVED) {
       if (dto.type === LeaveType.CONGE) {
-        employee.paidLeaveBalance = Number(employee.paidLeaveBalance) - duration;
+        employee.paidLeaveBalance =
+          Number(employee.paidLeaveBalance) - duration;
         await this.employeeRepo.save(employee);
       } else if (dto.type === LeaveType.RTT) {
         employee.rttBalance = Number(employee.rttBalance) - duration;
@@ -105,7 +129,10 @@ export class LeaveRequestsService {
     });
   }
 
-  async updateStatus(id: string, dto: UpdateLeaveRequestStatusDto): Promise<LeaveRequest> {
+  async updateStatus(
+    id: string,
+    dto: UpdateLeaveRequestStatusDto,
+  ): Promise<LeaveRequest> {
     const request = await this.leaveRepo.findOne({
       where: { id },
       relations: { employee: true },
@@ -113,19 +140,31 @@ export class LeaveRequestsService {
     if (!request) throw new NotFoundException('Demande de congé non trouvée');
 
     // Deduct balance if transitioning to APPROVED
-    if (request.status !== LeaveStatus.APPROVED && dto.status === LeaveStatus.APPROVED) {
-      const duration = this.calculateDuration(request.startDate, request.endDate, request.isHalfDay);
+    if (
+      request.status !== LeaveStatus.APPROVED &&
+      dto.status === LeaveStatus.APPROVED
+    ) {
+      const duration = this.calculateDuration(
+        request.startDate,
+        request.endDate,
+        request.isHalfDay,
+      );
       const employee = request.employee;
 
       if (request.type === LeaveType.CONGE) {
         if (Number(employee.paidLeaveBalance) < duration) {
-          throw new BadRequestException(`Solde insuffisant pour approuver cette demande. Requis: ${duration}j, Disponible: ${employee.paidLeaveBalance}j`);
+          throw new BadRequestException(
+            `Solde insuffisant pour approuver cette demande. Requis: ${duration}j, Disponible: ${employee.paidLeaveBalance}j`,
+          );
         }
-        employee.paidLeaveBalance = Number(employee.paidLeaveBalance) - duration;
+        employee.paidLeaveBalance =
+          Number(employee.paidLeaveBalance) - duration;
         await this.employeeRepo.save(employee);
       } else if (request.type === LeaveType.RTT) {
         if (Number(employee.rttBalance) < duration) {
-          throw new BadRequestException(`Solde insuffisant pour approuver cette demande. Requis: ${duration}j, Disponible: ${employee.rttBalance}j`);
+          throw new BadRequestException(
+            `Solde insuffisant pour approuver cette demande. Requis: ${duration}j, Disponible: ${employee.rttBalance}j`,
+          );
         }
         employee.rttBalance = Number(employee.rttBalance) - duration;
         await this.employeeRepo.save(employee);

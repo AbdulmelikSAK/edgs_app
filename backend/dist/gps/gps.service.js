@@ -32,7 +32,9 @@ let GpsService = class GpsService {
         const truck = await this.truckRepo.findOne({ where: { id: dto.truckId } });
         if (!truck)
             throw new common_1.NotFoundException('Camion non trouvé');
-        const mission = dto.missionId ? await this.missionRepo.findOne({ where: { id: dto.missionId } }) : null;
+        const mission = dto.missionId
+            ? await this.missionRepo.findOne({ where: { id: dto.missionId } })
+            : null;
         const point = this.gpsRepo.create({
             truck,
             mission: mission ?? undefined,
@@ -71,7 +73,7 @@ let GpsService = class GpsService {
             .orderBy('truck.id')
             .addOrderBy('gps.createdAt', 'DESC')
             .getRawMany();
-        return result.map(pos => ({
+        return result.map((pos) => ({
             ...pos,
             latitude: Number(pos.latitude),
             longitude: Number(pos.longitude),

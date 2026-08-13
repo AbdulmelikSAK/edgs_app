@@ -61,16 +61,28 @@ let UsersService = class UsersService {
     }
     async create(dto) {
         const passwordHash = await bcrypt.hash(dto.password, 10);
-        const role = dto.roleId ? await this.roleRepo.findOne({ where: { id: dto.roleId } }) : null;
-        const user = this.userRepo.create({ ...dto, passwordHash, role: role ?? undefined });
+        const role = dto.roleId
+            ? await this.roleRepo.findOne({ where: { id: dto.roleId } })
+            : null;
+        const user = this.userRepo.create({
+            ...dto,
+            passwordHash,
+            role: role ?? undefined,
+        });
         delete user.password;
         return this.userRepo.save(user);
     }
     findAll() {
-        return this.userRepo.find({ relations: { role: true }, where: { isActive: true } });
+        return this.userRepo.find({
+            relations: { role: true },
+            where: { isActive: true },
+        });
     }
     async findOne(id) {
-        const user = await this.userRepo.findOne({ where: { id }, relations: { role: true } });
+        const user = await this.userRepo.findOne({
+            where: { id },
+            relations: { role: true },
+        });
         if (!user)
             throw new common_1.NotFoundException(`Utilisateur ${id} non trouvé`);
         return user;

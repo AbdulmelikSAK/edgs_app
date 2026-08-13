@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { Truck } from './truck.entity';
 import { Mission } from './mission.entity';
 
@@ -7,10 +15,12 @@ export class GpsPoint {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @ManyToOne(() => Truck)
   @JoinColumn()
   truck: Truck;
 
+  @Index()
   @ManyToOne(() => Mission, { nullable: true })
   @JoinColumn()
   mission: Mission;
@@ -33,6 +43,7 @@ export class GpsPoint {
   @Column({ default: false })
   isOutOfZone: boolean;
 
+  @Index()
   @CreateDateColumn()
   createdAt: Date;
 }

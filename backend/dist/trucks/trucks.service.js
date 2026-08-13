@@ -36,13 +36,13 @@ let TrucksService = class TrucksService {
         return this.truckRepo.find({
             where: { isActive: true },
             relations: { stocks: { stockItem: true } },
-            order: { plateNumber: 'ASC' }
+            order: { plateNumber: 'ASC' },
         });
     }
     async findOne(id) {
         const truck = await this.truckRepo.findOne({
             where: { id },
-            relations: { stocks: { stockItem: true } }
+            relations: { stocks: { stockItem: true } },
         });
         if (!truck)
             throw new common_1.NotFoundException(`Camion ${id} non trouvé`);
@@ -72,18 +72,20 @@ let TrucksService = class TrucksService {
     }
     async assignTruck(truckId, employeeId, startDate, notes) {
         const truck = await this.findOne(truckId);
-        const employee = await this.employeeRepo.findOne({ where: { id: employeeId } });
+        const employee = await this.employeeRepo.findOne({
+            where: { id: employeeId },
+        });
         if (!employee)
             throw new common_1.NotFoundException('Employé non trouvé');
         const activeTruckAss = await this.assignmentRepo.findOne({
-            where: { truck: { id: truckId }, endDate: (0, typeorm_2.IsNull)() }
+            where: { truck: { id: truckId }, endDate: (0, typeorm_2.IsNull)() },
         });
         if (activeTruckAss) {
             activeTruckAss.endDate = new Date();
             await this.assignmentRepo.save(activeTruckAss);
         }
         const activeEmpAss = await this.assignmentRepo.findOne({
-            where: { employee: { id: employeeId }, endDate: (0, typeorm_2.IsNull)() }
+            where: { employee: { id: employeeId }, endDate: (0, typeorm_2.IsNull)() },
         });
         if (activeEmpAss) {
             activeEmpAss.endDate = new Date();
@@ -98,7 +100,9 @@ let TrucksService = class TrucksService {
         return this.assignmentRepo.save(assignment);
     }
     async unassignTruck(assignmentId, endDate) {
-        const ass = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+        const ass = await this.assignmentRepo.findOne({
+            where: { id: assignmentId },
+        });
         if (!ass)
             throw new common_1.NotFoundException('Affectation non trouvée');
         ass.endDate = endDate ? new Date(endDate) : new Date();
@@ -109,12 +113,12 @@ let TrucksService = class TrucksService {
             return this.assignmentRepo.find({
                 where: { truck: { id: truckId } },
                 relations: { truck: true, employee: true },
-                order: { startDate: 'DESC' }
+                order: { startDate: 'DESC' },
             });
         }
         return this.assignmentRepo.find({
             relations: { truck: true, employee: true },
-            order: { startDate: 'DESC' }
+            order: { startDate: 'DESC' },
         });
     }
     async searchDriverByDate(plateNumber, dateStr) {
@@ -124,15 +128,15 @@ let TrucksService = class TrucksService {
                 {
                     truck: { plateNumber },
                     startDate: (0, typeorm_2.LessThanOrEqual)(date),
-                    endDate: (0, typeorm_2.MoreThanOrEqual)(date)
+                    endDate: (0, typeorm_2.MoreThanOrEqual)(date),
                 },
                 {
                     truck: { plateNumber },
                     startDate: (0, typeorm_2.LessThanOrEqual)(date),
-                    endDate: (0, typeorm_2.IsNull)()
-                }
+                    endDate: (0, typeorm_2.IsNull)(),
+                },
             ],
-            relations: { employee: true }
+            relations: { employee: true },
         });
         return ass ? ass.employee : null;
     }

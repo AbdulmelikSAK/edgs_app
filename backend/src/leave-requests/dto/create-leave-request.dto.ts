@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsEnum, IsDateString, IsBoolean, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+  IsBoolean,
+  IsUUID,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LeaveType } from '../../database/entities/leave-request.entity';
 
@@ -24,7 +31,7 @@ export class CreateLeaveRequestDto {
   @IsBoolean()
   isHalfDay?: boolean;
 
-  @ApiPropertyOptional({ example: 'Vacances d\'été' })
+  @ApiPropertyOptional({ example: "Vacances d'été" })
   @IsOptional()
   @IsString()
   reason?: string;

@@ -46,7 +46,7 @@ exports.AppModule = AppModule = __decorate([
                     url: config.get('DATABASE_URL'),
                     entities: [__dirname + '/**/*.entity{.ts,.js}'],
                     migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-                    synchronize: true,
+                    synchronize: config.get('NODE_ENV') !== 'production',
                     logging: config.get('NODE_ENV') === 'development',
                     autoLoadEntities: true,
                 }),

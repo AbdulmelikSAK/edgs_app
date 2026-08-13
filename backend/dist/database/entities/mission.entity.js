@@ -77,6 +77,7 @@ __decorate([
     __metadata("design:type", String)
 ], Mission.prototype, "status", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ type: 'timestamp' }),
     __metadata("design:type", Date)
 ], Mission.prototype, "scheduledDate", void 0);
@@ -113,16 +114,19 @@ __decorate([
     __metadata("design:type", String)
 ], Mission.prototype, "notes", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => truck_entity_1.Truck, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", truck_entity_1.Truck)
 ], Mission.prototype, "truck", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => client_entity_1.Client, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", client_entity_1.Client)
 ], Mission.prototype, "client", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => worksite_entity_1.Worksite, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", worksite_entity_1.Worksite)
@@ -133,6 +137,7 @@ __decorate([
     __metadata("design:type", Array)
 ], Mission.prototype, "employees", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.ManyToOne)(() => employee_entity_1.Employee, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'chef_de_mission_id' }),
     __metadata("design:type", Object)

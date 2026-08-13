@@ -58,7 +58,7 @@ __decorate([
 ], LeaveRequestsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('employee/:employeeId'),
-    (0, swagger_1.ApiOperation)({ summary: 'Obtenir les demandes de congés d\'un employé' }),
+    (0, swagger_1.ApiOperation)({ summary: "Obtenir les demandes de congés d'un employé" }),
     __param(0, (0, common_1.Param)('employeeId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -66,7 +66,7 @@ __decorate([
 ], LeaveRequestsController.prototype, "findByEmployee", null);
 __decorate([
     (0, common_1.Patch)(':id/status'),
-    (0, swagger_1.ApiOperation)({ summary: 'Mettre à jour le statut d\'une demande' }),
+    (0, swagger_1.ApiOperation)({ summary: "Mettre à jour le statut d'une demande" }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),

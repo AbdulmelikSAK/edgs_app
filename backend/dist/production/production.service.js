@@ -29,7 +29,9 @@ let ProductionService = class ProductionService {
         this.employeeRepo = employeeRepo;
     }
     async create(dto) {
-        const mission = await this.missionRepo.findOne({ where: { id: dto.missionId } });
+        const mission = await this.missionRepo.findOne({
+            where: { id: dto.missionId },
+        });
         if (!mission)
             throw new common_1.NotFoundException('Mission non trouvée');
         const employee = dto.employeeId

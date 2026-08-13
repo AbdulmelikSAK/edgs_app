@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { TimeEntry, TimeEntryType } from '../database/entities/time-entry.entity';
+import {
+  TimeEntry,
+  TimeEntryType,
+} from '../database/entities/time-entry.entity';
 import { Employee } from '../database/entities/employee.entity';
 import { Mission } from '../database/entities/mission.entity';
 import { Truck } from '../database/entities/truck.entity';
@@ -17,10 +20,16 @@ export class TimeclockService {
   ) {}
 
   async createEntry(dto: CreateTimeEntryDto): Promise<TimeEntry> {
-    const employee = await this.employeeRepo.findOne({ where: { id: dto.employeeId } });
+    const employee = await this.employeeRepo.findOne({
+      where: { id: dto.employeeId },
+    });
     if (!employee) throw new NotFoundException('Employé non trouvé');
-    const mission = dto.missionId ? await this.missionRepo.findOne({ where: { id: dto.missionId } }) : null;
-    const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
+    const mission = dto.missionId
+      ? await this.missionRepo.findOne({ where: { id: dto.missionId } })
+      : null;
+    const truck = dto.truckId
+      ? await this.truckRepo.findOne({ where: { id: dto.truckId } })
+      : null;
 
     const entry = this.timeEntryRepo.create({
       employee,

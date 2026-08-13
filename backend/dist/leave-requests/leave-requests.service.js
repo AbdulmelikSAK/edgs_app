@@ -43,7 +43,9 @@ let LeaveRequestsService = class LeaveRequestsService {
         return count;
     }
     async create(dto) {
-        const employee = await this.employeeRepo.findOne({ where: { id: dto.employeeId } });
+        const employee = await this.employeeRepo.findOne({
+            where: { id: dto.employeeId },
+        });
         if (!employee)
             throw new common_1.NotFoundException('Employé non trouvé');
         const start = new Date(dto.startDate);
@@ -64,7 +66,9 @@ let LeaveRequestsService = class LeaveRequestsService {
             }
         }
         const requiresValidation = dto.type === leave_request_entity_1.LeaveType.CONGE || dto.type === leave_request_entity_1.LeaveType.RTT;
-        const status = requiresValidation ? leave_request_entity_1.LeaveStatus.PENDING : leave_request_entity_1.LeaveStatus.APPROVED;
+        const status = requiresValidation
+            ? leave_request_entity_1.LeaveStatus.PENDING
+            : leave_request_entity_1.LeaveStatus.APPROVED;
         const request = this.leaveRepo.create({
             employee,
             type: dto.type,
@@ -77,7 +81,8 @@ let LeaveRequestsService = class LeaveRequestsService {
         const savedRequest = await this.leaveRepo.save(request);
         if (status === leave_request_entity_1.LeaveStatus.APPROVED) {
             if (dto.type === leave_request_entity_1.LeaveType.CONGE) {
-                employee.paidLeaveBalance = Number(employee.paidLeaveBalance) - duration;
+                employee.paidLeaveBalance =
+                    Number(employee.paidLeaveBalance) - duration;
                 await this.employeeRepo.save(employee);
             }
             else if (dto.type === leave_request_entity_1.LeaveType.RTT) {
@@ -107,14 +112,16 @@ let LeaveRequestsService = class LeaveRequestsService {
         });
         if (!request)
             throw new common_1.NotFoundException('Demande de congé non trouvée');
-        if (request.status !== leave_request_entity_1.LeaveStatus.APPROVED && dto.status === leave_request_entity_1.LeaveStatus.APPROVED) {
+        if (request.status !== leave_request_entity_1.LeaveStatus.APPROVED &&
+            dto.status === leave_request_entity_1.LeaveStatus.APPROVED) {
             const duration = this.calculateDuration(request.startDate, request.endDate, request.isHalfDay);
             const employee = request.employee;
             if (request.type === leave_request_entity_1.LeaveType.CONGE) {
                 if (Number(employee.paidLeaveBalance) < duration) {
                     throw new common_1.BadRequestException(`Solde insuffisant pour approuver cette demande. Requis: ${duration}j, Disponible: ${employee.paidLeaveBalance}j`);
                 }
-                employee.paidLeaveBalance = Number(employee.paidLeaveBalance) - duration;
+                employee.paidLeaveBalance =
+                    Number(employee.paidLeaveBalance) - duration;
                 await this.employeeRepo.save(employee);
             }
             else if (request.type === leave_request_entity_1.LeaveType.RTT) {

@@ -79,10 +79,13 @@ let EmployeesService = class EmployeesService {
         return username;
     }
     async create(dto) {
-        const username = dto.username?.trim() || (await this.getUniqueUsername(dto.firstName, dto.lastName));
+        const username = dto.username?.trim() ||
+            (await this.getUniqueUsername(dto.firstName, dto.lastName));
         const rawPassword = dto.password || '123456';
         const passwordHash = await bcrypt.hash(rawPassword, 10);
-        const role = dto.roleId ? await this.roleRepo.findOne({ where: { id: dto.roleId } }) : null;
+        const role = dto.roleId
+            ? await this.roleRepo.findOne({ where: { id: dto.roleId } })
+            : null;
         const badgeNumber = dto.badgeNumber?.trim() || null;
         const phone = dto.phone?.trim() || null;
         const email = dto.email?.trim() || null;
@@ -106,10 +109,16 @@ let EmployeesService = class EmployeesService {
         return this.employeeRepo.save(employee);
     }
     findAll() {
-        return this.employeeRepo.find({ relations: { role: true }, where: { isActive: true } });
+        return this.employeeRepo.find({
+            relations: { role: true },
+            where: { isActive: true },
+        });
     }
     async findOne(id) {
-        const emp = await this.employeeRepo.findOne({ where: { id }, relations: { role: true } });
+        const emp = await this.employeeRepo.findOne({
+            where: { id },
+            relations: { role: true },
+        });
         if (!emp)
             throw new common_1.NotFoundException(`Employe ${id} non trouve`);
         return emp;
@@ -121,19 +130,25 @@ let EmployeesService = class EmployeesService {
         }
         const { password, ...fields } = dto;
         Object.assign(emp, fields);
-        if (emp.badgeNumber !== undefined && (emp.badgeNumber === null || (typeof emp.badgeNumber === 'string' && emp.badgeNumber.trim() === ''))) {
+        if (emp.badgeNumber !== undefined &&
+            (emp.badgeNumber === null ||
+                (typeof emp.badgeNumber === 'string' && emp.badgeNumber.trim() === ''))) {
             emp.badgeNumber = null;
         }
         else if (typeof emp.badgeNumber === 'string') {
             emp.badgeNumber = emp.badgeNumber.trim();
         }
-        if (emp.phone !== undefined && (emp.phone === null || (typeof emp.phone === 'string' && emp.phone.trim() === ''))) {
+        if (emp.phone !== undefined &&
+            (emp.phone === null ||
+                (typeof emp.phone === 'string' && emp.phone.trim() === ''))) {
             emp.phone = null;
         }
         else if (typeof emp.phone === 'string') {
             emp.phone = emp.phone.trim();
         }
-        if (emp.email !== undefined && (emp.email === null || (typeof emp.email === 'string' && emp.email.trim() === ''))) {
+        if (emp.email !== undefined &&
+            (emp.email === null ||
+                (typeof emp.email === 'string' && emp.email.trim() === ''))) {
             emp.email = null;
         }
         else if (typeof emp.email === 'string') {

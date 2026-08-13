@@ -15,7 +15,8 @@ export class ReportsService {
     @InjectRepository(Mission) private missionRepo: Repository<Mission>,
     @InjectRepository(MissionPhoto) private photoRepo: Repository<MissionPhoto>,
     @InjectRepository(TimeEntry) private timeRepo: Repository<TimeEntry>,
-    @InjectRepository(StockMovement) private stockRepo: Repository<StockMovement>,
+    @InjectRepository(StockMovement)
+    private stockRepo: Repository<StockMovement>,
     private minioService: MinioService,
   ) {}
 
@@ -26,9 +27,16 @@ export class ReportsService {
     });
     if (!mission) throw new NotFoundException('Mission non trouvée');
 
-    const photos = await this.photoRepo.find({ where: { mission: { id: missionId } } });
-    const timeEntries = await this.timeRepo.find({ where: { mission: { id: missionId } }, relations: { employee: true } });
-    const stockMovements = await this.stockRepo.find({ where: { mission: { id: missionId } } });
+    const photos = await this.photoRepo.find({
+      where: { mission: { id: missionId } },
+    });
+    const timeEntries = await this.timeRepo.find({
+      where: { mission: { id: missionId } },
+      relations: { employee: true },
+    });
+    const stockMovements = await this.stockRepo.find({
+      where: { mission: { id: missionId } },
+    });
 
     const report = this.reportRepo.create({
       mission,
@@ -36,13 +44,22 @@ export class ReportsService {
     });
     await this.reportRepo.save(report);
 
-    const html = this.buildReportHtml(mission, photos, timeEntries, stockMovements);
-    
+    const html = this.buildReportHtml(
+      mission,
+      photos,
+      timeEntries,
+      stockMovements,
+    );
+
     try {
       const filename = `reports/report-${missionId}-${Date.now()}.html`;
       const buffer = Buffer.from(html);
-      const url = await this.minioService.uploadFile(filename, buffer, 'text/html');
-      
+      const url = await this.minioService.uploadFile(
+        filename,
+        buffer,
+        'text/html',
+      );
+
       report.status = ReportStatus.READY;
       report.url = url;
       report.filename = filename;
@@ -54,8 +71,15 @@ export class ReportsService {
     return this.reportRepo.save(report);
   }
 
-  private buildReportHtml(mission: any, photos: any[], timeEntries: any[], stock: any[]): string {
-    const totalSandBags = stock.filter(s => s.type === 'consume').reduce((sum, s) => sum + s.quantity, 0);
+  private buildReportHtml(
+    mission: any,
+    photos: any[],
+    timeEntries: any[],
+    stock: any[],
+  ): string {
+    const totalSandBags = stock
+      .filter((s) => s.type === 'consume')
+      .reduce((sum, s) => sum + s.quantity, 0);
     const workHours = this.calculateWorkHours(timeEntries);
 
     return `<!DOCTYPE html>
@@ -100,12 +124,12 @@ export class ReportsService {
 <h2>Pointages (${timeEntries.length})</h2>
 <table>
 <tr><th>Employé</th><th>Type</th><th>Heure</th><th>Position</th></tr>
-${timeEntries.map(t => `<tr><td>${t.employee?.firstName} ${t.employee?.lastName}</td><td>${t.type}</td><td>${new Date(t.timestamp).toLocaleString('fr-FR')}</td><td>${t.latitude ? t.latitude.toFixed(4) + ', ' + t.longitude.toFixed(4) : 'N/A'}</td></tr>`).join('')}
+${timeEntries.map((t) => `<tr><td>${t.employee?.firstName} ${t.employee?.lastName}</td><td>${t.type}</td><td>${new Date(t.timestamp).toLocaleString('fr-FR')}</td><td>${t.latitude ? t.latitude.toFixed(4) + ', ' + t.longitude.toFixed(4) : 'N/A'}</td></tr>`).join('')}
 </table>
 
 <h2>Photos (${photos.length})</h2>
 <div class="photo-grid">
-${photos.map(p => `<img src="${p.url}" alt="${p.type}" />`).join('')}
+${photos.map((p) => `<img src="${p.url}" alt="${p.type}" />`).join('')}
 </div>
 
 ${mission.notes ? `<h2>Notes</h2><p>${mission.notes}</p>` : ''}
@@ -115,8 +139,12 @@ ${mission.notes ? `<h2>Notes</h2><p>${mission.notes}</p>` : ''}
   }
 
   private calculateWorkHours(timeEntries: any[]): number {
-    const starts = timeEntries.filter(t => t.type === 'day_start' || t.type === 'mission_start');
-    const ends = timeEntries.filter(t => t.type === 'day_end' || t.type === 'mission_end');
+    const starts = timeEntries.filter(
+      (t) => t.type === 'day_start' || t.type === 'mission_start',
+    );
+    const ends = timeEntries.filter(
+      (t) => t.type === 'day_end' || t.type === 'mission_end',
+    );
     if (!starts.length || !ends.length) return 0;
     const start = new Date(starts[0].timestamp).getTime();
     const end = new Date(ends[ends.length - 1].timestamp).getTime();
@@ -128,14 +156,17 @@ ${mission.notes ? `<h2>Notes</h2><p>${mission.notes}</p>` : ''}
       relations: { mission: true },
       order: { createdAt: 'DESC' },
     });
-    return list.map(r => {
+    return list.map((r) => {
       r.url = `/reports/view/${r.id}`;
       return r;
     });
   }
 
   async findOne(id: string): Promise<Report> {
-    const r = await this.reportRepo.findOne({ where: { id }, relations: { mission: true } });
+    const r = await this.reportRepo.findOne({
+      where: { id },
+      relations: { mission: true },
+    });
     if (!r) throw new NotFoundException('Rapport non trouvé');
     r.url = `/reports/view/${r.id}`;
     return r;

@@ -71,10 +71,10 @@ export class SeederService implements OnApplicationBootstrap {
       mustChangePassword: true,
       badgeNumber: 'BDG001',
       role: driverRole,
-      hourlyRate: 15.00,
-      monthlySalary: 2500.00,
-      paidLeaveBalance: 25.00,
-      rttBalance: 12.00,
+      hourlyRate: 15.0,
+      monthlySalary: 2500.0,
+      paidLeaveBalance: 25.0,
+      rttBalance: 12.0,
     });
     await employeeRepo.save(driverEmp);
 
@@ -86,10 +86,10 @@ export class SeederService implements OnApplicationBootstrap {
       mustChangePassword: true,
       badgeNumber: 'BDG002',
       role: managerRole,
-      hourlyRate: 20.00,
-      monthlySalary: 3200.00,
-      paidLeaveBalance: 25.00,
-      rttBalance: 12.00,
+      hourlyRate: 20.0,
+      monthlySalary: 3200.0,
+      paidLeaveBalance: 25.0,
+      rttBalance: 12.0,
     });
     await employeeRepo.save(managerEmp);
 
@@ -101,10 +101,10 @@ export class SeederService implements OnApplicationBootstrap {
       mustChangePassword: true,
       badgeNumber: 'BDG003',
       role: adminRole,
-      hourlyRate: 25.00,
-      monthlySalary: 4000.00,
-      paidLeaveBalance: 25.00,
-      rttBalance: 12.00,
+      hourlyRate: 25.0,
+      monthlySalary: 4000.0,
+      paidLeaveBalance: 25.0,
+      rttBalance: 12.0,
     });
     await employeeRepo.save(adminEmp);
 
