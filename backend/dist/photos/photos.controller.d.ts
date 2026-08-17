@@ -5,5 +5,7 @@ export declare class PhotosController {
     constructor(photosService: PhotosService);
     uploadPhoto(missionId: string, file: Express.Multer.File, type: PhotoType, employeeId?: string, notes?: string): Promise<import("../database/entities/mission-photo.entity").MissionPhoto>;
     findByMission(missionId: string): Promise<import("../database/entities/mission-photo.entity").MissionPhoto[]>;
+    uploadWorksitePhoto(worksiteId: string, file: Express.Multer.File, notes?: string): Promise<import("../database/entities/mission-photo.entity").MissionPhoto>;
+    findByWorksite(worksiteId: string): Promise<import("../database/entities/mission-photo.entity").MissionPhoto[]>;
     remove(id: string): Promise<void>;
 }

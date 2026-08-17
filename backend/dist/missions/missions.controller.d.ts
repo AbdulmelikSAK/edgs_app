@@ -8,6 +8,7 @@ export declare class MissionsController {
     create(dto: CreateMissionDto): Promise<import("../database/entities/mission.entity").Mission>;
     findAll(): Promise<import("../database/entities/mission.entity").Mission[]>;
     findToday(employeeId: string): Promise<import("../database/entities/mission.entity").Mission[]>;
+    findByEmployee(employeeId: string): Promise<import("../database/entities/mission.entity").Mission[]>;
     findByTruck(truckId: string): Promise<import("../database/entities/mission.entity").Mission[]>;
     findOne(id: string): Promise<import("../database/entities/mission.entity").Mission>;
     update(id: string, dto: UpdateMissionDto): Promise<import("../database/entities/mission.entity").Mission>;

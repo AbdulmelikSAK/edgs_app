@@ -13,6 +13,7 @@ exports.MissionPhoto = exports.PhotoType = void 0;
 const typeorm_1 = require("typeorm");
 const mission_entity_1 = require("./mission.entity");
 const employee_entity_1 = require("./employee.entity");
+const worksite_entity_1 = require("./worksite.entity");
 var PhotoType;
 (function (PhotoType) {
     PhotoType["BEFORE"] = "before";
@@ -22,6 +23,7 @@ var PhotoType;
 let MissionPhoto = class MissionPhoto {
     id;
     mission;
+    worksite;
     takenBy;
     type;
     url;
@@ -35,14 +37,19 @@ __decorate([
     __metadata("design:type", String)
 ], MissionPhoto.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => mission_entity_1.Mission),
+    (0, typeorm_1.ManyToOne)(() => mission_entity_1.Mission, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
-    __metadata("design:type", mission_entity_1.Mission)
+    __metadata("design:type", Object)
 ], MissionPhoto.prototype, "mission", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => worksite_entity_1.Worksite, { nullable: true }),
+    (0, typeorm_1.JoinColumn)(),
+    __metadata("design:type", Object)
+], MissionPhoto.prototype, "worksite", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => employee_entity_1.Employee, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
-    __metadata("design:type", employee_entity_1.Employee)
+    __metadata("design:type", Object)
 ], MissionPhoto.prototype, "takenBy", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: PhotoType, default: PhotoType.DURING }),

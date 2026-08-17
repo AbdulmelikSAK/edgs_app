@@ -15,12 +15,13 @@ const minio_service_1 = require("./minio.service");
 const mission_photo_entity_1 = require("../database/entities/mission-photo.entity");
 const mission_entity_1 = require("../database/entities/mission.entity");
 const employee_entity_1 = require("../database/entities/employee.entity");
+const worksite_entity_1 = require("../database/entities/worksite.entity");
 let PhotosModule = class PhotosModule {
 };
 exports.PhotosModule = PhotosModule;
 exports.PhotosModule = PhotosModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([mission_photo_entity_1.MissionPhoto, mission_entity_1.Mission, employee_entity_1.Employee])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([mission_photo_entity_1.MissionPhoto, mission_entity_1.Mission, employee_entity_1.Employee, worksite_entity_1.Worksite])],
         controllers: [photos_controller_1.PhotosController],
         providers: [photos_service_1.PhotosService, minio_service_1.MinioService],
         exports: [photos_service_1.PhotosService, minio_service_1.MinioService],

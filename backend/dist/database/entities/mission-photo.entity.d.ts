@@ -1,5 +1,6 @@
 import { Mission } from './mission.entity';
 import { Employee } from './employee.entity';
+import { Worksite } from './worksite.entity';
 export declare enum PhotoType {
     BEFORE = "before",
     DURING = "during",
@@ -7,8 +8,9 @@ export declare enum PhotoType {
 }
 export declare class MissionPhoto {
     id: string;
-    mission: Mission;
-    takenBy: Employee;
+    mission?: Mission | null;
+    worksite?: Worksite | null;
+    takenBy?: Employee | null;
     type: PhotoType;
     url: string;
     filename: string;

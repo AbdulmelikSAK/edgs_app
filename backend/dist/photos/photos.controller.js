@@ -30,6 +30,12 @@ let PhotosController = class PhotosController {
     findByMission(missionId) {
         return this.photosService.findByMission(missionId);
     }
+    uploadWorksitePhoto(worksiteId, file, notes) {
+        return this.photosService.uploadWorksitePhoto(worksiteId, file, notes);
+    }
+    findByWorksite(worksiteId) {
+        return this.photosService.findByWorksite(worksiteId);
+    }
     remove(id) {
         return this.photosService.remove(id);
     }
@@ -66,6 +72,33 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PhotosController.prototype, "findByMission", null);
+__decorate([
+    (0, common_1.Post)('worksite/:worksiteId'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                file: { type: 'string', format: 'binary' },
+                notes: { type: 'string' },
+            },
+        },
+    }),
+    __param(0, (0, common_1.Param)('worksiteId')),
+    __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, common_1.Body)('notes')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", void 0)
+], PhotosController.prototype, "uploadWorksitePhoto", null);
+__decorate([
+    (0, common_1.Get)('worksite/:worksiteId'),
+    __param(0, (0, common_1.Param)('worksiteId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PhotosController.prototype, "findByWorksite", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),

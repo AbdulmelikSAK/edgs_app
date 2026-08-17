@@ -47,6 +47,7 @@ let PlanningService = class PlanningService {
                 mission: {
                     client: true,
                     worksite: true,
+                    truck: true,
                 },
                 employees: true,
             },

@@ -334,6 +334,25 @@ function App() {
     truckId: '',
   });
 
+  const [planningDateEntries, setPlanningDateEntries] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !planningForm.date) return;
+    const fetchEntriesForFormDate = async () => {
+      try {
+        const targetDate = new Date(planningForm.date);
+        const { year, week } = getISOWeekAndYear(targetDate);
+        const res = await fetchWithAuth(`${API_BASE_URL}/planning/week?year=${year}&week=${week}`);
+        if (res.ok) {
+          setPlanningDateEntries(await res.json());
+        }
+      } catch (err) {
+        console.error('Error fetching planning entries for form date:', err);
+      }
+    };
+    fetchEntriesForFormDate();
+  }, [planningForm.date, weeklyPlanning, isAuthenticated]);
+
   // Auth helpers
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const currentToken = token || localStorage.getItem('token');
@@ -2012,6 +2031,39 @@ function App() {
             });
           };
 
+          const getEmployeeStatusOnDate = (empId: string, dateStr: string) => {
+            if (!dateStr) return { status: 'free', label: 'Libre' };
+            const date = new Date(dateStr);
+            
+            // 1. Check if the employee has an approved leave request on this date
+            const hasLeave = leaveRequests.some(req => {
+              if (req.status !== 'approved') return false;
+              if (req.employeeId !== empId && req.employee?.id !== empId) return false;
+              return isLeaveOnDate(req, date);
+            });
+
+            if (hasLeave) {
+              return { status: 'leave', label: 'Absent' };
+            }
+
+            // 2. Check if the employee is already assigned to a planning mission on this date
+            const targetDate = new Date(dateStr);
+            const { year, week } = getISOWeekAndYear(targetDate);
+            const rawDay = targetDate.getDay();
+            const targetDayOfWeek = rawDay === 0 ? 7 : rawDay;
+
+            const hasAssignment = planningDateEntries.some(e => {
+              if (e.year !== year || e.week !== week || e.dayOfWeek !== targetDayOfWeek) return false;
+              return e.employees?.some((emp: any) => emp.id === empId);
+            });
+
+            if (hasAssignment) {
+              return { status: 'busy', label: 'Assigné actuellement' };
+            }
+
+            return { status: 'free', label: 'Libre' };
+          };
+
           const getDaysInMonthGrid = (year: number, month: number) => {
             const dates: Date[] = [];
             const firstDay = new Date(year, month, 1);
@@ -2216,11 +2268,29 @@ function App() {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Salariés assignés</label>
-                      <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '8px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+                      <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '8px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
                         {employees.map(emp => {
                           const isChecked = planningForm.employeeIds?.includes(emp.id);
+                          const statusInfo = getEmployeeStatusOnDate(emp.id, planningForm.date);
+                          
+                          let badgeStyle: React.CSSProperties = {
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            marginLeft: 'auto'
+                          };
+                          
+                          if (statusInfo.status === 'busy') {
+                            badgeStyle = { ...badgeStyle, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171' };
+                          } else if (statusInfo.status === 'leave') {
+                            badgeStyle = { ...badgeStyle, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' };
+                          } else {
+                            badgeStyle = { ...badgeStyle, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
+                          }
+
                           return (
-                            <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', margin: '4px 0', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', backgroundColor: isChecked ? 'rgba(255,255,255,0.03)' : 'transparent', transition: 'background-color 0.2s' }}>
                               <input 
                                 type="checkbox" 
                                 checked={isChecked}
@@ -2231,7 +2301,8 @@ function App() {
                                   setPlanningForm({ ...planningForm, employeeIds: updatedIds });
                                 }}
                               />
-                              {emp.firstName} {emp.lastName}
+                              <span style={{ fontWeight: '500' }}>{emp.firstName} {emp.lastName}</span>
+                              <span style={badgeStyle}>{statusInfo.label}</span>
                             </label>
                           );
                         })}
@@ -2696,7 +2767,6 @@ function App() {
                       <th>Date</th>
                       <th>Statut</th>
                       <th>Rapport PDF</th>
-                      <th>Demande d'explication</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2724,40 +2794,6 @@ function App() {
                             ) : (
                               <button className="btn btn-primary" onClick={() => handleGenerateReport(m.id)}>
                                 Générer Rapport
-                              </button>
-                            )}
-                          </td>
-                          <td>
-                            {m.notes && m.notes.startsWith("DEMANDE D'EXPLICATION:") ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '700' }}>Explication demandée :</span>
-                                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                                  {m.notes.replace("DEMANDE D'EXPLICATION:", "").trim()}
-                                </span>
-                                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                  <button 
-                                    className="btn btn-secondary" 
-                                    style={{ padding: '2px 8px', fontSize: '11px', minHeight: 'auto' }}
-                                    onClick={() => handleRequestExplanation(m.id, (m.notes || '').replace("DEMANDE D'EXPLICATION:", "").trim())}
-                                  >
-                                    Modifier
-                                  </button>
-                                  <button 
-                                    className="btn btn-danger" 
-                                    style={{ padding: '2px 8px', fontSize: '11px', minHeight: 'auto', backgroundColor: '#dc2626', color: '#fff' }}
-                                    onClick={() => handleCancelExplanation(m.id)}
-                                  >
-                                    Annuler
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '6px 12px', fontSize: '12px' }}
-                                onClick={() => handleRequestExplanation(m.id, '')}
-                              >
-                                Demander explication
                               </button>
                             )}
                           </td>

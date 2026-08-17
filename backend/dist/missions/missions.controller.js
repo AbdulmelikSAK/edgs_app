@@ -34,6 +34,9 @@ let MissionsController = class MissionsController {
     findToday(employeeId) {
         return this.missionsService.findTodayMissions(employeeId);
     }
+    findByEmployee(employeeId) {
+        return this.missionsService.findEmployeeMissions(employeeId);
+    }
     findByTruck(truckId) {
         return this.missionsService.findByTruck(truckId);
     }
@@ -72,6 +75,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], MissionsController.prototype, "findToday", null);
+__decorate([
+    (0, common_1.Get)('employee/:employeeId'),
+    __param(0, (0, common_1.Param)('employeeId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], MissionsController.prototype, "findByEmployee", null);
 __decorate([
     (0, common_1.Get)('truck/:truckId'),
     __param(0, (0, common_1.Param)('truckId')),

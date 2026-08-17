@@ -1271,8 +1271,8 @@ export default function App() {
       {currentScreen === 'login' && (
         <View style={styles.loginContainer}>
           <View style={styles.loginHeader}>
-            <Icon name="truck" size={48} color="#3b82f6" />
-            <Text style={styles.loginTitle}>EDGS Chauffeurs</Text>
+            <Icon name="user" size={48} color="#3b82f6" />
+            <Text style={styles.loginTitle}>EDGS Employés</Text>
             <Text style={styles.loginSubtitle}>
               {isOffline ? 'Connexion en mode hors-ligne' : 'Identifiez-vous pour accéder à votre espace'}
             </Text>
@@ -1417,33 +1417,58 @@ export default function App() {
             </View>
           )}
 
-          {/* Quick actions row */}
           {!dayStarted ? (
-            <View style={styles.glassCard}>
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>
-                Sélectionner le mode de déplacement :
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-                {(['panier', 'grand_deplacement'] as const).map(mode => (
-                  <TouchableOpacity
-                    key={mode}
-                    style={[
-                      styles.modeBtn,
-                      displacementMode === mode ? styles.modeBtnActive : styles.modeBtnInactive
-                    ]}
-                    onPress={() => setDisplacementMode(mode)}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
-                      {mode === 'panier' ? 'Panier' : 'Grand Déplacement'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            <View style={{ gap: 20 }}>
+              <View style={styles.glassCard}>
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>
+                  Sélectionner le mode de déplacement :
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                  {(['panier', 'grand_deplacement'] as const).map(mode => (
+                    <TouchableOpacity
+                      key={mode}
+                      style={[
+                        styles.modeBtn,
+                        displacementMode === mode ? styles.modeBtnActive : styles.modeBtnInactive
+                      ]}
+                      onPress={() => setDisplacementMode(mode)}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                        {mode === 'panier' ? 'Panier' : 'Grand Déplacement'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
+                  <Icon name="clock" size={28} />
+                  <Text style={styles.btnLargeText}>DÉBUT DE JOURNÉE</Text>
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
-                <Icon name="clock" size={28} />
-                <Text style={styles.btnLargeText}>DÉBUT DE JOURNÉE</Text>
-              </TouchableOpacity>
+              <View style={styles.actionsGrid}>
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => {
+                    setCurrentScreen('mission_detail');
+                  }}
+                >
+                  <Icon name="calendar" size={32} color="#3b82f6" />
+                  <Text style={styles.actionCardTitle}>Planning & Chantiers</Text>
+                  <Text style={styles.actionCardDesc}>
+                    {activeMission ? activeMission.title : 'Mon Agenda'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => setCurrentScreen('leaves')}
+                >
+                  <Icon name="calendar" size={32} color="#10b981" />
+                  <Text style={styles.actionCardTitle}>Congés & RTT</Text>
+                  <Text style={styles.actionCardDesc}>Demandes</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             <View style={{ gap: 20 }}>
@@ -1483,13 +1508,21 @@ export default function App() {
               </View>
 
               <View style={styles.actionsGrid}>
-                <TouchableOpacity 
+                 <TouchableOpacity 
                   style={styles.actionCard}
-                  onPress={() => setCurrentScreen('stock')}
+                  onPress={() => {
+                    if (truck.id === '00000000-0000-0000-0000-000000000000') {
+                      Alert.alert('Aucun Véhicule', "Aucun véhicule ne vous est assigné aujourd'hui. Vous ne pouvez pas gérer de stock.");
+                    } else {
+                      setCurrentScreen('stock');
+                    }
+                  }}
                 >
                   <Icon name="package" size={32} color="#f59e0b" />
                   <Text style={styles.actionCardTitle}>Gérer Sable</Text>
-                  <Text style={styles.actionCardDesc}>{truck.currentStock} sacs à bord</Text>
+                  <Text style={styles.actionCardDesc}>
+                    {truck.id === '00000000-0000-0000-0000-000000000000' ? 'Aucun véhicule' : `${truck.currentStock} sacs à bord`}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 

@@ -19,17 +19,20 @@ const typeorm_2 = require("typeorm");
 const mission_photo_entity_1 = require("../database/entities/mission-photo.entity");
 const mission_entity_1 = require("../database/entities/mission.entity");
 const employee_entity_1 = require("../database/entities/employee.entity");
+const worksite_entity_1 = require("../database/entities/worksite.entity");
 const minio_service_1 = require("./minio.service");
 const crypto_1 = require("crypto");
 let PhotosService = class PhotosService {
     photoRepo;
     missionRepo;
     employeeRepo;
+    worksiteRepo;
     minioService;
-    constructor(photoRepo, missionRepo, employeeRepo, minioService) {
+    constructor(photoRepo, missionRepo, employeeRepo, worksiteRepo, minioService) {
         this.photoRepo = photoRepo;
         this.missionRepo = missionRepo;
         this.employeeRepo = employeeRepo;
+        this.worksiteRepo = worksiteRepo;
         this.minioService = minioService;
     }
     async uploadPhoto(missionId, file, type = mission_photo_entity_1.PhotoType.DURING, employeeId, notes) {
@@ -49,10 +52,30 @@ let PhotosService = class PhotosService {
         });
         return this.photoRepo.save(photo);
     }
+    async uploadWorksitePhoto(worksiteId, file, notes) {
+        const worksite = await this.worksiteRepo.findOne({ where: { id: worksiteId } });
+        if (!worksite)
+            throw new common_1.NotFoundException('Chantier non trouvé');
+        const filename = `worksite-${worksiteId}/${(0, crypto_1.randomUUID)()}-${file.originalname}`;
+        const url = await this.minioService.uploadFile(filename, file.buffer, file.mimetype);
+        const photo = this.photoRepo.create({
+            worksite,
+            url,
+            filename,
+            notes,
+        });
+        return this.photoRepo.save(photo);
+    }
     findByMission(missionId) {
         return this.photoRepo.find({
             where: { mission: { id: missionId } },
             relations: { takenBy: true },
+            order: { createdAt: 'ASC' },
+        });
+    }
+    findByWorksite(worksiteId) {
+        return this.photoRepo.find({
+            where: { worksite: { id: worksiteId } },
             order: { createdAt: 'ASC' },
         });
     }
@@ -75,7 +98,9 @@ exports.PhotosService = PhotosService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(mission_photo_entity_1.MissionPhoto)),
     __param(1, (0, typeorm_1.InjectRepository)(mission_entity_1.Mission)),
     __param(2, (0, typeorm_1.InjectRepository)(employee_entity_1.Employee)),
+    __param(3, (0, typeorm_1.InjectRepository)(worksite_entity_1.Worksite)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         minio_service_1.MinioService])

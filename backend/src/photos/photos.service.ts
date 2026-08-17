@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { MissionPhoto, PhotoType } from '../database/entities/mission-photo.entity';
 import { Mission } from '../database/entities/mission.entity';
 import { Employee } from '../database/entities/employee.entity';
+import { Worksite } from '../database/entities/worksite.entity';
 import { MinioService } from './minio.service';
 import { randomUUID } from 'crypto';
 
