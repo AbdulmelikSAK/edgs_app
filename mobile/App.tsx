@@ -82,7 +82,6 @@ export default function App() {
   const [leaveType, setLeaveType] = useState<'conge' | 'rtt' | 'sans_solde' | 'autre'>('conge');
   const [leaveStartDate, setLeaveStartDate] = useState('');
   const [leaveEndDate, setLeaveEndDate] = useState('');
-  const [leaveIsHalfDay, setLeaveIsHalfDay] = useState(false);
   const [leaveReason, setLeaveReason] = useState('');
   const [leaveError, setLeaveError] = useState('');
   
@@ -93,10 +92,14 @@ export default function App() {
   const [missionsList, setMissionsList] = useState<Mission[]>([]);
   const [activeMission, setActiveMission] = useState<Mission | null>(null);
 
+  // Planning & Agenda sub-navigation states
+  const [planningSubTab, setPlanningSubTab] = useState<'today' | 'agenda'>('today');
+  const [agendaMissions, setAgendaMissions] = useState<any[]>([]);
+
   // New features states
   const [isPaused, setIsPaused] = useState(false);
   const [pauseType, setPauseType] = useState<'repas' | 'technique'>('repas');
-  const [displacementMode, setDisplacementMode] = useState<'panier' | 'petit' | 'grand'>('panier');
+  const [displacementMode, setDisplacementMode] = useState<'panier' | 'grand_deplacement'>('panier');
   const [isOutOfZone, setIsOutOfZone] = useState(false);
   const [signatureBase64, setSignatureBase64] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
@@ -123,25 +126,8 @@ export default function App() {
       });
 
       if (result.success) {
-        const cachedT = db.getAllSync('SELECT * FROM cached_truck LIMIT 1');
-        if (cachedT.length > 0) {
-          const tObj: any = cachedT[0];
-          try {
-            if (tObj.stocksJson) tObj.stocks = JSON.parse(tObj.stocksJson);
-          } catch(e){}
-          setTruck(tObj);
-          setCurrentScreen('dashboard');
-        } else {
-          // Fetch trucks list
-          const resTrucks = await fetch(`${serverUrl}/trucks`, {
-            headers: { 'Authorization': `Bearer ${currentToken}` }
-          });
-          if (resTrucks.ok) {
-            const dataTrucks = await resTrucks.json();
-            setTrucksList(dataTrucks);
-          }
-          setCurrentScreen('select_truck');
-        }
+        await fetchMissionsAndStock(currentToken);
+        setCurrentScreen('dashboard');
       }
     } catch (e) {
       console.error('Biometric authentication error:', e);
@@ -233,10 +219,13 @@ export default function App() {
     })();
   }, []);
 
-  // Load leave requests when screen opens
+  // Load leave requests or agenda missions when screen opens
   useEffect(() => {
     if (currentScreen === 'leaves') {
       fetchLeaveRequests();
+    }
+    if (currentScreen === 'mission_detail') {
+      fetchAgendaMissions();
     }
   }, [currentScreen]);
 
@@ -274,6 +263,14 @@ export default function App() {
           tObj.stocks = [];
         }
         setTruck(tObj);
+      } else {
+        setTruck({
+          id: '00000000-0000-0000-0000-000000000000',
+          plateNumber: 'Sans Camion',
+          model: 'N/A',
+          currentStock: 0,
+          stocks: []
+        });
       }
 
       const pending: any[] = db.getAllSync('SELECT * FROM pending_sync');
@@ -425,13 +422,14 @@ export default function App() {
   };
 
   // Fetch server data and load to SQLite cache
-  const fetchMissionsAndStock = async (currentTruck = truck, currentToken = token) => {
-    if (isOffline || !currentTruck || !currentToken) return;
+  const fetchMissionsAndStock = async (currentToken = token, currentEmployee = employee) => {
+    if (isOffline || !currentToken || !currentEmployee) return;
     try {
       const headers = { 'Authorization': `Bearer ${currentToken}` };
       
-      // Fetch today's missions for truck
-      const resMissions = await fetch(`${serverUrl}/missions/today?truckId=${currentTruck.id}`, { headers });
+      // Fetch today's missions for employee
+      const resMissions = await fetch(`${serverUrl}/missions/today?employeeId=${currentEmployee.id}`, { headers });
+      let selectedTruck = null;
       if (resMissions.ok) {
         const dataM = await resMissions.json();
         
@@ -442,17 +440,40 @@ export default function App() {
             'INSERT OR REPLACE INTO cached_missions (id, title, clientName, worksiteAddress, status, scheduledDate, notes, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [m.id, m.title, m.client?.name || 'N/A', m.worksite?.address || 'N/A', m.status, m.scheduledDate, m.notes || '', m.worksite?.latitude || null, m.worksite?.longitude || null]
           );
+          
+          if (m.truck && !selectedTruck) {
+            selectedTruck = m.truck;
+          }
         }
       }
 
-      // Fetch truck stock
-      const resTruck = await fetch(`${serverUrl}/trucks/${currentTruck.id}`, { headers });
-      if (resTruck.ok) {
-        const dataT = await resTruck.json();
-        db.runSync(
-          'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
-          [dataT.id, dataT.plateNumber, dataT.currentStock, dataT.stockAlertThreshold, JSON.stringify(dataT.stocks || [])]
-        );
+      if (!selectedTruck) {
+        selectedTruck = {
+          id: '00000000-0000-0000-0000-000000000000',
+          plateNumber: 'Sans Camion',
+          model: 'N/A',
+          currentStock: 0,
+          stocks: []
+        };
+      }
+
+      // Cache truck to SQLite
+      db.runSync(
+        'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
+        [selectedTruck.id, selectedTruck.plateNumber, selectedTruck.currentStock ?? 0, 5, JSON.stringify(selectedTruck.stocks || [])]
+      );
+      setTruck(selectedTruck);
+
+      if (selectedTruck.id !== '00000000-0000-0000-0000-000000000000') {
+        const resTruck = await fetch(`${serverUrl}/trucks/${selectedTruck.id}`, { headers });
+        if (resTruck.ok) {
+          const dataT = await resTruck.json();
+          db.runSync(
+            'INSERT OR REPLACE INTO cached_truck (id, plateNumber, currentStock, stockAlertThreshold, stocksJson) VALUES (?, ?, ?, ?, ?)',
+            [dataT.id, dataT.plateNumber, dataT.currentStock, dataT.stockAlertThreshold, JSON.stringify(dataT.stocks || [])]
+          );
+          setTruck({ ...selectedTruck, ...dataT });
+        }
       }
 
       loadCachedData();
@@ -527,15 +548,8 @@ export default function App() {
           }
         }
 
-        // Fetch trucks list
-        const resTrucks = await fetch(`${serverUrl}/trucks`, {
-          headers: { 'Authorization': `Bearer ${currentToken}` }
-        });
-        if (resTrucks.ok) {
-          const dataTrucks = await resTrucks.json();
-          setTrucksList(dataTrucks);
-        }
-        setCurrentScreen('select_truck');
+        await fetchMissionsAndStock(currentToken, data.employee);
+        setCurrentScreen('dashboard');
 
       } catch (err: any) {
         if (err.message === 'Identifiants incorrects') {
@@ -619,6 +633,33 @@ export default function App() {
     }
   };
 
+  // Fetch Employee Agenda / Timeline
+  const fetchAgendaMissions = async (currentToken = token, currentEmployee = employee) => {
+    if (isOffline || !currentEmployee || !currentToken) return;
+    try {
+      const res = await fetch(`${serverUrl}/missions/employee/${currentEmployee.id}`, {
+        headers: { 'Authorization': `Bearer ${currentToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAgendaMissions(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch agenda missions:', e);
+    }
+  };
+
+  const formatAgendaDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const mins = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} à ${hours}:${mins}`;
+  };
+
   // Fetch Leave Requests History
   const fetchLeaveRequests = async () => {
     if (isOffline || !employee || !token) return;
@@ -644,6 +685,18 @@ export default function App() {
     }
   };
 
+  const formatDatePickerInput = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    let formatted = cleaned;
+    if (cleaned.length > 2) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    }
+    if (cleaned.length > 4) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+    }
+    return formatted.slice(0, 10);
+  };
+
   // Submit Leave Request
   const handleLeaveSubmit = async () => {
     if (!leaveStartDate || !leaveEndDate) {
@@ -651,11 +704,16 @@ export default function App() {
       return;
     }
     
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (!dateRegex.test(leaveStartDate) || !dateRegex.test(leaveEndDate)) {
-      setLeaveError('Les dates doivent être au format AAAA-MM-JJ (ex: 2026-08-15).');
+      setLeaveError('Les dates doivent être au format JJ/MM/AAAA (ex: 15/08/2026).');
       return;
     }
+
+    const [startDay, startMonth, startYear] = leaveStartDate.split('/');
+    const [endDay, endMonth, endYear] = leaveEndDate.split('/');
+    const dbStartDate = `${startYear}-${startMonth}-${startDay}`;
+    const dbEndDate = `${endYear}-${endMonth}-${endDay}`;
 
     setLeaveError('');
     setLoading(true);
@@ -669,9 +727,9 @@ export default function App() {
         body: JSON.stringify({
           employeeId: employee.id,
           type: leaveType,
-          startDate: `${leaveStartDate}T08:00:00Z`,
-          endDate: `${leaveEndDate}T18:00:00Z`,
-          isHalfDay: leaveIsHalfDay,
+          startDate: `${dbStartDate}T08:00:00Z`,
+          endDate: `${dbEndDate}T18:00:00Z`,
+          isHalfDay: false,
           reason: leaveReason
         }),
       });
@@ -686,7 +744,6 @@ export default function App() {
       setLeaveStartDate('');
       setLeaveEndDate('');
       setLeaveReason('');
-      setLeaveIsHalfDay(false);
       
       fetchLeaveRequests();
     } catch (err: any) {
@@ -1332,7 +1389,7 @@ export default function App() {
 
           <View style={styles.header}>
             <View>
-              <Text style={styles.welcomeText}>Bonjour, {employee.firstName}</Text>
+              <Text style={styles.welcomeText}>Employé</Text>
               <Text style={styles.truckText}>Véhicule : {truck.plateNumber}</Text>
             </View>
             <TouchableOpacity style={styles.btnLogout} onPress={() => {
@@ -1367,7 +1424,7 @@ export default function App() {
                 Sélectionner le mode de déplacement :
               </Text>
               <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-                {(['panier', 'petit', 'grand'] as const).map(mode => (
+                {(['panier', 'grand_deplacement'] as const).map(mode => (
                   <TouchableOpacity
                     key={mode}
                     style={[
@@ -1376,8 +1433,8 @@ export default function App() {
                     ]}
                     onPress={() => setDisplacementMode(mode)}
                   >
-                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textTransform: 'capitalize' }}>
-                      {mode === 'panier' ? 'Panier' : mode === 'petit' ? 'Déplacement' : 'Grand Déplac.'}
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                      {mode === 'panier' ? 'Panier' : 'Grand Déplacement'}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -1397,7 +1454,7 @@ export default function App() {
                   Statut : {isPaused ? `En Pause (${pauseType === 'repas' ? 'Déjeuner' : 'Technique'})` : 'En Activité'}
                 </Text>
                 <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 12 }}>
-                  Mode : {displacementMode === 'panier' ? 'Panier' : displacementMode === 'petit' ? 'Déplacement' : 'Grand Déplacement'}
+                  Mode : {displacementMode === 'panier' ? 'Panier' : 'Grand Déplacement'}
                 </Text>
                 
                 {!isPaused ? (
@@ -1438,17 +1495,13 @@ export default function App() {
                 <TouchableOpacity 
                   style={styles.actionCard}
                   onPress={() => {
-                    if (activeMission) {
-                      setCurrentScreen('mission_detail');
-                    } else {
-                      Alert.alert('Information', "Aucune mission n'est planifiée pour ce véhicule aujourd'hui.");
-                    }
+                    setCurrentScreen('mission_detail');
                   }}
                 >
-                  <Icon name="truck" size={32} color="#3b82f6" />
-                  <Text style={styles.actionCardTitle}>Mission</Text>
+                  <Icon name="calendar" size={32} color="#3b82f6" />
+                  <Text style={styles.actionCardTitle}>Planning & Chantiers</Text>
                   <Text style={styles.actionCardDesc}>
-                    {activeMission ? activeMission.title : 'Aucune mission'}
+                    {activeMission ? activeMission.title : 'Mon Agenda'}
                   </Text>
                 </TouchableOpacity>
 
@@ -1481,98 +1534,211 @@ export default function App() {
         </ScrollView>
       )}
 
-      {/* SCREEN 4: MISSION DETAIL */}
-      {currentScreen === 'mission_detail' && activeMission && (
+      {/* SCREEN 4: MISSION DETAIL & AGENDA */}
+      {currentScreen === 'mission_detail' && (
         <ScrollView style={styles.dashboardContainer} contentContainerStyle={{ paddingBottom: 40 }}>
-          <TouchableOpacity style={styles.btnBack} onPress={() => setCurrentScreen('dashboard')}>
+          <TouchableOpacity style={styles.btnBack} onPress={() => {
+            setPlanningSubTab('today');
+            setCurrentScreen('dashboard');
+          }}>
             <Text style={styles.btnBackText}>← Retour Dashboard</Text>
           </TouchableOpacity>
 
-          <View style={styles.glassCard}>
-            <Text style={styles.missionTitle}>{activeMission.title}</Text>
-            
-            <View style={styles.infoRow}>
-              <Icon name="user" size={18} color="#94a3b8" />
-              <Text style={styles.infoText}>Client : {activeMission.client}</Text>
-            </View>
+          {/* Sub Tab Selector */}
+          <View style={{ flexDirection: 'row', gap: 10, marginVertical: 16 }}>
+            <TouchableOpacity 
+              style={[
+                styles.modeBtn, 
+                { flex: 1, paddingVertical: 12 }, 
+                planningSubTab === 'today' ? styles.modeBtnActive : styles.modeBtnInactive
+              ]}
+              onPress={() => setPlanningSubTab('today')}
+            >
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
+                Chantier du jour
+              </Text>
+            </TouchableOpacity>
 
-            <View style={styles.infoRow}>
-              <Icon name="mapPin" size={18} color="#94a3b8" />
-              <Text style={styles.infoText}>Chantier : {activeMission.worksite}</Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Icon name="clock" size={18} color="#94a3b8" />
-              <Text style={styles.infoText}>Statut : {getStatusLabel(activeMission.status)}</Text>
-            </View>
-
-            {activeMission.notes ? (
-              <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 12 }}>
-                <Text style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>Consignes: {activeMission.notes}</Text>
-              </View>
-            ) : null}
+            <TouchableOpacity 
+              style={[
+                styles.modeBtn, 
+                { flex: 1, paddingVertical: 12 }, 
+                planningSubTab === 'agenda' ? styles.modeBtnActive : styles.modeBtnInactive
+              ]}
+              onPress={() => {
+                setPlanningSubTab('agenda');
+                fetchAgendaMissions();
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
+                Mon Agenda
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {isOutOfZone && (
-            <View style={[styles.alertCard, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: '#ef4444', marginBottom: 16 }]}>
-              <Icon name="alert" size={24} color="#ef4444" />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.alertTitle, { color: '#ef4444' }]}>Hors Zone Chantier</Text>
-                <Text style={styles.alertDesc}>
-                  Attention : Vous êtes éloigné du chantier de plus de 100 mètres.
+          {planningSubTab === 'today' ? (
+            activeMission ? (
+              <View style={{ gap: 16 }}>
+                <View style={styles.glassCard}>
+                  <Text style={styles.missionTitle}>{activeMission.title}</Text>
+                  
+                  <View style={styles.infoRow}>
+                    <Icon name="user" size={18} color="#94a3b8" />
+                    <Text style={styles.infoText}>Client : {activeMission.client}</Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Icon name="mapPin" size={18} color="#94a3b8" />
+                    <Text style={styles.infoText}>Chantier : {activeMission.worksite}</Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Icon name="clock" size={18} color="#94a3b8" />
+                    <Text style={styles.infoText}>Statut : {getStatusLabel(activeMission.status)}</Text>
+                  </View>
+
+                  {activeMission.notes ? (
+                    <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingTop: 12 }}>
+                      <Text style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>Consignes: {activeMission.notes}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {isOutOfZone && (
+                  <View style={[styles.alertCard, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: '#ef4444' }]}>
+                    <Icon name="alert" size={24} color="#ef4444" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.alertTitle, { color: '#ef4444' }]}>Hors Zone Chantier</Text>
+                      <Text style={styles.alertDesc}>
+                        Attention : Vous êtes éloigné du chantier de plus de 100 mètres.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Navigation Button */}
+                <TouchableOpacity style={styles.btnLargeSecondary} onPress={openGps}>
+                  <Icon name="mapPin" size={24} color="#3b82f6" />
+                  <Text style={styles.btnLargeText}>OUVRIR GPS (NAVIGATION)</Text>
+                </TouchableOpacity>
+
+                {/* Action buttons */}
+                {activeMission.status === 'planned' && (
+                  <TouchableOpacity style={styles.btnLargePrimary} onPress={startMission}>
+                    <Text style={styles.btnLargeText}>COMMENCER CHANTIER</Text>
+                  </TouchableOpacity>
+                )}
+
+                {activeMission.status === 'in_progress' && (
+                  <View style={{ gap: 16 }}>
+                    <TouchableOpacity 
+                      style={styles.btnLargeSecondary} 
+                      onPress={() => {
+                        setCameraType('before');
+                        setCurrentScreen('camera');
+                      }}
+                    >
+                      <Icon name="camera" size={24} />
+                      <Text style={styles.btnLargeText}>Photo Avant Travaux</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                      style={styles.btnLargeSecondary} 
+                      onPress={() => {
+                        setCameraType('after');
+                        setCurrentScreen('camera');
+                      }}
+                    >
+                      <Icon name="camera" size={24} />
+                      <Text style={styles.btnLargeText}>Photo Après Travaux</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.btnLargeSuccess} onPress={endMission}>
+                      <Icon name="check" size={24} />
+                      <Text style={styles.btnLargeText}>TERMINER MISSION (CLÔTURE)</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {activeMission.status === 'completed' && (
+                  <View style={styles.successCard}>
+                    <Icon name="check" size={28} color="#10b981" />
+                    <Text style={styles.successText}>Mission complétée avec succès !</Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.glassCard}>
+                <Text style={{ color: '#fff', fontSize: 16, textAlign: 'center', fontWeight: '600', marginVertical: 20 }}>
+                  Aucun chantier planifié aujourd'hui.
+                </Text>
+                <Text style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', lineHeight: 18 }}>
+                  Consultez l'onglet "Mon Agenda" ci-dessus pour afficher vos futures affectations.
                 </Text>
               </View>
-            </View>
-          )}
+            )
+          ) : (
+            /* Agenda Timeline Sub Tab */
+            <View style={{ gap: 14 }}>
+              {agendaMissions.length === 0 ? (
+                <View style={styles.glassCard}>
+                  <Text style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', marginVertical: 20 }}>
+                    Aucune mission n'est programmée dans votre agenda.
+                  </Text>
+                </View>
+              ) : (
+                agendaMissions.map((m: any) => {
+                  const isToday = new Date(m.scheduledDate).toDateString() === new Date().toDateString();
+                  return (
+                    <View 
+                      key={m.id} 
+                      style={[
+                        styles.glassCard, 
+                        { 
+                          borderColor: isToday ? '#3b82f6' : 'rgba(255,255,255,0.08)',
+                          borderLeftWidth: 4,
+                          borderLeftColor: isToday ? '#3b82f6' : m.status === 'completed' ? '#10b981' : '#64748b'
+                        }
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15, flex: 1, marginRight: 8 }}>{m.title}</Text>
+                        <Text style={{ color: m.status === 'completed' ? '#10b981' : m.status === 'in_progress' ? '#3b82f6' : '#f59e0b', fontWeight: '700', fontSize: 11, textTransform: 'uppercase' }}>
+                          {getStatusLabel(m.status)}
+                        </Text>
+                      </View>
+                      
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                        <Icon name="calendar" size={13} color="#94a3b8" />
+                        <Text style={{ color: '#94a3b8', fontSize: 12 }}>{formatAgendaDate(m.scheduledDate)}</Text>
+                      </View>
+                      
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                        <Icon name="user" size={13} color="#94a3b8" />
+                        <Text style={{ color: '#f8fafc', fontSize: 13 }}>Client : {m.clientName || m.client?.name || 'N/A'}</Text>
+                      </View>
+                      
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                        <Icon name="mapPin" size={13} color="#94a3b8" />
+                        <Text style={{ color: '#f8fafc', fontSize: 13 }}>Chantier : {m.worksiteAddress || m.worksite?.address || 'N/A'}</Text>
+                      </View>
 
-          {/* Navigation Button */}
-          <TouchableOpacity style={[styles.btnLargeSecondary, { marginBottom: 16 }]} onPress={openGps}>
-            <Icon name="mapPin" size={24} color="#3b82f6" />
-            <Text style={styles.btnLargeText}>OUVRIR GPS (NAVIGATION)</Text>
-          </TouchableOpacity>
+                      {m.truck && (
+                        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                          <Icon name="truck" size={13} color="#94a3b8" />
+                          <Text style={{ color: '#3b82f6', fontSize: 13, fontWeight: '600' }}>Camion : {m.truck.plateNumber} ({m.truck.model})</Text>
+                        </View>
+                      )}
 
-          {/* Action buttons */}
-          {activeMission.status === 'planned' && (
-            <TouchableOpacity style={styles.btnLargePrimary} onPress={startMission}>
-              <Text style={styles.btnLargeText}>COMMENCER CHANTIER</Text>
-            </TouchableOpacity>
-          )}
-
-          {activeMission.status === 'in_progress' && (
-            <View style={{ gap: 16 }}>
-              <TouchableOpacity 
-                style={styles.btnLargeSecondary} 
-                onPress={() => {
-                  setCameraType('before');
-                  setCurrentScreen('camera');
-                }}
-              >
-                <Icon name="camera" size={24} />
-                <Text style={styles.btnLargeText}>Photo Avant Travaux</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.btnLargeSecondary} 
-                onPress={() => {
-                  setCameraType('after');
-                  setCurrentScreen('camera');
-                }}
-              >
-                <Icon name="camera" size={24} />
-                <Text style={styles.btnLargeText}>Photo Après Travaux</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.btnLargeSuccess} onPress={endMission}>
-                <Icon name="check" size={24} />
-                <Text style={styles.btnLargeText}>TERMINER MISSION (CLÔTURE)</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {activeMission.status === 'completed' && (
-            <View style={styles.successCard}>
-              <Icon name="check" size={28} color="#10b981" />
-              <Text style={styles.successText}>Mission complétée avec succès !</Text>
+                      {m.notes ? (
+                        <View style={{ marginTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 8 }}>
+                          <Text style={{ color: '#64748b', fontSize: 12, fontStyle: 'italic' }}>Consignes: {m.notes}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })
+              )}
             </View>
           )}
 
@@ -1673,21 +1839,54 @@ export default function App() {
           </TouchableOpacity>
 
           <View style={styles.glassCard}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: '#fff', marginBottom: 16 }}>Rechargement du sable</Text>
-            <Text style={{ fontSize: 36, fontWeight: '800', color: '#f59e0b', textAlign: 'center', marginVertical: 20 }}>
-              {truck.currentStock} sacs
-            </Text>
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginVertical: 20 }}>
-              <TouchableOpacity style={styles.btnCircle} onPress={() => updateStock(10)}>
-                <Text style={styles.btnCircleText}>+10</Text>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 16, textAlign: 'center' }}>Rechargement du sable</Text>
+            
+            {/* Stepper à l'unité */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, marginVertical: 20 }}>
+              <TouchableOpacity 
+                style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(239, 68, 68, 0.15)', borderWidth: 1.5, borderColor: '#ef4444', alignItems: 'center', justifyContent: 'center' }} 
+                onPress={() => updateStock(-1)}
+              >
+                <Text style={{ color: '#ef4444', fontSize: 24, fontWeight: 'bold' }}>-</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.btnCircle} onPress={() => updateStock(-5)}>
-                <Text style={styles.btnCircleText}>-5</Text>
+              <View style={{ alignItems: 'center', minWidth: 120 }}>
+                <Text style={{ fontSize: 42, fontWeight: '900', color: '#f59e0b' }}>
+                  {truck.currentStock}
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#94a3b8', marginTop: 2 }}>
+                  sacs de sable
+                </Text>
+              </View>
+
+              <TouchableOpacity 
+                style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(16, 185, 129, 0.15)', borderWidth: 1.5, borderColor: '#10b981', alignItems: 'center', justifyContent: 'center' }} 
+                onPress={() => updateStock(1)}
+              >
+                <Text style={{ color: '#10b981', fontSize: 24, fontWeight: 'bold' }}>+</Text>
               </TouchableOpacity>
             </View>
-            <Text style={{ color: '#94a3b8', textAlign: 'center', fontSize: 13, marginBottom: 10 }}>Les modifications mettent à jour la base SQLite locale immédiatement et se synchronisent en tâche de fond.</Text>
+
+            {/* Boutons capsules rapides */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 16 }}>
+              <TouchableOpacity 
+                style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(59, 130, 246, 0.15)', borderWidth: 1, borderColor: '#3b82f6' }} 
+                onPress={() => updateStock(10)}
+              >
+                <Text style={{ color: '#3b82f6', fontSize: 13, fontWeight: '700' }}>Ajouter +10</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(245, 158, 11, 0.15)', borderWidth: 1, borderColor: '#f59e0b' }} 
+                onPress={() => updateStock(-5)}
+              >
+                <Text style={{ color: '#f59e0b', fontSize: 13, fontWeight: '700' }}>Retirer -5</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ color: '#64748b', textAlign: 'center', fontSize: 11, lineHeight: 16 }}>
+              Les modifications mettent à jour la base SQLite locale immédiatement et se synchronisent en tâche de fond.
+            </Text>
           </View>
 
           <View style={[styles.glassCard, { marginTop: 16, flex: 1 }]}>
@@ -1862,9 +2061,10 @@ export default function App() {
                   <TextInput
                     style={styles.loginInput}
                     value={leaveStartDate}
-                    onChangeText={setLeaveStartDate}
-                    placeholder="AAAA-MM-JJ"
+                    onChangeText={(val) => setLeaveStartDate(formatDatePickerInput(val))}
+                    placeholder="JJ/MM/AAAA"
                     placeholderTextColor="#475569"
+                    keyboardType="numeric"
                   />
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
@@ -1872,23 +2072,13 @@ export default function App() {
                   <TextInput
                     style={styles.loginInput}
                     value={leaveEndDate}
-                    onChangeText={setLeaveEndDate}
-                    placeholder="AAAA-MM-JJ"
+                    onChangeText={(val) => setLeaveEndDate(formatDatePickerInput(val))}
+                    placeholder="JJ/MM/AAAA"
                     placeholderTextColor="#475569"
+                    keyboardType="numeric"
                   />
                 </View>
               </View>
-
-              {/* Half Day Checkbox */}
-              <TouchableOpacity 
-                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 }}
-                onPress={() => setLeaveIsHalfDay(!leaveIsHalfDay)}
-              >
-                <View style={{ width: 20, height: 20, borderWidth: 2, borderColor: '#475569', borderRadius: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: leaveIsHalfDay ? '#3b82f6' : 'transparent' }}>
-                  {leaveIsHalfDay && <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✓</Text>}
-                </View>
-                <Text style={{ color: '#fff', fontSize: 14 }}>Demi-journée (0.5 jour)</Text>
-              </TouchableOpacity>
 
               {/* Reason input */}
               <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '600', marginBottom: 6 }}>Motif / Raison (Optionnel)</Text>
@@ -1917,8 +2107,16 @@ export default function App() {
               ) : (
                 <View style={{ gap: 12 }}>
                   {leaveRequestsList.map((req: any) => {
-                    const formattedStart = req.startDate ? req.startDate.split('T')[0] : '';
-                    const formattedEnd = req.endDate ? req.endDate.split('T')[0] : '';
+                    const formatDbDateToFr = (dbDateStr: string) => {
+                      if (!dbDateStr) return '';
+                      const part = dbDateStr.split('T')[0];
+                      if (!part) return '';
+                      const parts = part.split('-');
+                      if (parts.length !== 3) return part;
+                      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    };
+                    const formattedStart = formatDbDateToFr(req.startDate);
+                    const formattedEnd = formatDbDateToFr(req.endDate);
                     const dateDisplay = formattedStart === formattedEnd ? formattedStart : `${formattedStart} au ${formattedEnd}`;
                     
                     let statusColor = '#f59e0b';
@@ -1943,7 +2141,7 @@ export default function App() {
                           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>{typeText}</Text>
                           <Text style={{ color: statusColor, fontWeight: '700', fontSize: 12 }}>{statusText}</Text>
                         </View>
-                        <Text style={{ color: '#94a3b8', fontSize: 13 }}>Dates: {dateDisplay} {req.isHalfDay ? '(½ journée)' : ''}</Text>
+                        <Text style={{ color: '#94a3b8', fontSize: 13 }}>Dates: {dateDisplay}</Text>
                         {req.reason ? <Text style={{ color: '#64748b', fontSize: 12, marginTop: 4, fontStyle: 'italic' }}>Motif: {req.reason}</Text> : null}
                       </View>
                     );

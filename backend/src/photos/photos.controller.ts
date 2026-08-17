@@ -41,6 +41,31 @@ export class PhotosController {
     return this.photosService.findByMission(missionId);
   }
 
+  @Post('worksite/:worksiteId')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        notes: { type: 'string' },
+      },
+    },
+  })
+  uploadWorksitePhoto(
+    @Param('worksiteId') worksiteId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('notes') notes?: string,
+  ) {
+    return this.photosService.uploadWorksitePhoto(worksiteId, file, notes);
+  }
+
+  @Get('worksite/:worksiteId')
+  findByWorksite(@Param('worksiteId') worksiteId: string) {
+    return this.photosService.findByWorksite(worksiteId);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.photosService.remove(id);

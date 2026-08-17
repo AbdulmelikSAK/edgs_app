@@ -36,6 +36,7 @@ export class PlanningService {
         mission: {
           client: true,
           worksite: true,
+          truck: true,
         },
         employees: true,
       },

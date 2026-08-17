@@ -13,6 +13,7 @@ export class PhotosService {
     @InjectRepository(MissionPhoto) private photoRepo: Repository<MissionPhoto>,
     @InjectRepository(Mission) private missionRepo: Repository<Mission>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
+    @InjectRepository(Worksite) private worksiteRepo: Repository<Worksite>,
     private minioService: MinioService,
   ) {}
 
@@ -41,10 +42,37 @@ export class PhotosService {
     return this.photoRepo.save(photo);
   }
 
+  async uploadWorksitePhoto(
+    worksiteId: string,
+    file: Express.Multer.File,
+    notes?: string,
+  ): Promise<MissionPhoto> {
+    const worksite = await this.worksiteRepo.findOne({ where: { id: worksiteId } });
+    if (!worksite) throw new NotFoundException('Chantier non trouvé');
+
+    const filename = `worksite-${worksiteId}/${randomUUID()}-${file.originalname}`;
+    const url = await this.minioService.uploadFile(filename, file.buffer, file.mimetype);
+
+    const photo = this.photoRepo.create({
+      worksite,
+      url,
+      filename,
+      notes,
+    });
+    return this.photoRepo.save(photo);
+  }
+
   findByMission(missionId: string): Promise<MissionPhoto[]> {
     return this.photoRepo.find({
       where: { mission: { id: missionId } },
       relations: { takenBy: true },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  findByWorksite(worksiteId: string): Promise<MissionPhoto[]> {
+    return this.photoRepo.find({
+      where: { worksite: { id: worksiteId } },
       order: { createdAt: 'ASC' },
     });
   }

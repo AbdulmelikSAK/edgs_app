@@ -68,9 +68,10 @@ export class MissionsService {
 
   async update(id: string, dto: UpdateMissionDto): Promise<Mission> {
     const mission = await this.findOne(id);
-    if (dto.truckId) {
-      const truck = await this.truckRepo.findOne({ where: { id: dto.truckId } });
-      if (truck) mission.truck = truck;
+    if (dto.hasOwnProperty('truckId')) {
+      mission.truck = dto.truckId 
+        ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) 
+        : null as any;
     }
     if (dto.clientId) {
       const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
@@ -93,7 +94,7 @@ export class MissionsService {
       mission.chefDeMission = chefDeMission;
     }
     
-    const { employeeIds, chefDeMissionId, ...fields } = dto;
+    const { employeeIds, chefDeMissionId, truckId, ...fields } = dto;
     Object.assign(mission, fields);
     return this.missionRepo.save(mission);
   }
@@ -126,7 +127,31 @@ export class MissionsService {
           scheduledDate: Between(today, tomorrow),
         }
       ],
-      relations: { client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: { client: true, worksite: true, employees: true, chefDeMission: true, truck: true },
+    });
+  }
+
+  findEmployeeMissions(employeeId: string): Promise<Mission[]> {
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setDate(end.getDate() + 30);
+    end.setHours(23, 59, 59, 999);
+    
+    return this.missionRepo.find({
+      where: [
+        {
+          employees: { id: employeeId },
+          scheduledDate: Between(start, end),
+        },
+        {
+          chefDeMission: { id: employeeId },
+          scheduledDate: Between(start, end),
+        }
+      ],
+      relations: { client: true, worksite: true, employees: true, chefDeMission: true, truck: true },
+      order: { scheduledDate: 'ASC' },
     });
   }
 }

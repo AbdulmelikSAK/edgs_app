@@ -257,8 +257,13 @@ function App() {
     truckId: '',
     surfaceArea: '',
   });
-  const [missionPhotoFile, setMissionPhotoFile] = useState<File | null>(null);
+  const [missionPhotoFiles, setMissionPhotoFiles] = useState<File[]>([]);
   const [photoInputKey, setPhotoInputKey] = useState(Date.now());
+
+  const [manualUploadMissionId, setManualUploadMissionId] = useState('');
+  const [manualUploadCategory, setManualUploadCategory] = useState('avant');
+  const [manualUploadFiles, setManualUploadFiles] = useState<File[]>([]);
+  const [manualUploadKey, setManualUploadKey] = useState(Date.now());
 
   const [newTruck, setNewTruck] = useState({
     plateNumber: '',
@@ -326,6 +331,7 @@ function App() {
     employeeIds: [] as string[],
     date: new Date().toISOString().split('T')[0],
     notes: '',
+    truckId: '',
   });
 
   // Auth helpers
@@ -645,16 +651,18 @@ function App() {
       if (res.ok) {
         const createdMission = await res.json();
 
-        if (missionPhotoFile) {
-          const formData = new FormData();
-          formData.append('file', missionPhotoFile);
-          formData.append('type', 'before');
-          formData.append('notes', 'Photo initiale du chantier');
+        if (missionPhotoFiles && missionPhotoFiles.length > 0) {
+          for (const file of missionPhotoFiles) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', 'before');
+            formData.append('notes', 'Pièce jointe du chantier');
 
-          await fetchWithAuth(`${API_BASE_URL}/photos/mission/${createdMission.id}`, {
-            method: 'POST',
-            body: formData,
-          });
+            await fetchWithAuth(`${API_BASE_URL}/photos/mission/${createdMission.id}`, {
+              method: 'POST',
+              body: formData,
+            });
+          }
         }
 
         setNewMission({
@@ -668,7 +676,7 @@ function App() {
           truckId: '',
           surfaceArea: '',
         });
-        setMissionPhotoFile(null);
+        setMissionPhotoFiles([]);
         setPhotoInputKey(Date.now());
         loadAllData();
       }
@@ -697,6 +705,85 @@ function App() {
       if (res.ok) loadAllData();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleRequestExplanation = async (missionId: string, currentText: string) => {
+    const text = window.prompt("Saisissez votre demande d'explication pour ce rapport :", currentText);
+    if (text === null) return;
+    
+    try {
+      const payload = {
+        notes: text.trim() ? `DEMANDE D'EXPLICATION: ${text.trim()}` : null
+      };
+      
+      const res = await fetchWithAuth(`${API_BASE_URL}/missions/${missionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCancelExplanation = async (missionId: string) => {
+    if (!window.confirm("Voulez-vous annuler la demande d'explication pour ce rapport ?")) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/missions/${missionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: null })
+      });
+      
+      if (res.ok) {
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleManualUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualUploadMissionId) {
+      alert("Veuillez sélectionner une mission.");
+      return;
+    }
+    if (manualUploadFiles.length === 0) {
+      alert("Veuillez sélectionner au moins un fichier.");
+      return;
+    }
+
+    try {
+      for (const file of manualUploadFiles) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', manualUploadCategory);
+        formData.append('notes', 'Pièce jointe ajoutée manuellement depuis le Backoffice');
+
+        await fetchWithAuth(`${API_BASE_URL}/photos/mission/${manualUploadMissionId}`, {
+          method: 'POST',
+          body: formData,
+        });
+      }
+
+      setManualUploadFiles([]);
+      setManualUploadKey(Date.now());
+      // Reload photos list
+      const res = await fetchWithAuth(API_BASE_URL + '/photos');
+      if (res.ok) {
+        const data = await res.json();
+        setPhotosList(data);
+      }
+      alert("Fichiers téléversés avec succès !");
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de l'upload.");
     }
   };
 
@@ -1107,6 +1194,15 @@ function App() {
       const rawDay = targetDate.getDay();
       const dayOfWeek = rawDay === 0 ? 7 : rawDay;
 
+      // Update mission truck assignment
+      if (planningForm.missionId) {
+        await fetchWithAuth(`${API_BASE_URL}/missions/${planningForm.missionId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ truckId: planningForm.truckId || null }),
+        });
+      }
+
       const payload = {
         missionId: planningForm.missionId,
         employeeIds: planningForm.employeeIds,
@@ -1128,12 +1224,15 @@ function App() {
           employeeIds: [],
           date: new Date().toISOString().split('T')[0],
           notes: '',
+          truckId: '',
         });
         if (planningView === 'week') {
           fetchPlanningForWeek(planningYear, planningWeek);
         } else {
           fetchPlanningForMonth(selectedYear, selectedMonth);
         }
+        // Reload all data to keep missions updated
+        loadAllData();
       }
     } catch (err) {
       console.error(err);
@@ -1793,13 +1892,13 @@ function App() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Photo du Chantier (Optionnel)</label>
+                    <label className="form-label">Pièces Jointes / Documents (Optionnel)</label>
                     <input 
                       key={photoInputKey}
                       type="file" 
-                      accept="image/*"
+                      multiple
                       className="form-input" 
-                      onChange={e => setMissionPhotoFile(e.target.files ? e.target.files[0] : null)}
+                      onChange={e => setMissionPhotoFiles(e.target.files ? Array.from(e.target.files) : [])}
                     />
                   </div>
                   <div className="form-group">
@@ -2139,6 +2238,19 @@ function App() {
                       </div>
                     </div>
                     <div className="form-group">
+                      <label className="form-label">Véhicule / Camion (Optionnel)</label>
+                      <select 
+                        className="form-input" 
+                        value={planningForm.truckId}
+                        onChange={e => setPlanningForm({ ...planningForm, truckId: e.target.value })}
+                      >
+                        <option value="">Sélectionner un véhicule...</option>
+                        {trucks.map(t => (
+                          <option key={t.id} value={t.id}>{t.plateNumber} ({t.model})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
                       <label className="form-label">Notes de planning</label>
                       <textarea 
                         className="form-input" 
@@ -2212,7 +2324,7 @@ function App() {
                                   style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold' }}
                                   onClick={() => {
                                     const localISO = new Date(dayDate.getTime() - dayDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO });
+                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO, missionId: '', truckId: '', notes: '' });
                                   }}
                                 >
                                   +
@@ -2342,7 +2454,7 @@ function App() {
                                   style={{ fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer' }}
                                   onClick={() => {
                                     const localISO = new Date(cellDate.getTime() - cellDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO });
+                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO, missionId: '', truckId: '', notes: '' });
                                   }}
                                 >
                                   +
@@ -2456,32 +2568,111 @@ function App() {
               <p style={{ color: 'var(--text-secondary)' }}>Photos de chantiers prises depuis l'application mobile (Avant / Pendant / Après).</p>
             </div>
 
-            <div className="glass-card">
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Galerie Photos Triées</h3>
-              <div className="grid-3" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                {photosList.map((p: any) => (
-                  <div key={p.id} className="glass-card" style={{ padding: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <img 
-                      src={p.url.startsWith('http') ? p.url : `${API_BASE_URL}${p.url}`} 
-                      alt="Chantier" 
-                      style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
+            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px', alignItems: 'start' }}>
+              <div className="glass-card">
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Importer des pièces jointes</h3>
+                <form onSubmit={handleManualUpload}>
+                  <div className="form-group">
+                    <label className="form-label">Mission / Chantier</label>
+                    <select 
+                      className="form-input" 
+                      value={manualUploadMissionId}
+                      onChange={e => setManualUploadMissionId(e.target.value)}
+                      required
+                    >
+                      <option value="">Sélectionner une mission...</option>
+                      {missions.map(m => (
+                        <option key={m.id} value={m.id}>{m.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Étape / Catégorie</label>
+                    <select 
+                      className="form-input" 
+                      value={manualUploadCategory}
+                      onChange={e => setManualUploadCategory(e.target.value)}
+                      required
+                    >
+                      <option value="avant">Avant Chantier</option>
+                      <option value="pendant">Pendant Chantier</option>
+                      <option value="apres">Après Chantier</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Fichiers (tous formats)</label>
+                    <input 
+                      key={manualUploadKey}
+                      type="file" 
+                      multiple
+                      className="form-input" 
+                      onChange={e => setManualUploadFiles(e.target.files ? Array.from(e.target.files) : [])}
+                      required
                     />
-                    <div>
-                      <div style={{ fontWeight: '700', fontSize: '14px' }}>{p.missionTitle || 'Sans Mission'}</div>
-                      <span className={`badge ${p.category === 'avant' ? 'badge-info' : p.category === 'pendant' ? 'badge-warning' : 'badge-success'}`} style={{ marginTop: '4px', textTransform: 'capitalize' }}>
-                        {p.category || 'Chantier'}
-                      </span>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        Ajoutée le : {new Date(p.createdAt).toLocaleDateString('fr-FR')}
+                  </div>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                    Téléverser
+                  </button>
+                </form>
+              </div>
+
+              <div className="glass-card">
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Galerie Photos & Pièces Jointes</h3>
+                <div className="grid-3" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                  {photosList.map((p: any) => {
+                    const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(p.url);
+                    const fileUrl = p.url.startsWith('http') ? p.url : `${API_BASE_URL}${p.url}`;
+                    return (
+                      <div key={p.id} className="glass-card" style={{ padding: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {!isImage ? (
+                          <a 
+                            href={fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ 
+                              width: '100%', 
+                              height: '160px', 
+                              borderRadius: 'var(--radius-sm)', 
+                              backgroundColor: 'rgba(255,255,255,0.05)', 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              gap: '12px',
+                              border: '1.5px dashed var(--border-color)',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <span style={{ fontSize: '40px' }}>📄</span>
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textAlign: 'center', padding: '0 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                              {p.url.split('/').pop()}
+                            </span>
+                          </a>
+                        ) : (
+                          <img 
+                            src={fileUrl} 
+                            alt="Chantier" 
+                            style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
+                          />
+                        )}
+                        <div>
+                          <div style={{ fontWeight: '700', fontSize: '14px' }}>{p.missionTitle || 'Sans Mission'}</div>
+                          <span className={`badge ${p.category === 'avant' ? 'badge-info' : p.category === 'pendant' ? 'badge-warning' : 'badge-success'}`} style={{ marginTop: '4px', textTransform: 'capitalize' }}>
+                            {p.category || 'Chantier'}
+                          </span>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            Ajoutée le : {new Date(p.createdAt).toLocaleDateString('fr-FR')}
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })}
+                  {photosList.length === 0 && (
+                    <div style={{ gridColumn: 'span 3', textAlign: 'center', color: 'var(--text-secondary)', padding: '60px 0' }}>
+                      Aucune pièce jointe n'a encore été téléversée.
                     </div>
-                  </div>
-                ))}
-                {photosList.length === 0 && (
-                  <div style={{ gridColumn: 'span 4', textAlign: 'center', color: 'var(--text-secondary)', padding: '60px 0' }}>
-                    Aucune photo n'a encore été téléversée depuis l'application mobile.
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2505,6 +2696,7 @@ function App() {
                       <th>Date</th>
                       <th>Statut</th>
                       <th>Rapport PDF</th>
+                      <th>Demande d'explication</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2532,6 +2724,40 @@ function App() {
                             ) : (
                               <button className="btn btn-primary" onClick={() => handleGenerateReport(m.id)}>
                                 Générer Rapport
+                              </button>
+                            )}
+                          </td>
+                          <td>
+                            {m.notes && m.notes.startsWith("DEMANDE D'EXPLICATION:") ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '700' }}>Explication demandée :</span>
+                                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                  {m.notes.replace("DEMANDE D'EXPLICATION:", "").trim()}
+                                </span>
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                  <button 
+                                    className="btn btn-secondary" 
+                                    style={{ padding: '2px 8px', fontSize: '11px', minHeight: 'auto' }}
+                                    onClick={() => handleRequestExplanation(m.id, (m.notes || '').replace("DEMANDE D'EXPLICATION:", "").trim())}
+                                  >
+                                    Modifier
+                                  </button>
+                                  <button 
+                                    className="btn btn-danger" 
+                                    style={{ padding: '2px 8px', fontSize: '11px', minHeight: 'auto', backgroundColor: '#dc2626', color: '#fff' }}
+                                    onClick={() => handleCancelExplanation(m.id)}
+                                  >
+                                    Annuler
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '6px 12px', fontSize: '12px' }}
+                                onClick={() => handleRequestExplanation(m.id, '')}
+                              >
+                                Demander explication
                               </button>
                             )}
                           </td>

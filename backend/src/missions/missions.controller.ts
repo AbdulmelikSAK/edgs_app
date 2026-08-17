@@ -29,6 +29,11 @@ export class MissionsController {
     return this.missionsService.findTodayMissions(employeeId);
   }
 
+  @Get('employee/:employeeId')
+  findByEmployee(@Param('employeeId') employeeId: string) {
+    return this.missionsService.findEmployeeMissions(employeeId);
+  }
+
   @Get('truck/:truckId')
   findByTruck(@Param('truckId') truckId: string) {
     return this.missionsService.findByTruck(truckId);
