@@ -16,6 +16,9 @@ export class Truck {
   model: string;
 
   @Column({ nullable: true })
+  type: string;
+
+  @Column({ nullable: true })
   year: number;
 
   @Column({ type: 'int', default: 0 })

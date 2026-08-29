@@ -5,6 +5,9 @@ export class Client {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ nullable: true })
+  code: string;
+
   @Column()
   name: string;
 
@@ -19,6 +22,15 @@ export class Client {
 
   @Column({ nullable: true })
   address: string;
+
+  @Column({ nullable: true })
+  zipCode: string;
+
+  @Column({ nullable: true })
+  city: string;
+
+  @Column({ nullable: true })
+  countryCode: string;
 
   @Column({ default: true })
   isActive: boolean;

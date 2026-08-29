@@ -45,6 +45,7 @@ const Icon = ({ name, color = '#f8fafc', size = 24 }: { name: string; color?: st
 interface Mission {
   id: string;
   title: string;
+  type?: string;
   client: string;
   worksite: string;
   status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
@@ -1083,12 +1084,24 @@ export default function App() {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           
           let outOfZone = false;
+          let targetLat: number | null = null;
+          let targetLon: number | null = null;
+
           if (activeMission && activeMission.status === 'in_progress' && activeMission.latitude && activeMission.longitude) {
+            targetLat = activeMission.latitude;
+            targetLon = activeMission.longitude;
+          } else {
+            // Coordonnées GPS du Dépôt EDGS (Grillon) par défaut
+            targetLat = 44.3958;
+            targetLon = 4.9285;
+          }
+
+          if (targetLat !== null && targetLon !== null) {
             const dist = getDistance(
               loc.coords.latitude,
               loc.coords.longitude,
-              activeMission.latitude,
-              activeMission.longitude
+              targetLat,
+              targetLon
             );
             outOfZone = dist > 100;
             setIsOutOfZone(outOfZone);
@@ -1097,7 +1110,7 @@ export default function App() {
           }
 
           const gpsPoint = {
-            truckId: truck.id,
+            truckId: truck ? truck.id : 'depot',
             missionId: (activeMission && activeMission.status === 'in_progress') ? activeMission.id : null,
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
@@ -1366,85 +1379,111 @@ export default function App() {
                 <Text style={{ color: '#10b981', marginLeft: 'auto', fontWeight: '600' }}>{t.currentStock} sacs à bord</Text>
               </TouchableOpacity>
             ))}
+
+            <TouchableOpacity 
+              style={[styles.truckItem, { borderColor: '#f26522', backgroundColor: 'rgba(242, 101, 34, 0.1)', marginTop: 8 }]} 
+              onPress={() => handleSelectTruck({ id: 'depot', plateNumber: 'Sans véhicule (Dépôt)', model: 'Dépôt EDGS', currentStock: 0, stockAlertThreshold: -1 })}
+            >
+              <Icon name="home" size={32} color="#f26522" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Mission Dépôt</Text>
+                <Text style={{ color: '#94a3b8' }}>Travail au dépôt (aucun véhicule requis)</Text>
+              </View>
+              <Text style={{ color: '#f26522', marginLeft: 'auto', fontWeight: '600' }}>Choisir →</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       )}
 
       {/* SCREEN 3: DASHBOARD */}
-      {currentScreen === 'dashboard' && employee && truck && (
-        <ScrollView style={styles.dashboardContainer} contentContainerStyle={{ paddingBottom: 40 }}>
-          
-          {/* Out of zone banner alert */}
-          {isOutOfZone && (
-            <View style={[styles.alertCard, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: '#ef4444' }]}>
-              <Icon name="alert" size={24} color="#ef4444" />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.alertTitle, { color: '#ef4444' }]}>Hors Zone Chantier</Text>
-                <Text style={styles.alertDesc}>
-                  Attention : Vous êtes éloigné du chantier de plus de 100 mètres.
-                </Text>
-              </View>
-            </View>
-          )}
+      {currentScreen === 'dashboard' && employee && truck && (() => {
+        const isDepotMode = truck.id === 'depot' || activeMission?.type === 'DEPOT' || (!activeMission && truck.id === 'depot');
 
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.welcomeText}>Employé</Text>
-              <Text style={styles.truckText}>Véhicule : {truck.plateNumber}</Text>
-            </View>
-            <TouchableOpacity style={styles.btnLogout} onPress={() => {
-              setToken('');
-              setEmployee(null);
-              setTruck(null);
-              db.runSync('DELETE FROM session_store WHERE key = ?', ['token']);
-              db.runSync('DELETE FROM session_store WHERE key = ?', ['employee']);
-              setCurrentScreen('login');
-            }}>
-              <Text style={styles.btnLogoutText}>Quitter</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Stock warnings */}
-          {truck.currentStock <= truck.stockAlertThreshold && (
-            <View style={styles.alertCard}>
-              <Icon name="alert" size={24} color="#f59e0b" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.alertTitle}>Alerte Stock Bas</Text>
-                <Text style={styles.alertDesc}>
-                  Stock insuffisant ({truck.currentStock} sacs). Veuillez réapprovisionner.
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {!dayStarted ? (
-            <View style={{ gap: 20 }}>
-              <View style={styles.glassCard}>
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>
-                  Sélectionner le mode de déplacement :
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-                  {(['panier', 'grand_deplacement'] as const).map(mode => (
-                    <TouchableOpacity
-                      key={mode}
-                      style={[
-                        styles.modeBtn,
-                        displacementMode === mode ? styles.modeBtnActive : styles.modeBtnInactive
-                      ]}
-                      onPress={() => setDisplacementMode(mode)}
-                    >
-                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
-                        {mode === 'panier' ? 'Panier' : 'Grand Déplacement'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+        return (
+          <ScrollView style={styles.dashboardContainer} contentContainerStyle={{ paddingBottom: 40 }}>
+            
+            {/* Out of zone banner alert */}
+            {isOutOfZone && (
+              <View style={[styles.alertCard, { backgroundColor: 'rgba(239, 68, 68, 0.15)', borderColor: '#ef4444' }]}>
+                <Icon name="alert" size={24} color="#ef4444" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.alertTitle, { color: '#ef4444' }]}>Hors Zone {isDepotMode ? 'Dépôt' : 'Chantier'}</Text>
+                  <Text style={styles.alertDesc}>
+                    Attention : Vous êtes éloigné du {isDepotMode ? 'dépôt' : 'chantier'} de plus de 100 mètres.
+                  </Text>
                 </View>
-
-                <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
-                  <Icon name="clock" size={28} />
-                  <Text style={styles.btnLargeText}>DÉBUT DE JOURNÉE</Text>
-                </TouchableOpacity>
               </View>
+            )}
+
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.welcomeText}>Employé: {employee.firstName} {employee.lastName}</Text>
+                <Text style={styles.truckText}>Véhicule : {truck.plateNumber}</Text>
+              </View>
+              <TouchableOpacity style={styles.btnLogout} onPress={() => {
+                setToken('');
+                setEmployee(null);
+                setTruck(null);
+                db.runSync('DELETE FROM session_store WHERE key = ?', ['token']);
+                db.runSync('DELETE FROM session_store WHERE key = ?', ['employee']);
+                setCurrentScreen('login');
+              }}>
+                <Text style={styles.btnLogoutText}>Quitter</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Stock warnings (only for trucks) */}
+            {truck.id !== 'depot' && truck.currentStock <= truck.stockAlertThreshold && (
+              <View style={styles.alertCard}>
+                <Icon name="alert" size={24} color="#f59e0b" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.alertTitle}>Alerte Stock Bas</Text>
+                  <Text style={styles.alertDesc}>
+                    Stock insuffisant ({truck.currentStock} sacs). Veuillez réapprovisionner.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {!dayStarted ? (
+              <View style={{ gap: 20 }}>
+                <View style={styles.glassCard}>
+                  {isDepotMode ? (
+                    <View style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 20 }}>
+                      <Text style={{ color: '#60a5fa', fontSize: 15, fontWeight: '700' }}>📍 Mission Dépôt</Text>
+                      <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>
+                        Travail au dépôt : aucun avantage Panier ni Grand Déplacement. Détection GPS à 100m du dépôt active.
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>
+                        Sélectionner le mode de déplacement :
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+                        {(['panier', 'grand_deplacement'] as const).map(mode => (
+                          <TouchableOpacity
+                            key={mode}
+                            style={[
+                              styles.modeBtn,
+                              displacementMode === mode ? styles.modeBtnActive : styles.modeBtnInactive
+                            ]}
+                            onPress={() => setDisplacementMode(mode)}
+                          >
+                            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                              {mode === 'panier' ? 'Panier' : 'Grand Déplacement'}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </>
+                  )}
+
+                  <TouchableOpacity style={styles.btnLargePrimary} onPress={startDay}>
+                    <Icon name="clock" size={28} />
+                    <Text style={styles.btnLargeText}>DÉBUT DE JOURNÉE</Text>
+                  </TouchableOpacity>
+                </View>
 
               <View style={styles.actionsGrid}>
                 <TouchableOpacity 
@@ -1565,7 +1604,8 @@ export default function App() {
             </View>
           )}
         </ScrollView>
-      )}
+        );
+      })()}
 
       {/* SCREEN 4: MISSION DETAIL & AGENDA */}
       {currentScreen === 'mission_detail' && (

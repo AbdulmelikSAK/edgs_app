@@ -37,10 +37,14 @@ import {
 // Interfaces matching TypeORM entities
 interface Client {
   id: string;
+  code?: string;
   name: string;
-  phone: string;
-  email: string;
-  address: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  zipCode?: string;
+  city?: string;
+  countryCode?: string;
 }
 
 interface Worksite {
@@ -259,6 +263,53 @@ function App() {
   });
   const [missionPhotoFiles, setMissionPhotoFiles] = useState<File[]>([]);
   const [photoInputKey, setPhotoInputKey] = useState(Date.now());
+
+  // Dynamic Client Creation Modal state
+  const [showCreateClientModal, setShowCreateClientModal] = useState(false);
+  const [newClientForm, setNewClientForm] = useState({
+    code: '',
+    name: '',
+    address: '',
+    zipCode: '',
+    city: '',
+    countryCode: '',
+    email: '',
+    phone: '',
+  });
+
+  const openCreateClientModal = () => {
+    const nextCodeNum = clients.length + 1;
+    const autoCode = `CL${String(nextCodeNum).padStart(5, '0')}`;
+    setNewClientForm({
+      code: autoCode,
+      name: '',
+      address: '',
+      zipCode: '',
+      city: '',
+      countryCode: '',
+      email: '',
+      phone: '',
+    });
+    setShowCreateClientModal(true);
+  };
+
+  const handleCreateClientSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetchWithAuth(API_BASE_URL + '/clients', {
+        method: 'POST',
+        body: JSON.stringify(newClientForm),
+      });
+      if (res.ok) {
+        const createdClient = await res.json();
+        setClients(prev => [...prev, createdClient]);
+        setNewMission(prev => ({ ...prev, clientName: createdClient.name }));
+        setShowCreateClientModal(false);
+      }
+    } catch (err) {
+      console.error('Erreur lors de la création du client:', err);
+    }
+  };
 
   const [manualUploadMissionId, setManualUploadMissionId] = useState('');
   const [manualUploadCategory, setManualUploadCategory] = useState('avant');
@@ -1843,18 +1894,44 @@ function App() {
                       <option value="Sablage">Sablage</option>
                       <option value="Bouchardage">Bouchardage</option>
                       <option value="Ponçage">Ponçage</option>
+                      <option value="DEPOT">Dépôt (Travail au dépôt)</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Client (Texte Libre)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="Nom du client" 
-                      value={newMission.clientName}
-                      onChange={e => setNewMission({ ...newMission, clientName: e.target.value })}
-                      required
-                    />
+                    <label className="form-label">Client</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select 
+                        className="form-input" 
+                        style={{ flex: 1, marginBottom: 0 }}
+                        value={newMission.clientName}
+                        onChange={e => {
+                          if (e.target.value === '__NEW_CLIENT__') {
+                            openCreateClientModal();
+                          } else {
+                            setNewMission({ ...newMission, clientName: e.target.value });
+                          }
+                        }}
+                        required
+                      >
+                        <option value="">Sélectionner un client...</option>
+                        <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
+                          ➕ -- Ajouter un nouveau client --
+                        </option>
+                        {clients.map(c => (
+                          <option key={c.id} value={c.name}>
+                            {c.code ? `[${c.code}] ` : ''}{c.name} {c.city ? `(${c.city})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        style={{ whiteSpace: 'nowrap', padding: '0 14px' }}
+                        onClick={openCreateClientModal}
+                      >
+                        ➕ Nouveau
+                      </button>
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Adresse (Texte Libre)</label>
@@ -3875,6 +3952,133 @@ function App() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CREATION CLIENT */}
+        {showCreateClientModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+            backdropFilter: 'blur(4px)'
+          }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '520px', padding: '32px', position: 'relative' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>➕ Créer un nouveau client</h3>
+                <button 
+                  type="button" 
+                  onClick={() => setShowCreateClientModal(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '24px', cursor: 'pointer' }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateClientSubmit}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Code Client</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newClientForm.code} 
+                      onChange={e => setNewClientForm({ ...newClientForm, code: e.target.value })}
+                      placeholder="CL00152"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nom du Client *</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newClientForm.name} 
+                      onChange={e => setNewClientForm({ ...newClientForm, name: e.target.value })}
+                      placeholder="e.g. SOLS PROVENCE"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Adresse de facturation</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newClientForm.address} 
+                    onChange={e => setNewClientForm({ ...newClientForm, address: e.target.value })}
+                    placeholder="12 Rue des Artisans"
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Code Postal</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newClientForm.zipCode} 
+                      onChange={e => setNewClientForm({ ...newClientForm, zipCode: e.target.value })}
+                      placeholder="84600"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Ville</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newClientForm.city} 
+                      onChange={e => setNewClientForm({ ...newClientForm, city: e.target.value })}
+                      placeholder="GRILLON"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input 
+                      type="email" 
+                      className="form-input" 
+                      value={newClientForm.email} 
+                      onChange={e => setNewClientForm({ ...newClientForm, email: e.target.value })}
+                      placeholder="contact@client.com"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Téléphone</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newClientForm.phone} 
+                      onChange={e => setNewClientForm({ ...newClientForm, phone: e.target.value })}
+                      placeholder="04 90 00 00 00"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => setShowCreateClientModal(false)}
+                  >
+                    Annuler
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Enregistrer & Sélectionner
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

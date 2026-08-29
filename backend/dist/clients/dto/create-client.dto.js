@@ -13,13 +13,23 @@ exports.CreateClientDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
 class CreateClientDto {
+    code;
     name;
     contactName;
     phone;
     email;
     address;
+    zipCode;
+    city;
+    countryCode;
 }
 exports.CreateClientDto = CreateClientDto;
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateClientDto.prototype, "code", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ example: 'Chantiers Dubois' }),
     (0, class_validator_1.IsString)(),
@@ -49,4 +59,22 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateClientDto.prototype, "address", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateClientDto.prototype, "zipCode", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateClientDto.prototype, "city", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateClientDto.prototype, "countryCode", void 0);
 //# sourceMappingURL=create-client.dto.js.map

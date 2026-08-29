@@ -4,6 +4,7 @@ export declare class Truck {
     plateNumber: string;
     pinCode: string;
     model: string;
+    type: string;
     year: number;
     currentStock: number;
     stockAlertThreshold: number;

@@ -17,6 +17,7 @@ let Truck = class Truck {
     plateNumber;
     pinCode;
     model;
+    type;
     year;
     currentStock;
     stockAlertThreshold;
@@ -48,6 +49,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], Truck.prototype, "model", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Truck.prototype, "type", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", Number)
