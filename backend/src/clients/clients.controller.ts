@@ -4,13 +4,23 @@ import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SeederService } from '../database/seeder.service';
 
 @ApiTags('clients')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(
+    private readonly clientsService: ClientsService,
+    private readonly seederService: SeederService,
+  ) {}
+
+  @Post('seed-excel')
+  async seedExcel() {
+    await this.seederService.executeExcelSeed();
+    return { success: true, message: 'Données Excel réimportées avec succès !' };
+  }
 
   @Post()
   create(@Body() dto: CreateClientDto) {

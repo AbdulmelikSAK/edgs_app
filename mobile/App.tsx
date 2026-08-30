@@ -100,7 +100,7 @@ export default function App() {
   // New features states
   const [isPaused, setIsPaused] = useState(false);
   const [pauseType, setPauseType] = useState<'repas' | 'technique'>('repas');
-  const [displacementMode, setDisplacementMode] = useState<'panier' | 'grand_deplacement'>('panier');
+  const [displacementMode, setDisplacementMode] = useState<'panier' | 'grand_deplacement' | 'none'>('panier');
   const [isOutOfZone, setIsOutOfZone] = useState(false);
   const [signatureBase64, setSignatureBase64] = useState<string | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
@@ -1447,19 +1447,58 @@ export default function App() {
 
             {!dayStarted ? (
               <View style={{ gap: 20 }}>
+                {/* Banner when no active mission planned */}
+                {!activeMission && !isDepotMode && (
+                  <View style={{ backgroundColor: 'rgba(242, 101, 34, 0.15)', borderColor: '#f26522', borderWidth: 1, borderRadius: 12, padding: 16 }}>
+                    <Text style={{ color: '#f26522', fontSize: 16, fontWeight: '700' }}>📍 Aucun chantier planifié aujourd'hui ?</Text>
+                    <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 4, marginBottom: 12 }}>
+                      Vous pouvez travailler directement au dépôt EDGS (aucun camion ni indemnité de déplacement requis).
+                    </Text>
+                    <TouchableOpacity 
+                      style={{ backgroundColor: '#f26522', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, alignItems: 'center' }}
+                      onPress={() => {
+                        setTruck({ id: 'depot', plateNumber: 'Sans véhicule (Dépôt)', model: 'Dépôt EDGS', currentStock: 0, stockAlertThreshold: -1 });
+                        setDisplacementMode('none');
+                        setActiveMission({
+                          id: 'depot-virtual',
+                          title: 'Mission Dépôt EDGS',
+                          type: 'DEPOT',
+                          client: 'Dépôt EDGS',
+                          worksite: 'Dépôt Grillon',
+                          status: 'planned',
+                          scheduledDate: new Date().toISOString()
+                        });
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>🏬 Activer la Mission Dépôt</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
                 <View style={styles.glassCard}>
                   {isDepotMode ? (
                     <View style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 8, padding: 14, marginBottom: 20 }}>
-                      <Text style={{ color: '#60a5fa', fontSize: 15, fontWeight: '700' }}>📍 Mission Dépôt</Text>
-                      <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>
+                      <Text style={{ color: '#60a5fa', fontSize: 15, fontWeight: '700' }}>📍 Mode Mission Dépôt Actif</Text>
+                      <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 4, marginBottom: 12 }}>
                         Travail au dépôt : aucun avantage Panier ni Grand Déplacement. Détection GPS à 100m du dépôt active.
                       </Text>
+                      <TouchableOpacity 
+                        style={{ alignSelf: 'flex-start', paddingVertical: 6, paddingHorizontal: 12, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 6 }}
+                        onPress={() => setCurrentScreen('select_truck')}
+                      >
+                        <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '600' }}>🔄 Choisir un véhicule plutôt</Text>
+                      </TouchableOpacity>
                     </View>
                   ) : (
                     <>
-                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 }}>
-                        Sélectionner le mode de déplacement :
-                      </Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+                          Mode de déplacement :
+                        </Text>
+                        <TouchableOpacity onPress={() => setCurrentScreen('select_truck')}>
+                          <Text style={{ color: '#3b82f6', fontSize: 13, fontWeight: '600' }}>Changer camion / Dépôt</Text>
+                        </TouchableOpacity>
+                      </View>
                       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
                         {(['panier', 'grand_deplacement'] as const).map(mode => (
                           <TouchableOpacity
