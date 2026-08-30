@@ -51,8 +51,7 @@ const user_entity_1 = require("./entities/user.entity");
 const employee_entity_1 = require("./entities/employee.entity");
 const truck_entity_1 = require("./entities/truck.entity");
 const client_entity_1 = require("./entities/client.entity");
-const worksite_entity_1 = require("./entities/worksite.entity");
-const mission_entity_1 = require("./entities/mission.entity");
+const edgs_parsed_data_1 = require("./edgs_parsed_data");
 let SeederService = class SeederService {
     dataSource;
     constructor(dataSource) {
@@ -62,157 +61,133 @@ let SeederService = class SeederService {
         await this.seed();
     }
     async seed() {
-        const roleRepo = this.dataSource.getRepository(role_entity_1.Role);
-        const count = await roleRepo.count();
-        if (count > 0) {
-            console.log('Database already has data. Skipping seeding.');
+        const clientRepo = this.dataSource.getRepository(client_entity_1.Client);
+        const clientCount = await clientRepo.count();
+        if (clientCount >= 100 && process.env.FORCE_SEED !== 'true') {
+            console.log(`✅ Base de données déjà à jour (${clientCount} clients présent(s)).`);
             return;
         }
-        console.log('🌱 Seeding database...');
-        const roles = [];
-        for (const name of Object.values(role_entity_1.RoleName)) {
-            const role = roleRepo.create({
-                name,
-                description: `${name} role`,
-            });
-            roles.push(await roleRepo.save(role));
+        console.log('🌱 Seed / Nettoyage et importation des données Excel EDGS...');
+        await this.executeExcelSeed();
+    }
+    async executeExcelSeed() {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            console.log('🧹 Purge des anciennes données opérationnelles...');
+            await queryRunner.query('DELETE FROM time_entries;');
+            await queryRunner.query('DELETE FROM reports;');
+            await queryRunner.query('DELETE FROM gps_points;');
+            await queryRunner.query('DELETE FROM mission_photos;');
+            await queryRunner.query('DELETE FROM stock_movements;');
+            await queryRunner.query('DELETE FROM truck_stocks;');
+            await queryRunner.query('DELETE FROM truck_assignments;');
+            await queryRunner.query('DELETE FROM weekly_planning;');
+            await queryRunner.query('DELETE FROM invoices;');
+            await queryRunner.query('DELETE FROM quotes;');
+            await queryRunner.query('DELETE FROM production_entries;');
+            await queryRunner.query('DELETE FROM mission_employees;');
+            await queryRunner.query('DELETE FROM missions;');
+            await queryRunner.query('DELETE FROM worksites;');
+            await queryRunner.query('DELETE FROM trucks;');
+            await queryRunner.query('DELETE FROM clients;');
+            await queryRunner.commitTransaction();
+            console.log('✅ Base réinitialisée (utilisateurs préservés).');
         }
-        const adminRole = roles.find((r) => r.name === role_entity_1.RoleName.ADMIN);
-        const managerRole = roles.find((r) => r.name === role_entity_1.RoleName.MANAGER);
-        const driverRole = roles.find((r) => r.name === role_entity_1.RoleName.DRIVER);
+        catch (err) {
+            await queryRunner.rollbackTransaction();
+            console.error('❌ Erreur lors de la purge:', err);
+        }
+        finally {
+            await queryRunner.release();
+        }
+        const roleRepo = this.dataSource.getRepository(role_entity_1.Role);
+        let adminRole = await roleRepo.findOne({ where: { name: role_entity_1.RoleName.ADMIN } });
+        if (!adminRole) {
+            adminRole = await roleRepo.save(roleRepo.create({ name: role_entity_1.RoleName.ADMIN, description: 'Administrateur' }));
+        }
+        let managerRole = await roleRepo.findOne({ where: { name: role_entity_1.RoleName.MANAGER } });
+        if (!managerRole) {
+            managerRole = await roleRepo.save(roleRepo.create({ name: role_entity_1.RoleName.MANAGER, description: 'Responsable' }));
+        }
+        let driverRole = await roleRepo.findOne({ where: { name: role_entity_1.RoleName.DRIVER } });
+        if (!driverRole) {
+            driverRole = await roleRepo.save(roleRepo.create({ name: role_entity_1.RoleName.DRIVER, description: 'Chauffeur / Opérateur' }));
+        }
         const userRepo = this.dataSource.getRepository(user_entity_1.User);
-        const adminUser = userRepo.create({
-            email: 'admin@edgs.fr',
-            passwordHash: await bcrypt.hash('admin123', 10),
-            firstName: 'Directeur',
-            lastName: 'EDGS',
-            role: adminRole,
-        });
-        await userRepo.save(adminUser);
-        const dispatcherUser = userRepo.create({
-            email: 'manager@edgs.fr',
-            passwordHash: await bcrypt.hash('manager123', 10),
-            firstName: 'Planning',
-            lastName: 'EDGS',
-            role: managerRole,
-        });
-        await userRepo.save(dispatcherUser);
+        let adminUser = await userRepo.findOne({ where: { email: 'admin@edgs.fr' } });
+        if (!adminUser) {
+            adminUser = userRepo.create({
+                email: 'admin@edgs.fr',
+                passwordHash: await bcrypt.hash('admin123', 10),
+                firstName: 'Directeur',
+                lastName: 'EDGS',
+                role: adminRole,
+            });
+            await userRepo.save(adminUser);
+        }
+        const { salaries, camions, clients } = edgs_parsed_data_1.edgsParsedData;
+        const defaultPasswordHash = await bcrypt.hash('edgs2026!', 10);
         const employeeRepo = this.dataSource.getRepository(employee_entity_1.Employee);
-        const driverEmp = employeeRepo.create({
-            firstName: 'Jean',
-            lastName: 'Chauffeur',
-            username: 'cjean',
-            passwordHash: await bcrypt.hash('123456', 10),
-            mustChangePassword: true,
-            badgeNumber: 'BDG001',
-            role: driverRole,
-            hourlyRate: 15.00,
-            monthlySalary: 2500.00,
-            paidLeaveBalance: 25.00,
-            rttBalance: 12.00,
-        });
-        await employeeRepo.save(driverEmp);
-        const managerEmp = employeeRepo.create({
-            firstName: 'Paul',
-            lastName: 'Chef',
-            username: 'cpaul',
-            passwordHash: await bcrypt.hash('123456', 10),
-            mustChangePassword: true,
-            badgeNumber: 'BDG002',
-            role: managerRole,
-            hourlyRate: 20.00,
-            monthlySalary: 3200.00,
-            paidLeaveBalance: 25.00,
-            rttBalance: 12.00,
-        });
-        await employeeRepo.save(managerEmp);
-        const adminEmp = employeeRepo.create({
-            firstName: 'Pierre',
-            lastName: 'Admin',
-            username: 'apierre',
-            passwordHash: await bcrypt.hash('123456', 10),
-            mustChangePassword: true,
-            badgeNumber: 'BDG003',
-            role: adminRole,
-            hourlyRate: 25.00,
-            monthlySalary: 4000.00,
-            paidLeaveBalance: 25.00,
-            rttBalance: 12.00,
-        });
-        await employeeRepo.save(adminEmp);
+        for (const s of salaries) {
+            const lastName = s.nom.trim();
+            const firstName = s.prenom.trim();
+            const cleanFirstName = firstName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            const cleanLastName = lastName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            const username = `${cleanFirstName.charAt(0)}${cleanLastName}`;
+            let emp = await employeeRepo.findOne({ where: [{ username }, { firstName, lastName }] });
+            if (!emp) {
+                emp = employeeRepo.create({
+                    firstName,
+                    lastName,
+                    username,
+                    passwordHash: defaultPasswordHash,
+                    mustChangePassword: true,
+                    qualification: s.poste || s.metier || 'Opérateur',
+                    role: driverRole,
+                    hourlyRate: 15.00,
+                    paidLeaveBalance: 25.00,
+                    rttBalance: 12.00,
+                    isActive: true,
+                });
+                await employeeRepo.save(emp);
+            }
+            else {
+                emp.mustChangePassword = true;
+                await employeeRepo.save(emp);
+            }
+        }
         const truckRepo = this.dataSource.getRepository(truck_entity_1.Truck);
-        const truck1 = truckRepo.create({
-            plateNumber: 'AA-123-BB',
-            model: 'Renault Kerax',
-            year: 2018,
-            currentStock: 50,
-            stockAlertThreshold: 10,
-        });
-        await truckRepo.save(truck1);
-        const truck2 = truckRepo.create({
-            plateNumber: 'CC-456-DD',
-            model: 'Volvo FMX',
-            year: 2020,
-            currentStock: 30,
-            stockAlertThreshold: 10,
-        });
-        await truckRepo.save(truck2);
+        for (const c of camions) {
+            const plateNumber = c.immatriculation.trim();
+            const modelStr = `${c.marque.trim()} ${c.modele.trim()}`.trim();
+            const truck = truckRepo.create({
+                plateNumber,
+                model: modelStr,
+                type: c.type || 'Fourgon',
+                currentStock: 50,
+                stockAlertThreshold: 10,
+                isActive: true,
+            });
+            await truckRepo.save(truck);
+        }
         const clientRepo = this.dataSource.getRepository(client_entity_1.Client);
-        const client1 = clientRepo.create({
-            name: 'BTP Construction SAS',
-            email: 'contact@btp-construction.fr',
-            phone: '0123456789',
-            address: '10 Rue de la Paix, 75002 Paris',
-        });
-        await clientRepo.save(client1);
-        const client2 = clientRepo.create({
-            name: 'Grillon Sablage SARL',
-            email: 'info@grillon-sablage.fr',
-            phone: '0490123456',
-            address: 'Route de Valréas, 84600 Grillon',
-        });
-        await clientRepo.save(client2);
-        const worksiteRepo = this.dataSource.getRepository(worksite_entity_1.Worksite);
-        const worksite1 = worksiteRepo.create({
-            name: 'Chantier Rénovation Façade Paris',
-            address: '25 Avenue des Champs-Élysées, 75008 Paris',
-            latitude: 48.8698,
-            longitude: 2.3075,
-        });
-        await worksiteRepo.save(worksite1);
-        const worksite2 = worksiteRepo.create({
-            name: 'Pont de Grillon Sablage',
-            address: 'Chemin du Sablage, 84600 Grillon',
-            latitude: 44.3958,
-            longitude: 4.9285,
-        });
-        await worksiteRepo.save(worksite2);
-        const missionRepo = this.dataSource.getRepository(mission_entity_1.Mission);
-        const today = new Date();
-        const mission1 = missionRepo.create({
-            title: 'Sablage Façade Paris',
-            description: 'Sablage de la façade principale, grain moyen.',
-            scheduledDate: today,
-            status: mission_entity_1.MissionStatus.PLANNED,
-            client: client1,
-            worksite: worksite1,
-            truck: truck1,
-            notes: 'Porter les EPI obligatoires.',
-        });
-        await missionRepo.save(mission1);
-        const mission2 = missionRepo.create({
-            title: 'Sablage Pont de Grillon',
-            description: 'Nettoyage des poutres en béton avant traitement.',
-            scheduledDate: today,
-            status: mission_entity_1.MissionStatus.IN_PROGRESS,
-            client: client2,
-            worksite: worksite2,
-            truck: truck2,
-            notes: 'Buse de sablage numéro 8.',
-            startedAt: new Date(today.getTime() - 2 * 60 * 60 * 1000),
-        });
-        await missionRepo.save(mission2);
-        console.log('✅ Seeding completed.');
+        for (const cl of clients) {
+            const client = clientRepo.create({
+                code: cl.code.trim(),
+                name: cl.nom.trim(),
+                address: cl.address?.trim() || null,
+                zipCode: cl.zipCode?.trim() || null,
+                city: cl.city?.trim() || null,
+                countryCode: cl.countryCode?.trim() || null,
+                email: cl.email?.trim() || null,
+                phone: cl.phone?.trim() || null,
+                isActive: true,
+            });
+            await clientRepo.save(client);
+        }
+        console.log(`🎉 Seed Excel exécuté avec succès : ${clients.length} clients, ${camions.length} camions, ${salaries.length} salariés.`);
     }
 };
 exports.SeederService = SeederService;

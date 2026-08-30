@@ -19,10 +19,17 @@ const clients_service_1 = require("./clients.service");
 const create_client_dto_1 = require("./dto/create-client.dto");
 const update_client_dto_1 = require("./dto/update-client.dto");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const seeder_service_1 = require("../database/seeder.service");
 let ClientsController = class ClientsController {
     clientsService;
-    constructor(clientsService) {
+    seederService;
+    constructor(clientsService, seederService) {
         this.clientsService = clientsService;
+        this.seederService = seederService;
+    }
+    async seedExcel() {
+        await this.seederService.executeExcelSeed();
+        return { success: true, message: 'Données Excel réimportées avec succès !' };
     }
     create(dto) {
         return this.clientsService.create(dto);
@@ -41,6 +48,12 @@ let ClientsController = class ClientsController {
     }
 };
 exports.ClientsController = ClientsController;
+__decorate([
+    (0, common_1.Post)('seed-excel'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ClientsController.prototype, "seedExcel", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
@@ -81,6 +94,7 @@ exports.ClientsController = ClientsController = __decorate([
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('clients'),
-    __metadata("design:paramtypes", [clients_service_1.ClientsService])
+    __metadata("design:paramtypes", [clients_service_1.ClientsService,
+        seeder_service_1.SeederService])
 ], ClientsController);
 //# sourceMappingURL=clients.controller.js.map

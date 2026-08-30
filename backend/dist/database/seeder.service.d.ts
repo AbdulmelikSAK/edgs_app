@@ -5,4 +5,5 @@ export declare class SeederService implements OnApplicationBootstrap {
     constructor(dataSource: DataSource);
     onApplicationBootstrap(): Promise<void>;
     seed(): Promise<void>;
+    executeExcelSeed(): Promise<void>;
 }
