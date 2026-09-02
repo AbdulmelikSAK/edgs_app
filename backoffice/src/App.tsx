@@ -3762,57 +3762,62 @@ function App() {
                           ✅ Tous les chantiers sont affectés pour cette semaine.
                         </div>
                       ) : (
-                        unassignedMissions.map((m: any) => (
-                          <div
-                            key={m.id}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('application/json', JSON.stringify(m));
-                              setDraggedMission(m);
-                            }}
-                            style={{
-                              minWidth: '220px',
-                              maxWidth: '260px',
-                              backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                              border: '1px solid rgba(59, 130, 246, 0.35)',
-                              borderRadius: '8px',
-                              padding: '10px 12px',
-                              cursor: 'grab',
-                              userSelect: 'none',
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)'
-                            }}
-                          >
-                            <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff', marginBottom: '2px' }}>
-                              {m.title}
+                        unassignedMissions.map((m: any) => {
+                          const clientDisplay = typeof m.client === 'object' ? (m.client?.name || m.clientName || 'N/A') : (m.client || m.clientName || 'N/A');
+                          const worksiteDisplay = typeof m.worksite === 'object' ? (m.worksite?.name || m.worksiteAddress || 'Non spécifié') : (m.worksite || m.worksiteAddress || 'Non spécifié');
+
+                          return (
+                            <div
+                              key={m.id}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('application/json', JSON.stringify(m));
+                                setDraggedMission(m);
+                              }}
+                              style={{
+                                minWidth: '220px',
+                                maxWidth: '260px',
+                                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                                border: '1px solid rgba(59, 130, 246, 0.35)',
+                                borderRadius: '8px',
+                                padding: '10px 12px',
+                                cursor: 'grab',
+                                userSelect: 'none',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)'
+                              }}
+                            >
+                              <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff', marginBottom: '2px' }}>
+                                {m.title}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                👤 Client: {clientDisplay}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                📍 {worksiteDisplay}
+                              </div>
+                              <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa', fontSize: '10px', fontWeight: '700' }}>
+                                  🖐️ Glisser sur un salarié
+                                </span>
+                                <button
+                                  style={{ backgroundColor: 'transparent', border: 'none', color: '#38bdf8', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                                  onClick={() => {
+                                    setDrawerMission(m);
+                                    setDrawerTeamLeaderId(employees[0]?.id || '');
+                                    setDrawerTeamMemberIds([]);
+                                    setDrawerStartDay(1);
+                                    setDrawerDurationDays(1);
+                                    setDrawerTruckId(m.truck?.id || '');
+                                    setDrawerNotes(m.notes || '');
+                                    setPlanningDrawerOpen(true);
+                                  }}
+                                >
+                                  Affecter
+                                </button>
+                              </div>
                             </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                              👤 Client: {m.client || 'N/A'}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              📍 {m.worksite || 'Non spécifié'}
-                            </div>
-                            <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa', fontSize: '10px', fontWeight: '700' }}>
-                                🖐️ Glisser sur un salarié
-                              </span>
-                              <button
-                                style={{ backgroundColor: 'transparent', border: 'none', color: '#38bdf8', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
-                                onClick={() => {
-                                  setDrawerMission(m);
-                                  setDrawerTeamLeaderId(employees[0]?.id || '');
-                                  setDrawerTeamMemberIds([]);
-                                  setDrawerStartDay(1);
-                                  setDrawerDurationDays(1);
-                                  setDrawerTruckId(m.truck?.id || '');
-                                  setDrawerNotes(m.notes || '');
-                                  setPlanningDrawerOpen(true);
-                                }}
-                              >
-                                Affecter
-                              </button>
-                            </div>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -3850,171 +3855,179 @@ function App() {
                   {/* Rows for each Employee */}
                   {employees
                     .filter(emp => !planningFilterEmployee || emp.id === planningFilterEmployee)
-                    .map((emp) => (
-                      <div key={emp.id} style={{ display: 'grid', gridTemplateColumns: '220px repeat(7, 1fr)', gap: '6px', marginBottom: '6px' }}>
-                        {/* Column 0: Employee info */}
-                        <div style={{ padding: '10px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                          <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff' }}>
-                            {emp.firstName} {emp.lastName}
-                          </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                            {emp.role || emp.specialty || 'Salarié EDGS'}
-                          </div>
-                        </div>
+                    .map((emp) => {
+                      const empRoleDisplay = typeof emp.role === 'object' && emp.role !== null ? ((emp.role as any).description || (emp.role as any).name || emp.qualification || 'Salarié EDGS') : (emp.role || emp.qualification || emp.specialty || 'Salarié EDGS');
 
-                        {/* Days 1 to 7 Cells */}
-                        {[1, 2, 3, 4, 5, 6, 7].map((dayIdx) => {
-                          const monday = getDateOfISOWeek(planningWeek, planningYear);
-                          const dayDate = new Date(monday);
-                          dayDate.setDate(monday.getDate() + (dayIdx - 1));
-
-                          const dayLeaves = getLeavesForDate(dayDate).filter(l => l.employeeId === emp.id || l.employee?.id === emp.id);
-                          const isAbsent = dayLeaves.length > 0;
-
-                          // Entries for this employee on this day
-                          const cellEntries = weeklyPlanning.filter(e => {
-                            if (e.dayOfWeek !== dayIdx) return false;
-                            if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
-                            const isAssigned = (e.employees && e.employees.some(m => m.id === emp.id)) || e.teamLeaderId === emp.id;
-                            return isAssigned;
-                          });
-
-                          return (
-                            <div
-                              key={dayIdx}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                let missionData = null;
-                                try {
-                                  const raw = e.dataTransfer.getData('application/json');
-                                  if (raw) missionData = JSON.parse(raw);
-                                } catch (err) {}
-                                if (!missionData && draggedMission) missionData = draggedMission;
-                                if (!missionData) return;
-
-                                setDrawerMission(missionData);
-                                setDrawerTeamLeaderId(emp.id);
-                                setDrawerTeamMemberIds([]);
-                                setDrawerStartDay(dayIdx);
-                                setDrawerDurationDays(1);
-                                setDrawerTruckId(missionData.truck?.id || '');
-                                setDrawerNotes(missionData.notes || '');
-                                setPlanningDrawerOpen(true);
-                                setDraggedMission(null);
-                              }}
-                              style={{
-                                minHeight: '65px',
-                                backgroundColor: isAbsent ? 'rgba(245, 158, 11, 0.06)' : 'rgba(255,255,255,0.015)',
-                                border: isAbsent ? '1px dashed #f59e0b' : '1px solid var(--border-color)',
-                                borderRadius: '6px',
-                                padding: '4px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '4px',
-                                position: 'relative'
-                              }}
-                            >
-                              {isAbsent ? (
-                                <div style={{ fontSize: '10px', color: '#f59e0b', fontWeight: '700', padding: '2px 4px', backgroundColor: 'rgba(245,158,11,0.15)', borderRadius: '4px' }}>
-                                  🌴 Absent (Congé)
-                                </div>
-                              ) : null}
-
-                              {cellEntries.map((e) => {
-                                const isLeader = e.teamLeaderId === emp.id || (e.employees && e.employees[0]?.id === emp.id);
-                                return (
-                                  <div
-                                    key={e.id}
-                                    style={{
-                                      backgroundColor: isLeader ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                                      borderLeft: `3px solid ${isLeader ? '#10b981' : '#3b82f6'}`,
-                                      borderRadius: '4px',
-                                      padding: '4px 6px',
-                                      fontSize: '11px',
-                                      color: '#fff',
-                                      position: 'relative'
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <span style={{ fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>
-                                        {isLeader ? '👑 Chef - ' : '👥 '} {e.mission?.title}
-                                      </span>
-                                      <button
-                                        style={{ backgroundColor: 'transparent', border: 'none', color: '#ef4444', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', padding: 0 }}
-                                        onClick={() => handleRemoveFromPlanning(e.id)}
-                                        title="Supprimer cette affectation"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-
-                                    {/* Drag-to-Resize Handle / Extend button */}
-                                    {dayIdx < 7 && (
-                                      <button
-                                        style={{
-                                          marginTop: '4px',
-                                          backgroundColor: 'rgba(255,255,255,0.08)',
-                                          border: 'none',
-                                          borderRadius: '3px',
-                                          color: '#94a3b8',
-                                          fontSize: '9px',
-                                          width: '100%',
-                                          cursor: 'pointer',
-                                          padding: '1px 0'
-                                        }}
-                                        onClick={() => handleExtendPlanningEntry(e)}
-                                        title="Étirer le chantier sur le jour suivant (Drag to extend)"
-                                      >
-                                        Etirer (+1j) ➔
-                                      </button>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                      return (
+                        <div key={emp.id} style={{ display: 'grid', gridTemplateColumns: '220px repeat(7, 1fr)', gap: '6px', marginBottom: '6px' }}>
+                          {/* Column 0: Employee info */}
+                          <div style={{ padding: '10px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff' }}>
+                              {emp.firstName} {emp.lastName}
                             </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              {empRoleDisplay}
+                            </div>
+                          </div>
+
+                          {/* Days 1 to 7 Cells */}
+                          {[1, 2, 3, 4, 5, 6, 7].map((dayIdx) => {
+                            const monday = getDateOfISOWeek(planningWeek, planningYear);
+                            const dayDate = new Date(monday);
+                            dayDate.setDate(monday.getDate() + (dayIdx - 1));
+
+                            const dayLeaves = getLeavesForDate(dayDate).filter(l => l.employeeId === emp.id || l.employee?.id === emp.id);
+                            const isAbsent = dayLeaves.length > 0;
+
+                            // Entries for this employee on this day
+                            const cellEntries = weeklyPlanning.filter(e => {
+                              if (e.dayOfWeek !== dayIdx) return false;
+                              if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
+                              const isAssigned = (e.employees && e.employees.some(m => m.id === emp.id)) || e.teamLeaderId === emp.id;
+                              return isAssigned;
+                            });
+
+                            return (
+                              <div
+                                key={dayIdx}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  let missionData = null;
+                                  try {
+                                    const raw = e.dataTransfer.getData('application/json');
+                                    if (raw) missionData = JSON.parse(raw);
+                                  } catch (err) {}
+                                  if (!missionData && draggedMission) missionData = draggedMission;
+                                  if (!missionData) return;
+
+                                  setDrawerMission(missionData);
+                                  setDrawerTeamLeaderId(emp.id);
+                                  setDrawerTeamMemberIds([]);
+                                  setDrawerStartDay(dayIdx);
+                                  setDrawerDurationDays(1);
+                                  setDrawerTruckId(missionData.truck?.id || '');
+                                  setDrawerNotes(missionData.notes || '');
+                                  setPlanningDrawerOpen(true);
+                                  setDraggedMission(null);
+                                }}
+                                style={{
+                                  minHeight: '65px',
+                                  backgroundColor: isAbsent ? 'rgba(245, 158, 11, 0.06)' : 'rgba(255,255,255,0.015)',
+                                  border: isAbsent ? '1px dashed #f59e0b' : '1px solid var(--border-color)',
+                                  borderRadius: '6px',
+                                  padding: '4px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '4px',
+                                  position: 'relative'
+                                }}
+                              >
+                                {isAbsent ? (
+                                  <div style={{ fontSize: '10px', color: '#f59e0b', fontWeight: '700', padding: '2px 4px', backgroundColor: 'rgba(245,158,11,0.15)', borderRadius: '4px' }}>
+                                    🌴 Absent (Congé)
+                                  </div>
+                                ) : null}
+
+                                {cellEntries.map((e) => {
+                                  const isLeader = e.teamLeaderId === emp.id || (e.employees && e.employees[0]?.id === emp.id);
+                                  return (
+                                    <div
+                                      key={e.id}
+                                      style={{
+                                        backgroundColor: isLeader ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                        borderLeft: `3px solid ${isLeader ? '#10b981' : '#3b82f6'}`,
+                                        borderRadius: '4px',
+                                        padding: '4px 6px',
+                                        fontSize: '11px',
+                                        color: '#fff',
+                                        position: 'relative'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>
+                                          {isLeader ? '👑 Chef - ' : '👥 '} {e.mission?.title}
+                                        </span>
+                                        <button
+                                          style={{ backgroundColor: 'transparent', border: 'none', color: '#ef4444', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                                          onClick={() => handleRemoveFromPlanning(e.id)}
+                                          title="Supprimer cette affectation"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+
+                                      {/* Drag-to-Resize Handle / Extend button */}
+                                      {dayIdx < 7 && (
+                                        <button
+                                          style={{
+                                            marginTop: '4px',
+                                            backgroundColor: 'rgba(255,255,255,0.08)',
+                                            border: 'none',
+                                            borderRadius: '3px',
+                                            color: '#94a3b8',
+                                            fontSize: '9px',
+                                            width: '100%',
+                                            cursor: 'pointer',
+                                            padding: '1px 0'
+                                          }}
+                                          onClick={() => handleExtendPlanningEntry(e)}
+                                          title="Étirer le chantier sur le jour suivant (Drag to extend)"
+                                        >
+                                          Etirer (+1j) ➔
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
 
               {/* 3. Volet Latéral / Inspector Drawer pour Affectation & Composition d'Équipe */}
-              {planningDrawerOpen && drawerMission && (
-                <div style={{
-                  position: 'fixed',
-                  top: 0,
-                  right: 0,
-                  width: '420px',
-                  height: '100vh',
-                  backgroundColor: '#0f172a',
-                  boxShadow: '-4px 0 20px rgba(0,0,0,0.5)',
-                  zIndex: 9999,
-                  padding: '24px',
-                  overflowY: 'auto',
-                  borderLeft: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#fff', margin: 0 }}>
-                      Composition d'Équipe
-                    </h2>
-                    <button
-                      onClick={() => setPlanningDrawerOpen(false)}
-                      style={{ backgroundColor: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
-                    >
-                      ✕
-                    </button>
-                  </div>
+              {planningDrawerOpen && drawerMission && (() => {
+                const drawerClientDisplay = typeof drawerMission.client === 'object' ? (drawerMission.client?.name || drawerMission.clientName || 'N/A') : (drawerMission.client || drawerMission.clientName || 'N/A');
+                const drawerWorksiteDisplay = typeof drawerMission.worksite === 'object' ? (drawerMission.worksite?.name || drawerMission.worksiteAddress || 'Non spécifié') : (drawerMission.worksite || drawerMission.worksiteAddress || 'Non spécifié');
 
-                  <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                    <div style={{ fontWeight: '800', fontSize: '15px', color: '#fff' }}>
-                      🏗️ {drawerMission.title}
+                return (
+                  <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    right: 0,
+                    width: '420px',
+                    height: '100vh',
+                    backgroundColor: '#0f172a',
+                    boxShadow: '-4px 0 20px rgba(0,0,0,0.5)',
+                    zIndex: 9999,
+                    padding: '24px',
+                    overflowY: 'auto',
+                    borderLeft: '1px solid rgba(255,255,255,0.1)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#fff', margin: 0 }}>
+                        Composition d'Équipe
+                      </h2>
+                      <button
+                        onClick={() => setPlanningDrawerOpen(false)}
+                        style={{ backgroundColor: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                      Client : {drawerMission.client || 'N/A'} | Chantier : {drawerMission.worksite || 'N/A'}
+
+                    <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                      <div style={{ fontWeight: '800', fontSize: '15px', color: '#fff' }}>
+                        🏗️ {drawerMission.title}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                        Client : {drawerClientDisplay} | Chantier : {drawerWorksiteDisplay}
+                      </div>
                     </div>
-                  </div>
 
                   {/* Chef d'équipe */}
                   <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -4136,10 +4149,11 @@ function App() {
                     </button>
                   </div>
                 </div>
-              )}
-            </div>
-          );
-        })()}
+              );
+            })()}
+          </div>
+        );
+      })()}
 
         {/* TAB 4: GPS CARTOGRAPHY */}
         {activeTab === 'gps' && (
