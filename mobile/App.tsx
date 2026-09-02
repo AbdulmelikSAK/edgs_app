@@ -56,7 +56,7 @@ interface Mission {
 }
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'login' | 'change_password' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera' | 'leaves'>('login');
+  const [currentScreen, setCurrentScreen] = useState<'login' | 'change_password' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera' | 'leaves' | 'announcements'>('login');
   
   // Configuration
   const [rawServerUrl, setRawServerUrl] = useState('https://edgs-app.onrender.com'); // Production Render backend URL

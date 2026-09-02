@@ -207,7 +207,7 @@ const getDateOfISOWeek = (w: number, y: number) => {
 
 function App() {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'create_mission' | 'missions' | 'site_supervisors' | 'time_validation' | 'planning' | 'gps' | 'photos' | 'reports' | 'trucks' | 'assignments' | 'stock' | 'equipment' | 'employees' | 'quotes' | 'invoices' | 'audit' | 'leaves'
+    'dashboard' | 'create_mission' | 'missions' | 'clients' | 'site_supervisors' | 'time_validation' | 'planning' | 'gps' | 'photos' | 'reports' | 'trucks' | 'assignments' | 'stock' | 'equipment' | 'employees' | 'quotes' | 'invoices' | 'announcements' | 'audit' | 'leaves'
   >('dashboard');
   
   // Auth state
@@ -349,6 +349,9 @@ function App() {
     phone: '',
   });
 
+  const [newClientContacts, setNewClientContacts] = useState<any[]>([]);
+  const [newClientSupervisors, setNewClientSupervisors] = useState<any[]>([]);
+
   const openCreateClientModal = () => {
     const nextCodeNum = clients.length + 1;
     const autoCode = `CL${String(nextCodeNum).padStart(5, '0')}`;
@@ -362,6 +365,8 @@ function App() {
       email: '',
       phone: '',
     });
+    setNewClientContacts([]);
+    setNewClientSupervisors([]);
     setShowCreateClientModal(true);
   };
 
@@ -370,13 +375,20 @@ function App() {
     try {
       const res = await fetchWithAuth(API_BASE_URL + '/clients', {
         method: 'POST',
-        body: JSON.stringify(newClientForm),
+        body: JSON.stringify({
+          ...newClientForm,
+          contacts: newClientContacts,
+          siteSupervisors: newClientSupervisors,
+        }),
       });
       if (res.ok) {
         const createdClient = await res.json();
         setClients(prev => [...prev, createdClient]);
-        setNewMission(prev => ({ ...prev, clientName: createdClient.name }));
+        setNewMission(prev => ({ ...prev, clientName: createdClient.name, clientId: createdClient.id }));
         setShowCreateClientModal(false);
+        setNewClientContacts([]);
+        setNewClientSupervisors([]);
+        loadAllData();
       }
     } catch (err) {
       console.error('Erreur lors de la création du client:', err);
@@ -5053,6 +5065,95 @@ function App() {
                       placeholder="04 90 00 00 00"
                     />
                   </div>
+                </div>
+
+                <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <label className="form-label" style={{ margin: 0, fontWeight: '700' }}>Contacts du Client (Facultatif)</label>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      style={{ padding: '4px 10px', fontSize: '12px' }}
+                      onClick={() => setNewClientContacts([...newClientContacts, { firstName: '', lastName: '', role: '', phone: '', email: '' }])}
+                    >
+                      + Ajouter un contact
+                    </button>
+                  </div>
+                  {newClientContacts.map((contact, idx) => (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', marginBottom: '10px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                        <input type="text" placeholder="Prénom" className="form-input" value={contact.firstName} onChange={e => {
+                          const updated = [...newClientContacts];
+                          updated[idx].firstName = e.target.value;
+                          setNewClientContacts(updated);
+                        }} />
+                        <input type="text" placeholder="Nom" className="form-input" value={contact.lastName} onChange={e => {
+                          const updated = [...newClientContacts];
+                          updated[idx].lastName = e.target.value;
+                          setNewClientContacts(updated);
+                        }} />
+                        <input type="text" placeholder="Fonction" className="form-input" value={contact.role} onChange={e => {
+                          const updated = [...newClientContacts];
+                          updated[idx].role = e.target.value;
+                          setNewClientContacts(updated);
+                        }} />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px' }}>
+                        <input type="text" placeholder="Téléphone" className="form-input" value={contact.phone} onChange={e => {
+                          const updated = [...newClientContacts];
+                          updated[idx].phone = e.target.value;
+                          setNewClientContacts(updated);
+                        }} />
+                        <input type="email" placeholder="Email" className="form-input" value={contact.email} onChange={e => {
+                          const updated = [...newClientContacts];
+                          updated[idx].email = e.target.value;
+                          setNewClientContacts(updated);
+                        }} />
+                        <button type="button" className="btn btn-danger" style={{ padding: '0 10px' }} onClick={() => setNewClientContacts(newClientContacts.filter((_, i) => i !== idx))}>&times;</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <label className="form-label" style={{ margin: 0, fontWeight: '700' }}>Conducteurs de Travaux (Facultatif)</label>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      style={{ padding: '4px 10px', fontSize: '12px' }}
+                      onClick={() => setNewClientSupervisors([...newClientSupervisors, { firstName: '', lastName: '', phone: '', email: '' }])}
+                    >
+                      + Ajouter un conducteur
+                    </button>
+                  </div>
+                  {newClientSupervisors.map((sup, idx) => (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', marginBottom: '10px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '8px' }}>
+                        <input type="text" placeholder="Prénom" className="form-input" value={sup.firstName} onChange={e => {
+                          const updated = [...newClientSupervisors];
+                          updated[idx].firstName = e.target.value;
+                          setNewClientSupervisors(updated);
+                        }} />
+                        <input type="text" placeholder="Nom" className="form-input" value={sup.lastName} onChange={e => {
+                          const updated = [...newClientSupervisors];
+                          updated[idx].lastName = e.target.value;
+                          setNewClientSupervisors(updated);
+                        }} />
+                        <input type="text" placeholder="Téléphone" className="form-input" value={sup.phone} onChange={e => {
+                          const updated = [...newClientSupervisors];
+                          updated[idx].phone = e.target.value;
+                          setNewClientSupervisors(updated);
+                        }} />
+                        <input type="email" placeholder="Email" className="form-input" value={sup.email} onChange={e => {
+                          const updated = [...newClientSupervisors];
+                          updated[idx].email = e.target.value;
+                          setNewClientSupervisors(updated);
+                        }} />
+                        <button type="button" className="btn btn-danger" style={{ padding: '0 10px' }} onClick={() => setNewClientSupervisors(newClientSupervisors.filter((_, i) => i !== idx))}>&times;</button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
