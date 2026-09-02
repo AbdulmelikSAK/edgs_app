@@ -85,6 +85,9 @@ interface Truck {
   lastServiceDate?: string;
   mileage?: number;
   stocks?: any[];
+  equipmentCategory?: string;
+  operatingHours?: number | string;
+  lastServiceHours?: number | string;
 }
 
 interface Employee {
@@ -121,6 +124,8 @@ interface Employee {
   medicalVisitDate?: string;
   photoUrl?: string;
   rttBalance?: number;
+  role?: string;
+  specialty?: string;
 }
 
 interface Equipment {
@@ -199,6 +204,7 @@ interface PlanningEntry {
   truck?: Truck;
   notes?: string;
   employees?: Employee[];
+  teamLeaderId?: string;
 }
 
 const getISOWeekAndYear = (d: Date) => {
@@ -302,6 +308,17 @@ function App() {
   const [timeModalNote, setTimeModalNote] = useState('');
   const [timeModalNewTime, setTimeModalNewTime] = useState('');
 
+  // Planning Drag & Drop & Drawer states
+  const [draggedMission, setDraggedMission] = useState<any | null>(null);
+  const [planningDrawerOpen, setPlanningDrawerOpen] = useState(false);
+  const [drawerMission, setDrawerMission] = useState<any | null>(null);
+  const [drawerTeamLeaderId, setDrawerTeamLeaderId] = useState<string>('');
+  const [drawerTeamMemberIds, setDrawerTeamMemberIds] = useState<string[]>([]);
+  const [drawerStartDay, setDrawerStartDay] = useState<number>(1);
+  const [drawerDurationDays, setDrawerDurationDays] = useState<number>(1);
+  const [drawerTruckId, setDrawerTruckId] = useState<string>('');
+  const [drawerNotes, setDrawerNotes] = useState<string>('');
+
   // Métrés modal
   const [showMeterModal, setShowMeterModal] = useState(false);
   const [meterModalMission, setMeterModalMission] = useState<Mission | null>(null);
@@ -316,7 +333,6 @@ function App() {
   const [replenishMinThreshold, setReplenishMinThreshold] = useState('');
 
   // Drag and Drop Planning Modal
-  const [draggedMission, setDraggedMission] = useState<Mission | null>(null);
   const [showDropPlanningModal, setShowDropPlanningModal] = useState(false);
   const [dropTargetEmployee, setDropTargetEmployee] = useState<Employee | null>(null);
   const [dropMission, setDropMission] = useState<Mission | null>(null);
@@ -579,6 +595,8 @@ function App() {
     insuranceExpirationDate: '',
     lastServiceDate: '',
     mileage: '0',
+    equipmentCategory: 'VEHICLE',
+    operatingHours: '0',
   });
   const [editingTruckId, setEditingTruckId] = useState<string | null>(null);
 
@@ -1215,16 +1233,19 @@ function App() {
   const handleCreateOrUpdateTruck = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const isCompressor = newTruck.equipmentCategory === 'COMPRESSOR';
       const payload = {
         plateNumber: newTruck.plateNumber,
         model: newTruck.model,
         year: Number(newTruck.year) || undefined,
         pinCode: newTruck.pinCode,
         stockAlertThreshold: Number(newTruck.stockAlertThreshold) || 10,
-        controlTechniqueDate: newTruck.controlTechniqueDate ? new Date(newTruck.controlTechniqueDate).toISOString() : undefined,
+        equipmentCategory: newTruck.equipmentCategory || 'VEHICLE',
+        operatingHours: isCompressor ? (Number(newTruck.operatingHours) || 0) : 0,
+        controlTechniqueDate: isCompressor ? undefined : (newTruck.controlTechniqueDate ? new Date(newTruck.controlTechniqueDate).toISOString() : undefined),
         insuranceExpirationDate: newTruck.insuranceExpirationDate ? new Date(newTruck.insuranceExpirationDate).toISOString() : undefined,
         lastServiceDate: newTruck.lastServiceDate ? new Date(newTruck.lastServiceDate).toISOString() : undefined,
-        mileage: Number(newTruck.mileage) || 0,
+        mileage: isCompressor ? 0 : (Number(newTruck.mileage) || 0),
       };
 
       const url = editingTruckId 
@@ -1249,6 +1270,8 @@ function App() {
           insuranceExpirationDate: '',
           lastServiceDate: '',
           mileage: '0',
+          equipmentCategory: 'VEHICLE',
+          operatingHours: '0',
         });
         setEditingTruckId(null);
         loadAllData();
@@ -1924,6 +1947,81 @@ function App() {
     }
   };
 
+  const handleSaveDrawerAssignment = async () => {
+    if (!drawerMission || !drawerTeamLeaderId) return;
+
+    const allTeamIds = Array.from(new Set([drawerTeamLeaderId, ...drawerTeamMemberIds]));
+
+    // Update mission truck if selected
+    if (drawerTruckId) {
+      try {
+        await fetchWithAuth(`${API_BASE_URL}/missions/${drawerMission.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ truckId: drawerTruckId }),
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Save planning entry for each day in duration
+    for (let i = 0; i < drawerDurationDays; i++) {
+      const dayOfWeek = drawerStartDay + i;
+      if (dayOfWeek > 7) break;
+
+      const payload = {
+        missionId: drawerMission.id,
+        employeeIds: allTeamIds,
+        teamLeaderId: drawerTeamLeaderId,
+        year: planningYear,
+        week: planningWeek,
+        dayOfWeek,
+        notes: drawerNotes,
+      };
+
+      try {
+        await fetchWithAuth(API_BASE_URL + '/planning', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    setPlanningDrawerOpen(false);
+    fetchPlanningForWeek(planningYear, planningWeek);
+    loadAllData();
+  };
+
+  const handleExtendPlanningEntry = async (entry: PlanningEntry) => {
+    const nextDay = entry.dayOfWeek + 1;
+    if (nextDay > 7) return;
+
+    const allEmpIds = entry.employees?.map(e => e.id) || [];
+    const payload = {
+      missionId: entry.mission.id,
+      employeeIds: allEmpIds,
+      year: entry.year,
+      week: entry.week,
+      dayOfWeek: nextDay,
+      notes: entry.notes,
+    };
+
+    try {
+      await fetchWithAuth(API_BASE_URL + '/planning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      fetchPlanningForWeek(planningYear, planningWeek);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Reports
   const handleGenerateReport = async (missionId: string) => {
     try {
@@ -2448,12 +2546,12 @@ function App() {
               </div>
             </div>
 
-            {/* ALERTS GRID: Métrés Ecarts & Seuils de Stock */}
-            <div className="grid-2" style={{ marginBottom: '32px' }}>
+            {/* ALERTS GRID: Métrés Ecarts, Seuils de Stock & Entretien Compresseurs */}
+            <div className="grid-3" style={{ marginBottom: '32px', gridTemplateColumns: 'repeat(3, 1fr)' }}>
               {/* Alertes Écarts de Métrés */}
               <div className="glass-card">
                 <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b' }}>
-                  <AlertTriangle size={20} /> Alertes Écarts de Métrés (Chantiers)
+                  <AlertTriangle size={20} /> Alertes Écarts de Métrés
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '250px', overflowY: 'auto' }}>
                   {missions.filter(m => m.actualQuantity !== undefined && m.actualQuantity !== null && Number(m.actualQuantity) !== Number(m.surfaceArea)).map(m => {
@@ -2486,7 +2584,7 @@ function App() {
               {/* Alertes Seuils de Stock */}
               <div className="glass-card">
                 <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}>
-                  <Package size={20} /> Alertes Stock du Dépôt (Seuil Minimum)
+                  <Package size={20} /> Alertes Stock du Dépôt
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '250px', overflowY: 'auto' }}>
                   {stockItems.filter(item => Number(item.quantity || 0) <= Number(item.minThreshold || 10)).map(item => (
@@ -2505,6 +2603,38 @@ function App() {
                   {stockItems.filter(item => Number(item.quantity || 0) <= Number(item.minThreshold || 10)).length === 0 && (
                     <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
                       Tous les niveaux de stock du dépôt sont conformes.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Alertes Entretien Compresseurs (500h) */}
+              <div className="glass-card">
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ec4899' }}>
+                  <Wrench size={20} /> Entretien Compresseurs (500h)
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '250px', overflowY: 'auto' }}>
+                  {trucks.filter(t => t.equipmentCategory === 'COMPRESSOR' && ((Number(t.operatingHours || 0) - Number(t.lastServiceHours || 0)) >= 500 || (Number(t.lastServiceHours || 0) === 0 && Number(t.operatingHours || 0) >= 500))).map(t => {
+                    const currentHours = Number(t.operatingHours || 0);
+                    const lastHours = Number(t.lastServiceHours || 0);
+                    const diff = currentHours - lastHours;
+                    return (
+                      <div key={t.id} style={{ padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'rgba(236, 72, 153, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: '700', fontSize: '14px' }}>⚙️ {t.plateNumber} ({t.model || 'Compresseur'})</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            Fonctionnement: <strong style={{ color: '#ef4444' }}>{currentHours}h</strong> ({diff}h depuis révision)
+                          </div>
+                        </div>
+                        <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '12px', backgroundColor: '#ec4899' }} onClick={() => setActiveTab('trucks')}>
+                          Voir Parc
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {trucks.filter(t => t.equipmentCategory === 'COMPRESSOR' && ((Number(t.operatingHours || 0) - Number(t.lastServiceHours || 0)) >= 500 || (Number(t.lastServiceHours || 0) === 0 && Number(t.operatingHours || 0) >= 500))).length === 0 && (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+                      Tous les compresseurs sont à jour d'entretien.
                     </div>
                   )}
                 </div>
@@ -3255,9 +3385,10 @@ function App() {
                   <thead>
                     <tr>
                       <th>Salarié</th>
-                      <th>Type de Pointage</th>
-                      <th>Horodatage</th>
-                      <th>Statut Validation</th>
+                      <th>Type</th>
+                      <th>Date & Heure</th>
+                      <th>📍 Géolocalisation</th>
+                      <th>Statut</th>
                       <th>Motif / Explication</th>
                       <th>Validé par</th>
                       <th>Actions</th>
@@ -3282,12 +3413,27 @@ function App() {
                             </td>
 
                             <td>
-                              <span className={`badge ${entry.type === 'START' ? 'badge-success' : 'badge-info'}`}>
-                                {entry.type === 'START' ? 'Prise de poste (Start)' : 'Fin de journée (End)'}
+                              <span className={`badge ${entry.type === 'START' || entry.type === 'day_start' ? 'badge-success' : 'badge-info'}`}>
+                                {entry.type === 'START' || entry.type === 'day_start' ? 'Prise de poste (Start)' : 'Fin de journée (End)'}
                               </span>
                             </td>
 
                             <td>{new Date(entry.timestamp).toLocaleString('fr-FR')}</td>
+
+                            <td>
+                              {entry.latitude && entry.longitude ? (
+                                <a 
+                                  href={`https://maps.google.com/?q=${entry.latitude},${entry.longitude}`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  style={{ color: '#38bdf8', textDecoration: 'underline', fontSize: '12px', fontWeight: '600' }}
+                                >
+                                  📍 {Number(entry.latitude).toFixed(4)}, {Number(entry.longitude).toFixed(4)}
+                                </a>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Non capturé</span>
+                              )}
+                            </td>
 
                             <td>
                               {status === 'validated' && <span className="badge badge-success">Validé</span>}
@@ -3596,353 +3742,401 @@ function App() {
                 </div>
               </div>
 
-              <div className="grid-3" style={{ marginBottom: '32px' }}>
-                {/* Form to Add Entry */}
-                <div className="glass-card">
-                  <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Planifier une affectation</h3>
-                  <form onSubmit={handleAddToPlanning}>
-                    <div className="form-group">
-                      <label className="form-label">Date</label>
-                      <input 
-                        type="date"
-                        className="form-input"
-                        value={planningForm.date}
-                        onChange={e => setPlanningForm({ ...planningForm, date: e.target.value })}
-                        required
-                      />
+              {/* 1. Bandeau supérieur : Chantiers Créés & Non Affectés */}
+              {(() => {
+                const unassignedMissions = missions.filter(m => !weeklyPlanning.some(e => e.mission?.id === m.id));
+                return (
+                  <div style={{ marginBottom: '24px', backgroundColor: 'rgba(30, 41, 59, 0.8)', padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>🏗️</span> Chantiers Non Affectés ({unassignedMissions.length})
+                      </h3>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        💡 Glissez un chantier sur la ligne d'un salarié pour ouvrir le volet d'affectation et créer l'équipe
+                      </span>
                     </div>
-                    <div className="form-group">
-                      <label className="form-label">Mission / Chantier</label>
-                      <select 
-                        className="form-input" 
-                        value={planningForm.missionId} 
-                        onChange={e => setPlanningForm({ ...planningForm, missionId: e.target.value })}
-                        required
-                      >
-                        <option value="">Sélectionner une mission...</option>
-                        {missions.map(m => (
-                          <option key={m.id} value={m.id}>{m.title}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Salariés assignés</label>
-                      <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '8px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
-                        {employees.map(emp => {
-                          const isChecked = planningForm.employeeIds?.includes(emp.id);
-                          const statusInfo = getEmployeeStatusOnDate(emp.id, planningForm.date);
-                          
-                          let badgeStyle: React.CSSProperties = {
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            marginLeft: 'auto'
-                          };
-                          
-                          if (statusInfo.status === 'busy') {
-                            badgeStyle = { ...badgeStyle, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#f87171' };
-                          } else if (statusInfo.status === 'leave') {
-                            badgeStyle = { ...badgeStyle, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' };
-                          } else {
-                            badgeStyle = { ...badgeStyle, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399' };
-                          }
 
-                          return (
-                            <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', margin: '4px 0', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)', backgroundColor: isChecked ? 'rgba(255,255,255,0.03)' : 'transparent', transition: 'background-color 0.2s' }}>
-                              <input 
-                                type="checkbox" 
-                                checked={isChecked}
-                                onChange={() => {
-                                  const updatedIds = isChecked 
-                                    ? planningForm.employeeIds.filter(id => id !== emp.id)
-                                    : [...(planningForm.employeeIds || []), emp.id];
-                                  setPlanningForm({ ...planningForm, employeeIds: updatedIds });
+                    <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
+                      {unassignedMissions.length === 0 ? (
+                        <div style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '8px', width: '100%' }}>
+                          ✅ Tous les chantiers sont affectés pour cette semaine.
+                        </div>
+                      ) : (
+                        unassignedMissions.map((m: any) => (
+                          <div
+                            key={m.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('application/json', JSON.stringify(m));
+                              setDraggedMission(m);
+                            }}
+                            style={{
+                              minWidth: '220px',
+                              maxWidth: '260px',
+                              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                              border: '1px solid rgba(59, 130, 246, 0.35)',
+                              borderRadius: '8px',
+                              padding: '10px 12px',
+                              cursor: 'grab',
+                              userSelect: 'none',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)'
+                            }}
+                          >
+                            <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff', marginBottom: '2px' }}>
+                              {m.title}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              👤 Client: {m.client || 'N/A'}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              📍 {m.worksite || 'Non spécifié'}
+                            </div>
+                            <div style={{ marginTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.25)', color: '#60a5fa', fontSize: '10px', fontWeight: '700' }}>
+                                🖐️ Glisser sur un salarié
+                              </span>
+                              <button
+                                style={{ backgroundColor: 'transparent', border: 'none', color: '#38bdf8', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => {
+                                  setDrawerMission(m);
+                                  setDrawerTeamLeaderId(employees[0]?.id || '');
+                                  setDrawerTeamMemberIds([]);
+                                  setDrawerStartDay(1);
+                                  setDrawerDurationDays(1);
+                                  setDrawerTruckId(m.truck?.id || '');
+                                  setDrawerNotes(m.notes || '');
+                                  setPlanningDrawerOpen(true);
                                 }}
-                              />
-                              <span style={{ fontWeight: '500' }}>{emp.firstName} {emp.lastName}</span>
-                              <span style={badgeStyle}>{statusInfo.label}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
+                              >
+                                Affecter
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                    <div className="form-group">
-                      <label className="form-label">Véhicule / Camion (Optionnel)</label>
-                      <select 
-                        className="form-input" 
-                        value={planningForm.truckId}
-                        onChange={e => setPlanningForm({ ...planningForm, truckId: e.target.value })}
-                      >
-                        <option value="">Sélectionner un véhicule...</option>
-                        {trucks.map(t => (
-                          <option key={t.id} value={t.id}>{t.plateNumber} ({t.model})</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Notes de planning</label>
-                      <textarea 
-                        className="form-input" 
-                        value={planningForm.notes} 
-                        onChange={e => setPlanningForm({ ...planningForm, notes: e.target.value })}
-                        placeholder="Ex: Apporter les EPI, grue nécessaire..."
-                      />
-                    </div>
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                      Enregistrer au planning
-                    </button>
-                  </form>
-                </div>
+                  </div>
+                );
+              })()}
 
-                {/* Calendar Grid Display */}
-                <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                  {planningView === 'week' ? (
-                    <div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Semaine en cours</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontWeight: '700', marginBottom: '8px', color: 'var(--primary)', fontSize: '14px' }}>
-                        <div>Lun</div>
-                        <div>Mar</div>
-                        <div>Mer</div>
-                        <div>Jeu</div>
-                        <div>Ven</div>
-                        <div>Sam</div>
-                        <div>Dim</div>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
-                        {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((dayName, idx) => {
-                          const dayIdx = idx + 1;
-                          
-                          // Date calculation
+              {/* 2. Grille Principale Agenda par Salarié (Lignes = Salariés, Colonnes = Jours) */}
+              <div className="glass-card" style={{ padding: '16px', overflowX: 'auto' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📅</span> Planning de l'Équipe ({planningView === 'week' ? `Semaine ${planningWeek}` : 'Mensuel'})
+                </h3>
+
+                <div style={{ minWidth: '950px' }}>
+                  {/* Table Header */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '220px repeat(7, 1fr)', gap: '6px', marginBottom: '8px', fontWeight: '700', fontSize: '13px', color: 'var(--primary)' }}>
+                    <div style={{ padding: '8px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '6px', textAlign: 'left' }}>
+                      👥 Salariés ({employees.length})
+                    </div>
+                    {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((d, i) => {
+                      const monday = getDateOfISOWeek(planningWeek, planningYear);
+                      const dayDate = new Date(monday);
+                      dayDate.setDate(monday.getDate() + i);
+                      const isToday = dayDate.toDateString() === new Date().toDateString();
+                      return (
+                        <div key={d} style={{ padding: '8px', backgroundColor: isToday ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.03)', borderRadius: '6px', textAlign: 'center', border: isToday ? '1px solid #3b82f6' : 'none' }}>
+                          <div>{d}</div>
+                          <div style={{ fontSize: '11px', color: isToday ? '#60a5fa' : 'var(--text-muted)', fontWeight: 'normal' }}>
+                            {dayDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'numeric' })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Rows for each Employee */}
+                  {employees
+                    .filter(emp => !planningFilterEmployee || emp.id === planningFilterEmployee)
+                    .map((emp) => (
+                      <div key={emp.id} style={{ display: 'grid', gridTemplateColumns: '220px repeat(7, 1fr)', gap: '6px', marginBottom: '6px' }}>
+                        {/* Column 0: Employee info */}
+                        <div style={{ padding: '10px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                          <div style={{ fontWeight: '700', fontSize: '13px', color: '#fff' }}>
+                            {emp.firstName} {emp.lastName}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {emp.role || emp.specialty || 'Salarié EDGS'}
+                          </div>
+                        </div>
+
+                        {/* Days 1 to 7 Cells */}
+                        {[1, 2, 3, 4, 5, 6, 7].map((dayIdx) => {
                           const monday = getDateOfISOWeek(planningWeek, planningYear);
                           const dayDate = new Date(monday);
                           dayDate.setDate(monday.getDate() + (dayIdx - 1));
-                          const dateStr = dayDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
-                          // Filtered entries
-                          const dayEntries = weeklyPlanning.filter(e => {
+                          const dayLeaves = getLeavesForDate(dayDate).filter(l => l.employeeId === emp.id || l.employee?.id === emp.id);
+                          const isAbsent = dayLeaves.length > 0;
+
+                          // Entries for this employee on this day
+                          const cellEntries = weeklyPlanning.filter(e => {
                             if (e.dayOfWeek !== dayIdx) return false;
                             if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
-                            if (planningFilterEmployee) {
-                              if (!e.employees?.some(emp => emp.id === planningFilterEmployee)) return false;
-                            }
-                            return true;
+                            const isAssigned = (e.employees && e.employees.some(m => m.id === emp.id)) || e.teamLeaderId === emp.id;
+                            return isAssigned;
                           });
 
-                          const dayLeaves = getLeavesForDate(dayDate);
-                          const hasToday = dayDate.toDateString() === new Date().toDateString();
-
                           return (
-                            <div 
-                              key={dayIdx} 
-                              style={{ 
-                                minHeight: '150px', 
-                                backgroundColor: 'rgba(255,255,255,0.02)', 
-                                border: hasToday ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
-                                borderRadius: '4px', 
-                                padding: '8px',
+                            <div
+                              key={dayIdx}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                let missionData = null;
+                                try {
+                                  const raw = e.dataTransfer.getData('application/json');
+                                  if (raw) missionData = JSON.parse(raw);
+                                } catch (err) {}
+                                if (!missionData && draggedMission) missionData = draggedMission;
+                                if (!missionData) return;
+
+                                setDrawerMission(missionData);
+                                setDrawerTeamLeaderId(emp.id);
+                                setDrawerTeamMemberIds([]);
+                                setDrawerStartDay(dayIdx);
+                                setDrawerDurationDays(1);
+                                setDrawerTruckId(missionData.truck?.id || '');
+                                setDrawerNotes(missionData.notes || '');
+                                setPlanningDrawerOpen(true);
+                                setDraggedMission(null);
+                              }}
+                              style={{
+                                minHeight: '65px',
+                                backgroundColor: isAbsent ? 'rgba(245, 158, 11, 0.06)' : 'rgba(255,255,255,0.015)',
+                                border: isAbsent ? '1px dashed #f59e0b' : '1px solid var(--border-color)',
+                                borderRadius: '6px',
+                                padding: '4px',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'space-between'
+                                gap: '4px',
+                                position: 'relative'
                               }}
                             >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: hasToday ? 'var(--primary)' : 'var(--text-secondary)' }}>
-                                  {dateStr}
-                                </span>
-                                <span 
-                                  style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold' }}
-                                  onClick={() => {
-                                    const localISO = new Date(dayDate.getTime() - dayDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO, missionId: '', truckId: '', notes: '' });
-                                  }}
-                                >
-                                  +
-                                </span>
-                              </div>
+                              {isAbsent ? (
+                                <div style={{ fontSize: '10px', color: '#f59e0b', fontWeight: '700', padding: '2px 4px', backgroundColor: 'rgba(245,158,11,0.15)', borderRadius: '4px' }}>
+                                  🌴 Absent (Congé)
+                                </div>
+                              ) : null}
 
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto' }}>
-                                {/* Leaves display */}
-                                {dayLeaves.map(req => {
-                                  const emp = req.employee || employees.find((e: any) => e.id === req.employeeId);
-                                  return (
-                                    <div 
-                                      key={`leave-${req.id}`} 
-                                      style={{ 
-                                        backgroundColor: 'rgba(245,158,11,0.08)', 
-                                        borderLeft: '2px solid #f59e0b', 
-                                        padding: '2px 4px', 
-                                        borderRadius: '2px', 
-                                        fontSize: '10px', 
-                                        color: '#f59e0b'
-                                      }}
-                                    >
-                                      🌴 {emp ? `${emp.firstName} ${emp.lastName.charAt(0)}.` : 'Salarié'} (Absent)
-                                    </div>
-                                  );
-                                })}
-
-                                {/* Regular planning entries */}
-                                {dayEntries.map(e => (
-                                  <div 
-                                    key={e.id} 
-                                    style={{ 
-                                      backgroundColor: 'rgba(59,130,246,0.1)', 
-                                      borderLeft: '2px solid var(--primary)', 
-                                      padding: '2px 4px', 
-                                      borderRadius: '2px', 
-                                      fontSize: '10px', 
+                              {cellEntries.map((e) => {
+                                const isLeader = e.teamLeaderId === emp.id || (e.employees && e.employees[0]?.id === emp.id);
+                                return (
+                                  <div
+                                    key={e.id}
+                                    style={{
+                                      backgroundColor: isLeader ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                      borderLeft: `3px solid ${isLeader ? '#10b981' : '#3b82f6'}`,
+                                      borderRadius: '4px',
+                                      padding: '4px 6px',
+                                      fontSize: '11px',
                                       color: '#fff',
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center'
+                                      position: 'relative'
                                     }}
                                   >
-                                    <div style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                      <strong>{e.mission?.title}</strong> 
-                                      {e.employees && e.employees.length > 0 && ` (${e.employees.map(emp => emp.lastName).join(', ')})`}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span style={{ fontWeight: '700', fontSize: '11px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>
+                                        {isLeader ? '👑 Chef - ' : '👥 '} {e.mission?.title}
+                                      </span>
+                                      <button
+                                        style={{ backgroundColor: 'transparent', border: 'none', color: '#ef4444', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                                        onClick={() => handleRemoveFromPlanning(e.id)}
+                                        title="Supprimer cette affectation"
+                                      >
+                                        ×
+                                      </button>
                                     </div>
-                                    <span 
-                                      style={{ cursor: 'pointer', color: 'var(--danger)', marginLeft: '4px', fontWeight: 'bold' }} 
-                                      onClick={(evt) => {
-                                        evt.stopPropagation();
-                                        handleRemoveFromPlanning(e.id);
-                                      }}
-                                    >
-                                      ×
-                                    </span>
-                                  </div>
-                                ))}
 
-                                {dayEntries.length === 0 && dayLeaves.length === 0 && (
-                                  <div style={{ color: 'var(--text-muted)', fontSize: '10px', textAlign: 'center', marginTop: '10px' }}>Vide</div>
-                                )}
-                              </div>
+                                    {/* Drag-to-Resize Handle / Extend button */}
+                                    {dayIdx < 7 && (
+                                      <button
+                                        style={{
+                                          marginTop: '4px',
+                                          backgroundColor: 'rgba(255,255,255,0.08)',
+                                          border: 'none',
+                                          borderRadius: '3px',
+                                          color: '#94a3b8',
+                                          fontSize: '9px',
+                                          width: '100%',
+                                          cursor: 'pointer',
+                                          padding: '1px 0'
+                                        }}
+                                        onClick={() => handleExtendPlanningEntry(e)}
+                                        title="Étirer le chantier sur le jour suivant (Drag to extend)"
+                                      >
+                                        Etirer (+1j) ➔
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
                         })}
                       </div>
-                    </div>
-                  ) : (
-                    /* Month Grid View */
-                    <div>
-                      <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Grille mensuelle</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center', fontWeight: '700', marginBottom: '8px', color: 'var(--primary)', fontSize: '14px' }}>
-                        <div>Lun</div>
-                        <div>Mar</div>
-                        <div>Mer</div>
-                        <div>Jeu</div>
-                        <div>Ven</div>
-                        <div>Sam</div>
-                        <div>Dim</div>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
-                        {getDaysInMonthGrid(selectedYear, selectedMonth).map((cellDate, idx) => {
-                          const isCurrentMonth = cellDate.getMonth() === selectedMonth;
-                          const dateStr = cellDate.getDate();
-                          
-                          // Entries on this date
-                          const cellEntries = weeklyPlanning.filter(e => {
-                            const monday = getDateOfISOWeek(e.week, e.year);
-                            const entryDate = new Date(monday);
-                            entryDate.setDate(monday.getDate() + (e.dayOfWeek - 1));
-                            const matchesDate = entryDate.getFullYear() === cellDate.getFullYear() &&
-                                                entryDate.getMonth() === cellDate.getMonth() &&
-                                                entryDate.getDate() === cellDate.getDate();
-                            if (!matchesDate) return false;
-                            
-                            if (planningFilterMission && e.mission?.id !== planningFilterMission) return false;
-                            if (planningFilterEmployee) {
-                              if (!e.employees?.some(emp => emp.id === planningFilterEmployee)) return false;
-                            }
-                            return true;
-                          });
-
-                          const cellLeaves = getLeavesForDate(cellDate);
-                          const hasToday = cellDate.toDateString() === new Date().toDateString();
-
-                          return (
-                            <div 
-                              key={idx} 
-                              style={{ 
-                                minHeight: '90px', 
-                                backgroundColor: isCurrentMonth ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.005)', 
-                                border: hasToday ? '2px solid var(--primary)' : '1px solid var(--border-color)', 
-                                borderRadius: '4px', 
-                                padding: '4px', 
-                                opacity: isCurrentMonth ? 1 : 0.4,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between'
-                              }}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: hasToday ? 'var(--primary)' : 'var(--text-secondary)' }}>
-                                  {dateStr}
-                                </span>
-                                <span 
-                                  style={{ fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer' }}
-                                  onClick={() => {
-                                    const localISO = new Date(cellDate.getTime() - cellDate.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                                    setPlanningForm({ ...planningForm, employeeIds: [], date: localISO, missionId: '', truckId: '', notes: '' });
-                                  }}
-                                >
-                                  +
-                                </span>
-                              </div>
-
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px', flex: 1, overflowY: 'auto' }}>
-                                {cellLeaves.map(req => {
-                                  const emp = req.employee || employees.find((e: any) => e.id === req.employeeId);
-                                  return (
-                                    <div 
-                                      key={req.id} 
-                                      title={`🌴 Absent: ${emp ? emp.firstName + ' ' + emp.lastName : 'Salarié'}`}
-                                      style={{ 
-                                        backgroundColor: '#f59e0b', 
-                                        color: '#000', 
-                                        fontSize: '9px', 
-                                        fontWeight: '600', 
-                                        padding: '1px 3px', 
-                                        borderRadius: '2px',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis'
-                                      }}
-                                    >
-                                      🌴 {emp ? emp.lastName : 'Absence'}
-                                    </div>
-                                  );
-                                })}
-
-                                {cellEntries.map(e => (
-                                  <div 
-                                    key={e.id} 
-                                    title={`${e.mission?.title} ${e.truck ? '(' + e.truck.plateNumber + ')' : ''}`}
-                                    style={{ 
-                                      backgroundColor: 'var(--primary)', 
-                                      color: '#fff', 
-                                      fontSize: '9px', 
-                                      fontWeight: '600', 
-                                      padding: '1px 3px', 
-                                      borderRadius: '2px',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis'
-                                    }}
-                                  >
-                                    🚛 {e.mission?.title.substring(0, 10)}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                    ))}
                 </div>
               </div>
+
+              {/* 3. Volet Latéral / Inspector Drawer pour Affectation & Composition d'Équipe */}
+              {planningDrawerOpen && drawerMission && (
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  right: 0,
+                  width: '420px',
+                  height: '100vh',
+                  backgroundColor: '#0f172a',
+                  boxShadow: '-4px 0 20px rgba(0,0,0,0.5)',
+                  zIndex: 9999,
+                  padding: '24px',
+                  overflowY: 'auto',
+                  borderLeft: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#fff', margin: 0 }}>
+                      Composition d'Équipe
+                    </h2>
+                    <button
+                      onClick={() => setPlanningDrawerOpen(false)}
+                      style={{ backgroundColor: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                    <div style={{ fontWeight: '800', fontSize: '15px', color: '#fff' }}>
+                      🏗️ {drawerMission.title}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                      Client : {drawerMission.client || 'N/A'} | Chantier : {drawerMission.worksite || 'N/A'}
+                    </div>
+                  </div>
+
+                  {/* Chef d'équipe */}
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label" style={{ color: '#10b981', fontWeight: '700' }}>👑 Chef d'Équipe Désigné</label>
+                    <select
+                      className="form-input"
+                      value={drawerTeamLeaderId}
+                      onChange={(e) => setDrawerTeamLeaderId(e.target.value)}
+                    >
+                      <option value="">Sélectionner un chef d'équipe...</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Membres de l'équipe */}
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">👥 Membres de l'équipe pour ce chantier</label>
+                    <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                      {employees
+                        .filter(emp => emp.id !== drawerTeamLeaderId)
+                        .map(emp => {
+                          const isMember = drawerTeamMemberIds.includes(emp.id);
+                          return (
+                            <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+                              <input
+                                type="checkbox"
+                                checked={isMember}
+                                onChange={() => {
+                                  setDrawerTeamMemberIds(prev =>
+                                    isMember ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                                  );
+                                }}
+                              />
+                              <span>{emp.firstName} {emp.lastName}</span>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Jour de début & Durée */}
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label className="form-label">Jour de début</label>
+                      <select
+                        className="form-input"
+                        value={drawerStartDay}
+                        onChange={(e) => setDrawerStartDay(Number(e.target.value))}
+                      >
+                        <option value={1}>Lundi</option>
+                        <option value={2}>Mardi</option>
+                        <option value={3}>Mercredi</option>
+                        <option value={4}>Jeudi</option>
+                        <option value={5}>Vendredi</option>
+                        <option value={6}>Samedi</option>
+                        <option value={7}>Dimanche</option>
+                      </select>
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <label className="form-label">Durée (jours)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={7}
+                        className="form-input"
+                        value={drawerDurationDays}
+                        onChange={(e) => setDrawerDurationDays(Math.max(1, Math.min(7, Number(e.target.value))))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Véhicule / Compresseur */}
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">🚚 Véhicule / Matériel affecté</label>
+                    <select
+                      className="form-input"
+                      value={drawerTruckId}
+                      onChange={(e) => setDrawerTruckId(e.target.value)}
+                    >
+                      <option value="">Aucun véhicule affecté</option>
+                      {trucks.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.equipmentCategory === 'compressor' ? '⚙️ Compresseur' : '🚚 Véhicule'} : {t.plateNumber} ({t.model})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="form-group" style={{ marginBottom: '24px' }}>
+                    <label className="form-label">📝 Notes de chantier</label>
+                    <textarea
+                      className="form-input"
+                      value={drawerNotes}
+                      onChange={(e) => setDrawerNotes(e.target.value)}
+                      placeholder="Consignes particulières, matériel spécifique..."
+                      rows={3}
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      className="btn"
+                      style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--border-color)' }}
+                      onClick={() => setPlanningDrawerOpen(false)}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      style={{ flex: 2 }}
+                      onClick={handleSaveDrawerAssignment}
+                    >
+                      Valider l'Équipe
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -4181,11 +4375,22 @@ function App() {
                 </h3>
                 <form onSubmit={handleCreateOrUpdateTruck}>
                   <div className="form-group">
-                    <label className="form-label">Plaque d'immatriculation</label>
+                    <label className="form-label">Type d'Équipement</label>
+                    <select 
+                      className="form-input" 
+                      value={newTruck.equipmentCategory}
+                      onChange={e => setNewTruck({ ...newTruck, equipmentCategory: e.target.value })}
+                    >
+                      <option value="VEHICLE">🚚 Véhicule (Camion / Fourgon)</option>
+                      <option value="COMPRESSOR">⚙️ Compresseur de Chantier</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Plaque d'immatriculation / Identifiant</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="e.g. AB-123-CD" 
+                      placeholder={newTruck.equipmentCategory === 'COMPRESSOR' ? 'e.g. COMP-01' : 'e.g. AB-123-CD'} 
                       value={newTruck.plateNumber}
                       onChange={e => setNewTruck({ ...newTruck, plateNumber: e.target.value })}
                       required
@@ -4196,7 +4401,7 @@ function App() {
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="e.g. Renault Master" 
+                      placeholder={newTruck.equipmentCategory === 'COMPRESSOR' ? 'e.g. Atlas Copco XAS 88' : 'e.g. Renault Master'} 
                       value={newTruck.model}
                       onChange={e => setNewTruck({ ...newTruck, model: e.target.value })}
                       required
@@ -4213,25 +4418,43 @@ function App() {
                       required
                     />
                   </div>
-                  {/* Code PIN non requis */}
-                  <div className="form-group">
-                    <label className="form-label">Kilométrage (km)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={newTruck.mileage}
-                      onChange={e => setNewTruck({ ...newTruck, mileage: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Date de Contrôle Technique</label>
-                    <input 
-                      type="date" 
-                      className="form-input" 
-                      value={newTruck.controlTechniqueDate}
-                      onChange={e => setNewTruck({ ...newTruck, controlTechniqueDate: e.target.value })}
-                    />
-                  </div>
+
+                  {newTruck.equipmentCategory === 'COMPRESSOR' ? (
+                    <div className="form-group">
+                      <label className="form-label">Nombre d'heures de fonctionnement (Heures Allumé)</label>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        className="form-input" 
+                        placeholder="e.g. 480"
+                        value={newTruck.operatingHours}
+                        onChange={e => setNewTruck({ ...newTruck, operatingHours: e.target.value })}
+                      />
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label className="form-label">Kilométrage (km)</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        value={newTruck.mileage}
+                        onChange={e => setNewTruck({ ...newTruck, mileage: e.target.value })}
+                      />
+                    </div>
+                  )}
+
+                  {newTruck.equipmentCategory !== 'COMPRESSOR' && (
+                    <div className="form-group">
+                      <label className="form-label">Date de Contrôle Technique</label>
+                      <input 
+                        type="date" 
+                        className="form-input" 
+                        value={newTruck.controlTechniqueDate}
+                        onChange={e => setNewTruck({ ...newTruck, controlTechniqueDate: e.target.value })}
+                      />
+                    </div>
+                  )}
+
                   <div className="form-group">
                     <label className="form-label">Échéance Assurance</label>
                     <input 
@@ -4246,7 +4469,7 @@ function App() {
                       {editingTruckId ? 'Enregistrer' : 'Créer'}
                     </button>
                     {editingTruckId && (
-                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingTruckId(null); setNewTruck({ plateNumber: '', model: '', year: '', pinCode: '', stockAlertThreshold: '10', controlTechniqueDate: '', insuranceExpirationDate: '', lastServiceDate: '', mileage: '0' }); }}>
+                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingTruckId(null); setNewTruck({ plateNumber: '', model: '', year: '', pinCode: '', stockAlertThreshold: '10', controlTechniqueDate: '', insuranceExpirationDate: '', lastServiceDate: '', mileage: '0', equipmentCategory: 'VEHICLE', operatingHours: '0' }); }}>
                         Annuler
                       </button>
                     )}
@@ -4255,35 +4478,75 @@ function App() {
               </div>
 
               <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Véhicules Actifs</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Parc Équipements & Véhicules</h3>
                 <div className="table-container">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Plaque & Modèle</th>
-                        <th>Kilométrage</th>
-                        <th>CT / Assurance</th>
+                        <th>Plaque / Équipement</th>
+                        <th>Utilisation</th>
+                        <th>Suivi Entretien & Contrôle</th>
                         <th>Documents Privés GED</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {trucks.map(t => {
+                        const isCompressor = t.equipmentCategory === 'COMPRESSOR';
+                        const currentHours = Number(t.operatingHours || 0);
+                        const lastHours = Number(t.lastServiceHours || 0);
+                        const hoursSinceLastService = currentHours - lastHours;
+                        const needsService = isCompressor && (hoursSinceLastService >= 500 || (lastHours === 0 && currentHours >= 500));
                         const docs = attachedEntityDocs.filter(d => d.entityType === 'TRUCK' && d.entityId === t.id);
+
                         return (
-                          <tr key={t.id}>
+                          <tr key={t.id} style={{ backgroundColor: needsService ? 'rgba(239, 68, 68, 0.05)' : undefined }}>
                             <td>
-                              <strong style={{ fontSize: '15px' }}>{t.plateNumber}</strong>
-                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.model} ({t.year})</div>
+                              <strong style={{ fontSize: '15px' }}>
+                                {isCompressor ? '⚙️' : '🚚'} {t.plateNumber}
+                              </strong>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                {t.model} ({t.year || 'N/A'}) {isCompressor ? '• Compresseur' : ''}
+                              </div>
                             </td>
-                            <td>{(t.mileage || 0).toLocaleString()} km</td>
                             <td>
-                              <div style={{ fontSize: '12px' }}>
-                                CT: {t.controlTechniqueDate ? new Date(t.controlTechniqueDate).toLocaleDateString('fr-FR') : '--'}
-                              </div>
-                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                Assur: {t.insuranceExpirationDate ? new Date(t.insuranceExpirationDate).toLocaleDateString('fr-FR') : '--'}
-                              </div>
+                              {isCompressor ? (
+                                <div>
+                                  <strong style={{ color: '#38bdf8', fontSize: '14px' }}>⏱️ {currentHours.toLocaleString()} h</strong>
+                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Heures de fonctionnement</div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <strong>{(t.mileage || 0).toLocaleString()} km</strong>
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              {isCompressor ? (
+                                <div>
+                                  {needsService ? (
+                                    <span className="badge badge-danger" style={{ backgroundColor: '#ef4444', color: '#fff', fontWeight: '700' }}>
+                                      ⚠️ REVISION 500H REQUISE ({hoursSinceLastService}h depuis entretien)
+                                    </span>
+                                  ) : (
+                                    <span className="badge badge-success">
+                                      Entretien OK ({hoursSinceLastService}/500h)
+                                    </span>
+                                  )}
+                                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                    Assur: {t.insuranceExpirationDate ? new Date(t.insuranceExpirationDate).toLocaleDateString('fr-FR') : '--'}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div style={{ fontSize: '12px' }}>
+                                    CT: {t.controlTechniqueDate ? new Date(t.controlTechniqueDate).toLocaleDateString('fr-FR') : '--'}
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                    Assur: {t.insuranceExpirationDate ? new Date(t.insuranceExpirationDate).toLocaleDateString('fr-FR') : '--'}
+                                  </div>
+                                </div>
+                              )}
                             </td>
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -4313,30 +4576,52 @@ function App() {
                               </div>
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button 
-                                  className="btn btn-secondary" 
-                                  style={{ padding: '6px 12px', fontSize: '13px' }} 
-                                  onClick={() => {
-                                    setEditingTruckId(t.id);
-                                    setNewTruck({
-                                      plateNumber: t.plateNumber,
-                                      model: t.model || '',
-                                      year: String(t.year || ''),
-                                      pinCode: t.pinCode || '',
-                                      stockAlertThreshold: String(t.stockAlertThreshold || 10),
-                                      controlTechniqueDate: t.controlTechniqueDate ? t.controlTechniqueDate.split('T')[0] : '',
-                                      insuranceExpirationDate: t.insuranceExpirationDate ? t.insuranceExpirationDate.split('T')[0] : '',
-                                      lastServiceDate: t.lastServiceDate ? t.lastServiceDate.split('T')[0] : '',
-                                      mileage: String(t.mileage || 0),
-                                    });
-                                  }}
-                                >
-                                  Modifier
-                                </button>
-                                <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteTruck(t.id)}>
-                                  Supprimer
-                                </button>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {needsService && (
+                                  <button
+                                    className="btn btn-success"
+                                    style={{ padding: '4px 8px', fontSize: '11px', backgroundColor: '#10b981', color: '#fff' }}
+                                    onClick={async () => {
+                                      await fetchWithAuth(`${API_BASE_URL}/trucks/${t.id}`, {
+                                        method: 'PATCH',
+                                        body: JSON.stringify({
+                                          lastServiceHours: currentHours,
+                                          lastServiceDate: new Date().toISOString()
+                                        })
+                                      });
+                                      loadAllData();
+                                    }}
+                                  >
+                                    ✅ Entretien 500h Effectué
+                                  </button>
+                                )}
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button 
+                                    className="btn btn-secondary" 
+                                    style={{ padding: '6px 12px', fontSize: '13px' }} 
+                                    onClick={() => {
+                                      setEditingTruckId(t.id);
+                                      setNewTruck({
+                                        plateNumber: t.plateNumber,
+                                        model: t.model || '',
+                                        year: String(t.year || ''),
+                                        pinCode: t.pinCode || '',
+                                        stockAlertThreshold: String(t.stockAlertThreshold || 10),
+                                        controlTechniqueDate: t.controlTechniqueDate ? t.controlTechniqueDate.split('T')[0] : '',
+                                        insuranceExpirationDate: t.insuranceExpirationDate ? t.insuranceExpirationDate.split('T')[0] : '',
+                                        lastServiceDate: t.lastServiceDate ? t.lastServiceDate.split('T')[0] : '',
+                                        mileage: String(t.mileage || 0),
+                                        equipmentCategory: t.equipmentCategory || 'VEHICLE',
+                                        operatingHours: String(t.operatingHours || 0),
+                                      });
+                                    }}
+                                  >
+                                    Modifier
+                                  </button>
+                                  <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteTruck(t.id)}>
+                                    Supprimer
+                                  </button>
+                                </div>
                               </div>
                             </td>
                           </tr>

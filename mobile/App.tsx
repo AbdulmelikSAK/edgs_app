@@ -785,13 +785,47 @@ export default function App() {
     setCurrentScreen('dashboard');
   };
 
+  const [announcementsList, setAnnouncementsList] = useState<any[]>([]);
+
+  const fetchAnnouncements = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${serverUrl}/announcements`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnnouncementsList(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error('Error fetching announcements:', e);
+    }
+  };
+
+  // Capture precise GPS Coordinates
+  const getGpsCoords = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        return { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      }
+    } catch (e) {
+      console.warn('GPS Error:', e);
+    }
+    return { latitude: null, longitude: null };
+  };
+
   // Start Day timeclock
   const startDay = async () => {
     setDayStarted(true);
+    const coords = await getGpsCoords();
     const payload = {
       employeeId: employee.id,
-      truckId: truck.id,
+      truckId: truck?.id,
       displacementMode,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       timestamp: new Date().toISOString()
     };
 
@@ -822,9 +856,12 @@ export default function App() {
   const endDay = async () => {
     setDayStarted(false);
     setIsPaused(false);
+    const coords = await getGpsCoords();
     const payload = {
       employeeId: employee.id,
-      truckId: truck.id,
+      truckId: truck?.id,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       timestamp: new Date().toISOString()
     };
 
@@ -858,10 +895,13 @@ export default function App() {
   const startPause = async (type: 'repas' | 'technique') => {
     setIsPaused(true);
     setPauseType(type);
+    const coords = await getGpsCoords();
     const payload = {
       employeeId: employee.id,
-      truckId: truck.id,
+      truckId: truck?.id,
       pauseType: type,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       timestamp: new Date().toISOString()
     };
 
@@ -891,9 +931,12 @@ export default function App() {
   // End Pause
   const endPause = async () => {
     setIsPaused(false);
+    const coords = await getGpsCoords();
     const payload = {
       employeeId: employee.id,
-      truckId: truck.id,
+      truckId: truck?.id,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       timestamp: new Date().toISOString()
     };
 
@@ -924,9 +967,12 @@ export default function App() {
   const startMission = async () => {
     if (!activeMission) return;
     
+    const coords = await getGpsCoords();
     const payload = {
       missionId: activeMission.id,
       employeeId: employee.id,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       timestamp: new Date().toISOString()
     };
 
@@ -989,10 +1035,13 @@ export default function App() {
   // Submit End Mission with Signature payload
   const submitEndMission = async (sigBase64: string) => {
     if (!activeMission) return;
+    const coords = await getGpsCoords();
     const payload = {
       missionId: activeMission.id,
       employeeId: employee.id,
       signature: sigBase64,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       timestamp: new Date().toISOString()
     };
 
@@ -1590,6 +1639,18 @@ export default function App() {
                   <Icon name="calendar" size={32} color="#10b981" />
                   <Text style={styles.actionCardTitle}>Congés & RTT</Text>
                   <Text style={styles.actionCardDesc}>Demandes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => {
+                    fetchAnnouncements();
+                    setCurrentScreen('announcements');
+                  }}
+                >
+                  <Icon name="file-text" size={32} color="#f59e0b" />
+                  <Text style={styles.actionCardTitle}>Documents Diffusés</Text>
+                  <Text style={styles.actionCardDesc}>Notes direction & GED</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2306,11 +2367,88 @@ export default function App() {
                 </View>
               )}
             </View>
+      {/* SCREEN 9: ANNOUNCEMENTS / DOCUMENTS DIFFUSION */}
+      {currentScreen === 'announcements' && (
+        <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+          <View style={styles.banner}>
+            <TouchableOpacity 
+              style={styles.btnBack} 
+              onPress={() => setCurrentScreen('dashboard')}
+            >
+              <Text style={styles.btnBackText}>← Retour</Text>
+            </TouchableOpacity>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>Documents & Diffusion</Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          <ScrollView style={{ flex: 1, padding: 16 }}>
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Documents Officiels EDGS</Text>
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>
+                Consultez ici les consignes, contrats, fiches de sécurité et documents diffusés par la direction.
+              </Text>
+            </View>
+
+            {announcementsList.length === 0 ? (
+              <View style={[styles.glassCard, { alignItems: 'center', padding: 32 }]}>
+                <Icon name="file-text" size={48} color="#475569" />
+                <Text style={{ color: '#94a3b8', fontSize: 14, marginTop: 12, textAlign: 'center' }}>
+                  Aucun document diffusé pour le moment.
+                </Text>
+              </View>
+            ) : (
+              announcementsList.map((ann: any) => (
+                <View key={ann.id} style={[styles.glassCard, { marginBottom: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', flex: 1 }}>{ann.title}</Text>
+                    {ann.publishedAt && (
+                      <Text style={{ color: '#94a3b8', fontSize: 11 }}>
+                        {new Date(ann.publishedAt).toLocaleDateString('fr-FR')}
+                      </Text>
+                    )}
+                  </View>
+                  
+                  {ann.content ? (
+                    <Text style={{ color: '#cbd5e1', fontSize: 13, marginTop: 8, lineHeight: 18 }}>
+                      {ann.content}
+                    </Text>
+                  ) : null}
+
+                  {ann.attachmentUrl ? (
+                    <TouchableOpacity
+                      style={{
+                        marginTop: 12,
+                        backgroundColor: '#3b82f6',
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
+                        borderRadius: 8,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8
+                      }}
+                      onPress={() => {
+                        if (ann.attachmentUrl) {
+                          Linking.openURL(ann.attachmentUrl).catch(err => {
+                            Alert.alert('Erreur', 'Impossible d\'ouvrir le document.');
+                          });
+                        }
+                      }}
+                    >
+                      <Icon name="file-text" size={18} color="#fff" />
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                        Ouvrir / Télécharger le Document
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ))
+            )}
           </ScrollView>
         </View>
       )}
 
-      {/* SCREEN 9: TIME TRACKING HISTORY */}
+      {/* SCREEN 10: TIME TRACKING HISTORY */}
       {currentScreen === 'time_tracking' && employee && (
         <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
           {/* Header */}
