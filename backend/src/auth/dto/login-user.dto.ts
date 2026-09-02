@@ -10,4 +10,7 @@ export class LoginUserDto {
   @IsString()
   @MinLength(6)
   password: string;
+
+  @ApiProperty({ required: false })
+  twoFactorCode?: string;
 }

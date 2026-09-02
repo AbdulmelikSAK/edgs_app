@@ -22,6 +22,8 @@ let Employee = class Employee {
     mustChangePassword;
     badgeNumber;
     isActive;
+    twoFactorSecret;
+    isTwoFactorEnabled;
     hourlyRate;
     paidLeaveBalance;
     paidLeaveN;
@@ -87,6 +89,14 @@ __decorate([
     (0, typeorm_1.Column)({ default: true }),
     __metadata("design:type", Boolean)
 ], Employee.prototype, "isActive", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, select: false }),
+    __metadata("design:type", String)
+], Employee.prototype, "twoFactorSecret", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], Employee.prototype, "isTwoFactorEnabled", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 35.00 }),
     __metadata("design:type", Number)

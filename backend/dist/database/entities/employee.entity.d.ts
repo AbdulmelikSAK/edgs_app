@@ -9,6 +9,8 @@ export declare class Employee {
     mustChangePassword: boolean;
     badgeNumber: string | null;
     isActive: boolean;
+    twoFactorSecret: string;
+    isTwoFactorEnabled: boolean;
     hourlyRate: number;
     paidLeaveBalance: number;
     paidLeaveN: number;

@@ -27,6 +27,24 @@ export declare class AuthService {
         message: string;
     }>;
     loginUser(dto: LoginUserDto): Promise<{
+        twoFactorSetupRequired: boolean;
+        email: string;
+        secret: string;
+        otpauthUrl: string;
+        message: string;
+        twoFactorRequired?: undefined;
+        access_token?: undefined;
+        user?: undefined;
+    } | {
+        twoFactorRequired: boolean;
+        email: string;
+        message: string;
+        twoFactorSetupRequired?: undefined;
+        secret?: undefined;
+        otpauthUrl?: undefined;
+        access_token?: undefined;
+        user?: undefined;
+    } | {
         access_token: string;
         user: {
             id: string;
@@ -34,6 +52,25 @@ export declare class AuthService {
             firstName: string;
             lastName: string;
             role: import("../database/entities/role.entity").RoleName;
+            isTwoFactorEnabled: true;
         };
+        twoFactorSetupRequired?: undefined;
+        email?: undefined;
+        secret?: undefined;
+        otpauthUrl?: undefined;
+        message?: undefined;
+        twoFactorRequired?: undefined;
+    }>;
+    generate2faSecret(userId: string): Promise<{
+        secret: string;
+        otpauthUrl: string;
+    }>;
+    enable2fa(userId: string, code: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    disable2fa(userId: string): Promise<{
+        success: boolean;
+        message: string;
     }>;
 }

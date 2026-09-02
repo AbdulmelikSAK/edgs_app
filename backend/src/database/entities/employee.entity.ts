@@ -28,6 +28,12 @@ export class Employee {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ nullable: true, select: false })
+  twoFactorSecret: string;
+
+  @Column({ default: false })
+  isTwoFactorEnabled: boolean;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 35.00 })
   hourlyRate: number;
 

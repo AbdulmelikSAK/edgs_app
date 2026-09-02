@@ -35,4 +35,31 @@ export class AuthController {
   loginUser(@Body() dto: LoginUserDto) {
     return this.authService.loginUser(dto);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('2fa/generate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Générer le secret TOTP et QR Code 2FA' })
+  generate2faSecret(@Request() req: any) {
+    return this.authService.generate2faSecret(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('2fa/enable')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Activer la 2FA avec le code de vérification' })
+  enable2fa(@Request() req: any, @Body('code') code: string) {
+    return this.authService.enable2fa(req.user.id, code);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Désactiver la 2FA' })
+  disable2fa(@Request() req: any) {
+    return this.authService.disable2fa(req.user.id);
+  }
 }

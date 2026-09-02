@@ -56,7 +56,11 @@ interface Mission {
 }
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState<'login' | 'change_password' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera' | 'leaves' | 'announcements'>('login');
+  const [currentScreen, setCurrentScreen] = useState<'login' | 'change_password' | 'select_truck' | 'dashboard' | 'mission_detail' | 'stock' | 'camera' | 'leaves' | 'announcements' | 'time_tracking'>('login');
+  
+  // Time Tracking State
+  const [timeEntriesList, setTimeEntriesList] = useState<any[]>([]);
+  const [timePeriodFilter, setTimePeriodFilter] = useState<'current_week' | 'last_week' | 'current_month'>('current_week');
   
   // Configuration
   const [rawServerUrl, setRawServerUrl] = useState('https://edgs-app.onrender.com'); // Production Render backend URL
@@ -683,6 +687,22 @@ export default function App() {
       }
     } catch (e) {
       console.error('Failed to fetch leave requests:', e);
+    }
+  };
+
+  const fetchTimeHistory = async () => {
+    if (isOffline || !employee || !token) return;
+    try {
+      const res = await fetch(`${serverUrl}/timeclock/all`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const empEntries = data.filter((item: any) => item.employee?.id === employee.id || item.employeeId === employee.id);
+        setTimeEntriesList(empEntries);
+      }
+    } catch (e) {
+      console.error('Failed to fetch time history:', e);
     }
   };
 
@@ -2287,6 +2307,100 @@ export default function App() {
               )}
             </View>
           </ScrollView>
+        </View>
+      )}
+
+      {/* SCREEN 9: TIME TRACKING HISTORY */}
+      {currentScreen === 'time_tracking' && employee && (
+        <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+          {/* Header */}
+          <View style={styles.banner}>
+            <TouchableOpacity 
+              style={styles.btnBack} 
+              onPress={() => setCurrentScreen('dashboard')}
+            >
+              <Text style={styles.btnBackText}>← Retour</Text>
+            </TouchableOpacity>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>Suivi des Heures</Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          <View style={{ flex: 1, padding: 16 }}>
+            {/* Filter Buttons */}
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+              {[
+                { key: 'current_week', label: 'Semaine en cours' },
+                { key: 'last_week', label: 'Semaine dernière' },
+                { key: 'current_month', label: 'Mois en cours' }
+              ].map(filter => (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={[
+                    styles.modeBtn,
+                    timePeriodFilter === filter.key ? styles.modeBtnActive : styles.modeBtnInactive,
+                    { flex: 1, paddingVertical: 8, paddingHorizontal: 4 }
+                  ]}
+                  onPress={() => setTimePeriodFilter(filter.key as any)}
+                >
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' }}>{filter.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Total Badge */}
+            <View style={[styles.glassCard, { backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6', marginBottom: 16 }]}>
+              <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '600' }}>
+                Total d'heures ({timePeriodFilter === 'current_week' ? 'Semaine en cours' : timePeriodFilter === 'last_week' ? 'Semaine dernière' : 'Mois en cours'})
+              </Text>
+              <Text style={{ color: '#3b82f6', fontSize: 32, fontWeight: '900', marginTop: 4 }}>
+                {(() => {
+                  const totalSecs = timeEntriesList.reduce((acc: number, curr: any) => acc + (curr.hoursWorked || 8) * 3600, 0);
+                  const hrs = Math.floor(totalSecs / 3600);
+                  const mins = Math.floor((totalSecs % 3600) / 60);
+                  return `${hrs}h${String(mins).padStart(2, '0')}`;
+                })()}
+              </Text>
+            </View>
+
+            {/* List of Entries */}
+            <ScrollView style={{ flex: 1 }}>
+              {timeEntriesList.length === 0 ? (
+                <Text style={{ color: '#64748b', textAlign: 'center', marginVertical: 30 }}>Aucun pointage enregistré pour cette période.</Text>
+              ) : (
+                timeEntriesList.map((entry: any) => {
+                  const status = entry.validationStatus || 'validated';
+                  let statusText = '✅ Confirmé';
+                  let statusColor = '#10b981';
+                  if (status === 'pending') { statusText = '⏳ En attente'; statusColor = '#94a3b8'; }
+                  else if (status === 'modified') { statusText = '✏️ Corrigé'; statusColor = '#f59e0b'; }
+                  else if (status === 'rejected') { statusText = '❌ Refusé'; statusColor = '#ef4444'; }
+
+                  const dateStr = entry.timestamp ? new Date(entry.timestamp).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' }) : 'Journée';
+                  const hoursText = `${entry.hoursWorked || 8}h00`;
+
+                  return (
+                    <View key={entry.id} style={[styles.glassCard, { marginBottom: 12 }]}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800', textTransform: 'capitalize' }}>{dateStr}</Text>
+                        <Text style={{ color: statusColor, fontSize: 13, fontWeight: '700' }}>{statusText}</Text>
+                      </View>
+
+                      <Text style={{ color: '#cbd5e1', fontSize: 13 }}>
+                        Volume heures : <Text style={{ color: '#3b82f6', fontWeight: '800' }}>{hoursText}</Text>
+                      </Text>
+
+                      {entry.validationNote && (
+                        <View style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 8, marginTop: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
+                          <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: '700' }}>Motif du responsable :</Text>
+                          <Text style={{ color: '#f8fafc', fontSize: 12, marginTop: 2 }}>{entry.validationNote}</Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
         </View>
       )}
 

@@ -53,6 +53,7 @@ const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcrypt"));
 const employee_entity_1 = require("../database/entities/employee.entity");
 const user_entity_1 = require("../database/entities/user.entity");
+const totp_utils_1 = require("./totp.utils");
 let AuthService = class AuthService {
     employeeRepo;
     userRepo;
@@ -104,15 +105,52 @@ let AuthService = class AuthService {
         return { success: true, message: 'Mot de passe modifié avec succès' };
     }
     async loginUser(dto) {
-        const user = await this.userRepo.findOne({
-            where: { email: dto.email, isActive: true },
-            relations: { role: true },
-        });
+        const user = await this.userRepo
+            .createQueryBuilder('user')
+            .addSelect('user.twoFactorSecret')
+            .leftJoinAndSelect('user.role', 'role')
+            .where('user.email = :email AND user.isActive = true', { email: dto.email })
+            .getOne();
         if (!user)
             throw new common_1.UnauthorizedException('Identifiants invalides');
         const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isMatch)
             throw new common_1.UnauthorizedException('Identifiants invalides');
+        if (!user.isTwoFactorEnabled) {
+            if (!user.twoFactorSecret) {
+                user.twoFactorSecret = totp_utils_1.TotpUtils.generateSecret();
+                await this.userRepo.save(user);
+            }
+            const otpauthUrl = totp_utils_1.TotpUtils.generateOtpauthUrl(user.email, 'EDGS Platform', user.twoFactorSecret);
+            if (!dto.twoFactorCode) {
+                return {
+                    twoFactorSetupRequired: true,
+                    email: user.email,
+                    secret: user.twoFactorSecret,
+                    otpauthUrl,
+                    message: 'Obligatoire : Scannez le QR Code dans Google Authenticator et entrez le code à 6 chiffres',
+                };
+            }
+            const isValid = totp_utils_1.TotpUtils.verifyTotp(dto.twoFactorCode, user.twoFactorSecret);
+            if (!isValid) {
+                throw new common_1.UnauthorizedException('Code 2FA invalide. Veuillez réessayer.');
+            }
+            user.isTwoFactorEnabled = true;
+            await this.userRepo.save(user);
+        }
+        else {
+            if (!dto.twoFactorCode) {
+                return {
+                    twoFactorRequired: true,
+                    email: user.email,
+                    message: 'Veuillez saisir votre code Google Authenticator à 6 chiffres',
+                };
+            }
+            const isValidTotp = totp_utils_1.TotpUtils.verifyTotp(dto.twoFactorCode, user.twoFactorSecret);
+            if (!isValidTotp) {
+                throw new common_1.UnauthorizedException('Code 2FA Google Authenticator invalide ou expiré');
+            }
+        }
         const payload = { sub: user.id, type: 'user', role: user.role?.name };
         return {
             access_token: this.jwtService.sign(payload),
@@ -122,8 +160,48 @@ let AuthService = class AuthService {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 role: user.role?.name,
+                isTwoFactorEnabled: user.isTwoFactorEnabled,
             },
         };
+    }
+    async generate2faSecret(userId) {
+        const user = await this.userRepo.findOne({ where: { id: userId } });
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        const secret = totp_utils_1.TotpUtils.generateSecret();
+        const otpauthUrl = totp_utils_1.TotpUtils.generateOtpauthUrl(user.email, 'EDGS Platform', secret);
+        user.twoFactorSecret = secret;
+        await this.userRepo.save(user);
+        return {
+            secret,
+            otpauthUrl,
+        };
+    }
+    async enable2fa(userId, code) {
+        const user = await this.userRepo
+            .createQueryBuilder('user')
+            .addSelect('user.twoFactorSecret')
+            .where('user.id = :id', { id: userId })
+            .getOne();
+        if (!user || !user.twoFactorSecret) {
+            throw new common_1.BadRequestException('Veuillez d\'abord générer le QR Code 2FA');
+        }
+        const isValid = totp_utils_1.TotpUtils.verifyTotp(code, user.twoFactorSecret);
+        if (!isValid) {
+            throw new common_1.BadRequestException('Code de vérification invalide. Veuillez réessayer.');
+        }
+        user.isTwoFactorEnabled = true;
+        await this.userRepo.save(user);
+        return { success: true, message: 'Double authentification 2FA activée avec succès !' };
+    }
+    async disable2fa(userId) {
+        const user = await this.userRepo.findOne({ where: { id: userId } });
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        user.isTwoFactorEnabled = false;
+        user.twoFactorSecret = null;
+        await this.userRepo.save(user);
+        return { success: true, message: 'Double authentification 2FA désactivée' };
     }
 };
 exports.AuthService = AuthService;

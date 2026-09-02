@@ -219,6 +219,14 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [showLogin, setShowLogin] = useState(false);
 
+  // 2FA Auth states
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [twoFactorCodeInput, setTwoFactorCodeInput] = useState('');
+  const [show2faSetupModal, setShow2faSetupModal] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState<{ secret: string; otpauthUrl: string } | null>(null);
+  const [setup2faCodeInput, setSetup2faCodeInput] = useState('');
+  const [twoFactorSuccessMsg, setTwoFactorSuccessMsg] = useState('');
+
   // Devis Public Form State
   const [devisForm, setDevisForm] = useState({
     name: '',
@@ -491,9 +499,17 @@ function App() {
     fetchEntriesForFormDate();
   }, [planningForm.date, weeklyPlanning, isAuthenticated]);
 
-  // Auth helpers
+  // Auth helpers & 24h Session check
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const currentToken = token || localStorage.getItem('token');
+    const loginTime = localStorage.getItem('loginTimestamp');
+    
+    // Check if session exceeds 24 hours (86,400,000 ms)
+    if (loginTime && Date.now() - Number(loginTime) > 86400000) {
+      handleLogout();
+      throw new Error('Session expirée (Limite 24h atteinte)');
+    }
+
     const isFormData = options.body instanceof FormData;
     const headers: Record<string, string> = {
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
@@ -512,21 +528,43 @@ function App() {
     e.preventDefault();
     setLoginError('');
     try {
+      const payload: any = { email: loginEmail, password: loginPassword };
+      if (twoFactorRequired && twoFactorCodeInput) {
+        payload.twoFactorCode = twoFactorCodeInput;
+      }
+
       const res = await fetch(API_BASE_URL + '/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        throw new Error('Identifiants invalides');
-      }
+
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Identifiants ou code 2FA incorrects');
+      }
+
+      if (data.twoFactorSetupRequired) {
+        setQrCodeData({ secret: data.secret, otpauthUrl: data.otpauthUrl });
+        setTwoFactorRequired(true);
+        return;
+      }
+
+      if (data.twoFactorRequired) {
+        setTwoFactorRequired(true);
+        return;
+      }
+
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('loginTimestamp', String(Date.now()));
       setToken(data.access_token);
       setUser(data.user);
       setIsAuthenticated(true);
       setShowLogin(false);
+      setTwoFactorRequired(false);
+      setTwoFactorCodeInput('');
+      loadAllData();
     } catch (err: any) {
       setLoginError(err.message || 'Une erreur est survenue lors de la connexion.');
     }
@@ -535,10 +573,45 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('loginTimestamp');
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
     setShowLogin(false);
+    setTwoFactorRequired(false);
+    setTwoFactorCodeInput('');
+  };
+
+  const handleGenerate2fa = async () => {
+    try {
+      const res = await fetchWithAuth(API_BASE_URL + '/auth/2fa/generate', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setQrCodeData(data);
+        setShow2faSetupModal(true);
+      }
+    } catch (err) {
+      console.error('Erreur génération 2FA:', err);
+    }
+  };
+
+  const handleEnable2fa = async () => {
+    try {
+      const res = await fetchWithAuth(API_BASE_URL + '/auth/2fa/enable', {
+        method: 'POST',
+        body: JSON.stringify({ code: setup2faCodeInput }),
+      });
+      if (res.ok) {
+        setTwoFactorSuccessMsg('Double Authentification Google Authenticator activée avec succès !');
+        setShow2faSetupModal(false);
+        setUser((prev: any) => ({ ...prev, isTwoFactorEnabled: true }));
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Code 2FA invalide');
+      }
+    } catch (err) {
+      console.error('Erreur activation 2FA:', err);
+    }
   };
 
   const getWeeksForMonth = (year: number, month: number) => {
@@ -1901,6 +1974,7 @@ function App() {
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 required
+                disabled={twoFactorRequired}
               />
             </div>
 
@@ -1913,11 +1987,46 @@ function App() {
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 required
+                disabled={twoFactorRequired}
               />
             </div>
 
+            {twoFactorRequired && (
+              <div className="form-group" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '8px', border: '1px solid #3b82f6', marginBottom: '16px', textAlign: 'center' }}>
+                <label className="form-label" style={{ color: '#3b82f6', fontWeight: '800', textAlign: 'left', display: 'block' }}>🔒 Double Authentification Google Authenticator</label>
+                
+                {qrCodeData && (
+                  <div style={{ margin: '12px 0', background: '#fff', padding: '12px', borderRadius: '8px', display: 'inline-block' }}>
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrCodeData.otpauthUrl)}`} 
+                      alt="2FA QR Code" 
+                      style={{ width: '180px', height: '180px' }}
+                    />
+                    <div style={{ fontSize: '11px', color: '#333', marginTop: '6px', fontFamily: 'monospace' }}>
+                      Secret : {qrCodeData.secret}
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Code à 6 chiffres (ex: 123456)"
+                  maxLength={6}
+                  value={twoFactorCodeInput}
+                  onChange={(e) => setTwoFactorCodeInput(e.target.value)}
+                  style={{ textAlign: 'center', fontSize: '18px', letterSpacing: '3px', fontWeight: '800', marginTop: '8px' }}
+                  required
+                  autoFocus
+                />
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px', textAlign: 'left' }}>
+                  {qrCodeData ? '1. Scannez le QR Code ci-dessus avec Google Authenticator.\n2. Saisissez le code généré à 6 chiffres.' : 'Ouvrez Google Authenticator sur votre téléphone et entrez le code à 6 chiffres.'}
+                </p>
+              </div>
+            )}
+
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px', padding: '12px' }}>
-              Se connecter
+              {twoFactorRequired ? 'Confirmer le Code 2FA' : 'Se connecter'}
             </button>
           </form>
         </div>
@@ -2062,6 +2171,14 @@ function App() {
             <div style={{ color: 'var(--text-secondary)', marginTop: '4px', textOverflow: 'ellipsis', overflow: 'hidden' }}>
               Admin: {user?.firstName || 'Edgs'}
             </div>
+            <button 
+              type="button"
+              className="btn btn-secondary" 
+              style={{ width: '100%', fontSize: '11px', padding: '6px', marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              onClick={handleGenerate2fa}
+            >
+              🔒 Configurer 2FA Google Auth
+            </button>
           </div>
           <button className="btn btn-secondary" onClick={handleLogout} style={{ width: '100%', gap: '8px', padding: '8px' }}>
             <LogOut size={14} /> Déconnexion
@@ -5385,6 +5502,53 @@ function App() {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowDropPlanningModal(false)}>Annuler</button>
                 <button type="button" className="btn btn-primary" onClick={handleSaveDropPlanning}>
                   Enregistrer l'assignation
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CONFIGURATION 2FA GOOGLE AUTHENTICATOR */}
+        {show2faSetupModal && qrCodeData && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '480px', padding: '32px', textAlign: 'center' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', color: 'var(--text-main)' }}>
+                🔒 Configuration 2FA Google Authenticator
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                Scannez le QR Code ci-dessous avec votre application <strong>Google Authenticator</strong> ou <strong>Authy</strong> sur votre smartphone :
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', background: '#fff', padding: '16px', borderRadius: '12px' }}>
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeData.otpauthUrl)}`} 
+                  alt="2FA QR Code" 
+                  style={{ width: '200px', height: '200px' }}
+                />
+              </div>
+
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '20px', fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '6px' }}>
+                Secret : <strong>{qrCodeData.secret}</strong>
+              </div>
+
+              <div className="form-group" style={{ textAlign: 'left' }}>
+                <label className="form-label">Saisir le Code à 6 chiffres généré par l'application *</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="123456"
+                  maxLength={6}
+                  value={setup2faCodeInput}
+                  onChange={e => setSetup2faCodeInput(e.target.value)}
+                  style={{ textAlign: 'center', fontSize: '20px', letterSpacing: '4px', fontWeight: '800' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShow2faSetupModal(false)}>Annuler</button>
+                <button type="button" className="btn btn-primary" onClick={handleEnable2fa}>
+                  Activer la 2FA
                 </button>
               </div>
             </div>

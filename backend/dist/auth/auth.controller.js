@@ -34,6 +34,15 @@ let AuthController = class AuthController {
     loginUser(dto) {
         return this.authService.loginUser(dto);
     }
+    generate2faSecret(req) {
+        return this.authService.generate2faSecret(req.user.id);
+    }
+    enable2fa(req, code) {
+        return this.authService.enable2fa(req.user.id, code);
+    }
+    disable2fa(req) {
+        return this.authService.disable2fa(req.user.id);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -68,6 +77,40 @@ __decorate([
     __metadata("design:paramtypes", [login_user_dto_1.LoginUserDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "loginUser", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Post)('2fa/generate'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Générer le secret TOTP et QR Code 2FA' }),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "generate2faSecret", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Post)('2fa/enable'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Activer la 2FA avec le code de vérification' }),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)('code')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "enable2fa", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Post)('2fa/disable'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Désactiver la 2FA' }),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "disable2fa", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Controller)('auth'),

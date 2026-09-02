@@ -6,6 +6,8 @@ export declare class User {
     firstName: string;
     lastName: string;
     isActive: boolean;
+    twoFactorSecret: string;
+    isTwoFactorEnabled: boolean;
     role: Role;
     createdAt: Date;
     updatedAt: Date;

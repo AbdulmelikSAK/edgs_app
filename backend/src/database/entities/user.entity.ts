@@ -21,6 +21,12 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ nullable: true, select: false })
+  twoFactorSecret: string;
+
+  @Column({ default: false })
+  isTwoFactorEnabled: boolean;
+
   @ManyToOne(() => Role, { nullable: true })
   @JoinColumn()
   role: Role;
