@@ -14,4 +14,10 @@ export declare class TimeclockService {
     syncBatch(entries: CreateTimeEntryDto[]): Promise<TimeEntry[]>;
     findByEmployee(employeeId: string, date?: string): Promise<TimeEntry[]>;
     findByMission(missionId: string): Promise<TimeEntry[]>;
+    validateEntry(id: string, status: any, validationNote?: string, newTimestamp?: string, validatedBy?: string): Promise<TimeEntry>;
+    validateBatch(employeeId?: string, startDate?: string, endDate?: string, validatedBy?: string): Promise<{
+        updated: number;
+    }>;
+    findFlaggedForEmployee(employeeId: string): Promise<TimeEntry[]>;
+    findAllWithFilters(employeeId?: string, startDate?: string, endDate?: string, status?: string): Promise<TimeEntry[]>;
 }

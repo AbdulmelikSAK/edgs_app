@@ -96,6 +96,9 @@ let EmployeesService = class EmployeesService {
             hourlyRate: dto.hourlyRate,
             monthlySalary: dto.monthlySalary,
             paidLeaveBalance: dto.paidLeaveBalance,
+            paidLeaveN: dto.paidLeaveN ?? 30.00,
+            paidLeaveN1: dto.paidLeaveN1 ?? 0.00,
+            hireDate: dto.hireDate,
             rttBalance: dto.rttBalance,
             phone,
             email,
@@ -145,6 +148,32 @@ let EmployeesService = class EmployeesService {
         const emp = await this.findOne(id);
         emp.isActive = false;
         await this.employeeRepo.save(emp);
+    }
+    async performAnnualLeaveRollover() {
+        const employees = await this.employeeRepo.find({ where: { isActive: true } });
+        const now = new Date();
+        for (const emp of employees) {
+            emp.paidLeaveN1 = Number(emp.paidLeaveN || 0);
+            if (emp.hireDate) {
+                const hire = new Date(emp.hireDate);
+                const aprilFirst = new Date(now.getFullYear(), 3, 1);
+                const refDate = hire > aprilFirst ? now : aprilFirst;
+                let months = (refDate.getFullYear() - hire.getFullYear()) * 12 + (refDate.getMonth() - hire.getMonth());
+                if (months < 0)
+                    months = 0;
+                if (months >= 12) {
+                    emp.paidLeaveN = 30.00;
+                }
+                else {
+                    emp.paidLeaveN = Math.min(30.00, Number((months * 2.5).toFixed(2)));
+                }
+            }
+            else {
+                emp.paidLeaveN = 30.00;
+            }
+            await this.employeeRepo.save(emp);
+        }
+        return { updated: employees.length };
     }
 };
 exports.EmployeesService = EmployeesService;

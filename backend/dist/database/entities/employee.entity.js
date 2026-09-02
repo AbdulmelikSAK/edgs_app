@@ -24,6 +24,9 @@ let Employee = class Employee {
     hourlyRate;
     monthlySalary;
     paidLeaveBalance;
+    paidLeaveN;
+    paidLeaveN1;
+    hireDate;
     rttBalance;
     phone;
     email;
@@ -78,6 +81,18 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
     __metadata("design:type", Number)
 ], Employee.prototype, "paidLeaveBalance", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 30.00 }),
+    __metadata("design:type", Number)
+], Employee.prototype, "paidLeaveN", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
+    __metadata("design:type", Number)
+], Employee.prototype, "paidLeaveN1", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "hireDate", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
     __metadata("design:type", Number)

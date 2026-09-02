@@ -14,15 +14,18 @@ const typeorm_1 = require("typeorm");
 const truck_entity_1 = require("./truck.entity");
 const mission_entity_1 = require("./mission.entity");
 const employee_entity_1 = require("./employee.entity");
+const stock_item_entity_1 = require("./stock-item.entity");
 var StockMovementType;
 (function (StockMovementType) {
     StockMovementType["LOAD"] = "load";
     StockMovementType["CONSUME"] = "consume";
     StockMovementType["RETURN"] = "return";
     StockMovementType["ADJUSTMENT"] = "adjustment";
+    StockMovementType["REPLENISH"] = "replenish";
 })(StockMovementType || (exports.StockMovementType = StockMovementType = {}));
 let StockMovement = class StockMovement {
     id;
+    stockItem;
     truck;
     mission;
     employee;
@@ -30,6 +33,7 @@ let StockMovement = class StockMovement {
     quantity;
     stockBefore;
     stockAfter;
+    unitPriceAtTime;
     notes;
     createdAt;
 };
@@ -39,7 +43,12 @@ __decorate([
     __metadata("design:type", String)
 ], StockMovement.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => truck_entity_1.Truck),
+    (0, typeorm_1.ManyToOne)(() => stock_item_entity_1.StockItem, { nullable: true }),
+    (0, typeorm_1.JoinColumn)(),
+    __metadata("design:type", stock_item_entity_1.StockItem)
+], StockMovement.prototype, "stockItem", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => truck_entity_1.Truck, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", truck_entity_1.Truck)
 ], StockMovement.prototype, "truck", void 0);
@@ -58,17 +67,21 @@ __decorate([
     __metadata("design:type", String)
 ], StockMovement.prototype, "type", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'int' }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2 }),
     __metadata("design:type", Number)
 ], StockMovement.prototype, "quantity", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'int' }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], StockMovement.prototype, "stockBefore", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'int' }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], StockMovement.prototype, "stockAfter", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], StockMovement.prototype, "unitPriceAtTime", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
     __metadata("design:type", String)

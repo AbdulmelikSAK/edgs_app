@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TimeEntry = exports.TimeEntryType = void 0;
+exports.TimeEntry = exports.TimeEntryStatus = exports.TimeEntryType = void 0;
 const typeorm_1 = require("typeorm");
 const employee_entity_1 = require("./employee.entity");
 const mission_entity_1 = require("./mission.entity");
@@ -23,6 +23,13 @@ var TimeEntryType;
     TimeEntryType["PAUSE_START"] = "pause_start";
     TimeEntryType["PAUSE_END"] = "pause_end";
 })(TimeEntryType || (exports.TimeEntryType = TimeEntryType = {}));
+var TimeEntryStatus;
+(function (TimeEntryStatus) {
+    TimeEntryStatus["PENDING"] = "pending";
+    TimeEntryStatus["VALIDATED"] = "validated";
+    TimeEntryStatus["REJECTED"] = "rejected";
+    TimeEntryStatus["MODIFIED"] = "modified";
+})(TimeEntryStatus || (exports.TimeEntryStatus = TimeEntryStatus = {}));
 let TimeEntry = class TimeEntry {
     id;
     employee;
@@ -37,6 +44,10 @@ let TimeEntry = class TimeEntry {
     signature;
     isOutOfZone;
     isSyncedFromOffline;
+    validationStatus;
+    validationNote;
+    validatedAt;
+    validatedBy;
     createdAt;
 };
 exports.TimeEntry = TimeEntry;
@@ -95,6 +106,22 @@ __decorate([
     (0, typeorm_1.Column)({ default: false }),
     __metadata("design:type", Boolean)
 ], TimeEntry.prototype, "isSyncedFromOffline", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'enum', enum: TimeEntryStatus, default: TimeEntryStatus.PENDING }),
+    __metadata("design:type", String)
+], TimeEntry.prototype, "validationStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
+    __metadata("design:type", String)
+], TimeEntry.prototype, "validationNote", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, type: 'timestamp' }),
+    __metadata("design:type", Date)
+], TimeEntry.prototype, "validatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimeEntry.prototype, "validatedBy", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

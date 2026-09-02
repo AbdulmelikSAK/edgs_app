@@ -19,6 +19,9 @@ class CreateEmployeeDto {
     password;
     monthlySalary;
     paidLeaveBalance;
+    paidLeaveN;
+    paidLeaveN1;
+    hireDate;
     rttBalance;
     badgeNumber;
     roleId;
@@ -63,6 +66,24 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateEmployeeDto.prototype, "paidLeaveBalance", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 30.00 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateEmployeeDto.prototype, "paidLeaveN", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 0.00 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateEmployeeDto.prototype, "paidLeaveN1", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: '2026-01-01' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmployeeDto.prototype, "hireDate", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ example: 10.00 }),
     (0, class_validator_1.IsOptional)(),

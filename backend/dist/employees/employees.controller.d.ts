@@ -8,5 +8,8 @@ export declare class EmployeesController {
     findAll(): Promise<import("../database/entities/employee.entity").Employee[]>;
     findOne(id: string): Promise<import("../database/entities/employee.entity").Employee>;
     update(id: string, dto: UpdateEmployeeDto): Promise<import("../database/entities/employee.entity").Employee>;
+    leaveRollover(): Promise<{
+        updated: number;
+    }>;
     remove(id: string): Promise<void>;
 }

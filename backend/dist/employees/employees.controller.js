@@ -36,6 +36,9 @@ let EmployeesController = class EmployeesController {
     update(id, dto) {
         return this.employeesService.update(id, dto);
     }
+    leaveRollover() {
+        return this.employeesService.performAnnualLeaveRollover();
+    }
     remove(id) {
         return this.employeesService.remove(id);
     }
@@ -71,6 +74,13 @@ __decorate([
     __metadata("design:paramtypes", [String, update_employee_dto_1.UpdateEmployeeDto]),
     __metadata("design:returntype", void 0)
 ], EmployeesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)('leave-rollover'),
+    (0, swagger_1.ApiOperation)({ summary: 'Déclencher la bascule annuelle des congés au 1er avril' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], EmployeesController.prototype, "leaveRollover", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),

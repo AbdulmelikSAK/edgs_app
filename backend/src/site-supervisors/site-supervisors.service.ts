@@ -22,7 +22,7 @@ export class SiteSupervisorsService {
   async findOne(id: string): Promise<SiteSupervisor> {
     const supervisor = await this.siteSupervisorRepo.findOne({
       where: { id },
-      relations: ['client'],
+      relations: { client: true },
     });
     if (!supervisor) {
       throw new NotFoundException(`Conducteur de travaux ${id} non trouvé`);

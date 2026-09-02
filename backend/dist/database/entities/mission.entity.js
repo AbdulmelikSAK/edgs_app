@@ -15,6 +15,7 @@ const truck_entity_1 = require("./truck.entity");
 const client_entity_1 = require("./client.entity");
 const worksite_entity_1 = require("./worksite.entity");
 const employee_entity_1 = require("./employee.entity");
+const site_supervisor_entity_1 = require("./site-supervisor.entity");
 var MissionStatus;
 (function (MissionStatus) {
     MissionStatus["PLANNED"] = "planned";
@@ -36,11 +37,16 @@ let Mission = class Mission {
     estimatedPrice;
     actualPrice;
     surfaceArea;
+    estimatedUnit;
+    actualQuantity;
+    actualUnit;
+    totalMaterialCost;
     fuelConsumption;
     sandBagsUsed;
     notes;
     truck;
     client;
+    siteSupervisor;
     worksite;
     employees;
     chefDeMission;
@@ -101,6 +107,22 @@ __decorate([
     __metadata("design:type", Number)
 ], Mission.prototype, "surfaceArea", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ default: 'm²' }),
+    __metadata("design:type", String)
+], Mission.prototype, "estimatedUnit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Mission.prototype, "actualQuantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Mission.prototype, "actualUnit", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Mission.prototype, "totalMaterialCost", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, nullable: true }),
     __metadata("design:type", Number)
 ], Mission.prototype, "fuelConsumption", void 0);
@@ -122,6 +144,11 @@ __decorate([
     (0, typeorm_1.JoinColumn)(),
     __metadata("design:type", client_entity_1.Client)
 ], Mission.prototype, "client", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => site_supervisor_entity_1.SiteSupervisor, { nullable: true }),
+    (0, typeorm_1.JoinColumn)(),
+    __metadata("design:type", site_supervisor_entity_1.SiteSupervisor)
+], Mission.prototype, "siteSupervisor", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => worksite_entity_1.Worksite, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),

@@ -9,6 +9,12 @@ export declare enum TimeEntryType {
     PAUSE_START = "pause_start",
     PAUSE_END = "pause_end"
 }
+export declare enum TimeEntryStatus {
+    PENDING = "pending",
+    VALIDATED = "validated",
+    REJECTED = "rejected",
+    MODIFIED = "modified"
+}
 export declare class TimeEntry {
     id: string;
     employee: Employee;
@@ -23,5 +29,9 @@ export declare class TimeEntry {
     signature: string;
     isOutOfZone: boolean;
     isSyncedFromOffline: boolean;
+    validationStatus: TimeEntryStatus;
+    validationNote: string;
+    validatedAt: Date;
+    validatedBy: string;
     createdAt: Date;
 }

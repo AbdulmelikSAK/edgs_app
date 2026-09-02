@@ -32,6 +32,7 @@ const production_module_1 = require("./production/production.module");
 const equipment_module_1 = require("./equipment/equipment.module");
 const billing_module_1 = require("./billing/billing.module");
 const leave_requests_module_1 = require("./leave-requests/leave-requests.module");
+const site_supervisors_module_1 = require("./site-supervisors/site-supervisors.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -71,6 +72,7 @@ exports.AppModule = AppModule = __decorate([
             equipment_module_1.EquipmentModule,
             billing_module_1.BillingModule,
             leave_requests_module_1.LeaveRequestsModule,
+            site_supervisors_module_1.SiteSupervisorsModule,
         ],
         providers: [
             seeder_service_1.SeederService,

@@ -9,52 +9,54 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StockItem = void 0;
+exports.SiteSupervisor = void 0;
 const typeorm_1 = require("typeorm");
-let StockItem = class StockItem {
+const client_entity_1 = require("./client.entity");
+let SiteSupervisor = class SiteSupervisor {
     id;
-    name;
-    unit;
-    quantity;
-    minThreshold;
-    unitPrice;
+    firstName;
+    lastName;
+    phone;
+    email;
+    client;
     createdAt;
     updatedAt;
 };
-exports.StockItem = StockItem;
+exports.SiteSupervisor = SiteSupervisor;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
     __metadata("design:type", String)
-], StockItem.prototype, "id", void 0);
+], SiteSupervisor.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ unique: true }),
+    (0, typeorm_1.Column)(),
     __metadata("design:type", String)
-], StockItem.prototype, "name", void 0);
+], SiteSupervisor.prototype, "firstName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], SiteSupervisor.prototype, "lastName", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
-], StockItem.prototype, "unit", void 0);
+], SiteSupervisor.prototype, "phone", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
-], StockItem.prototype, "quantity", void 0);
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], SiteSupervisor.prototype, "email", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 10 }),
-    __metadata("design:type", Number)
-], StockItem.prototype, "minThreshold", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
-], StockItem.prototype, "unitPrice", void 0);
+    (0, typeorm_1.ManyToOne)(() => client_entity_1.Client, { onDelete: 'CASCADE' }),
+    (0, typeorm_1.JoinColumn)(),
+    __metadata("design:type", client_entity_1.Client)
+], SiteSupervisor.prototype, "client", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
-], StockItem.prototype, "createdAt", void 0);
+], SiteSupervisor.prototype, "createdAt", void 0);
 __decorate([
     (0, typeorm_1.UpdateDateColumn)(),
     __metadata("design:type", Date)
-], StockItem.prototype, "updatedAt", void 0);
-exports.StockItem = StockItem = __decorate([
-    (0, typeorm_1.Entity)('stock_items')
-], StockItem);
-//# sourceMappingURL=stock-item.entity.js.map
+], SiteSupervisor.prototype, "updatedAt", void 0);
+exports.SiteSupervisor = SiteSupervisor = __decorate([
+    (0, typeorm_1.Entity)('site_supervisors')
+], SiteSupervisor);
+//# sourceMappingURL=site-supervisor.entity.js.map

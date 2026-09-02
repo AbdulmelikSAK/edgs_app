@@ -21,23 +21,27 @@ const truck_entity_1 = require("../database/entities/truck.entity");
 const client_entity_1 = require("../database/entities/client.entity");
 const worksite_entity_1 = require("../database/entities/worksite.entity");
 const employee_entity_1 = require("../database/entities/employee.entity");
+const site_supervisor_entity_1 = require("../database/entities/site-supervisor.entity");
 let MissionsService = class MissionsService {
     missionRepo;
     truckRepo;
     clientRepo;
     worksiteRepo;
     employeeRepo;
-    constructor(missionRepo, truckRepo, clientRepo, worksiteRepo, employeeRepo) {
+    siteSupervisorRepo;
+    constructor(missionRepo, truckRepo, clientRepo, worksiteRepo, employeeRepo, siteSupervisorRepo) {
         this.missionRepo = missionRepo;
         this.truckRepo = truckRepo;
         this.clientRepo = clientRepo;
         this.worksiteRepo = worksiteRepo;
         this.employeeRepo = employeeRepo;
+        this.siteSupervisorRepo = siteSupervisorRepo;
     }
     async create(dto) {
         const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
         const client = dto.clientId ? await this.clientRepo.findOne({ where: { id: dto.clientId } }) : null;
         const worksite = dto.worksiteId ? await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } }) : null;
+        const siteSupervisor = dto.siteSupervisorId ? await this.siteSupervisorRepo.findOne({ where: { id: dto.siteSupervisorId } }) : null;
         const employees = dto.employeeIds && dto.employeeIds.length > 0
             ? await this.employeeRepo.findBy({ id: (0, typeorm_2.In)(dto.employeeIds) })
             : [];
@@ -48,6 +52,7 @@ let MissionsService = class MissionsService {
             ...dto,
             truck: truck ?? undefined,
             client: client ?? undefined,
+            siteSupervisor: siteSupervisor ?? undefined,
             worksite: worksite ?? undefined,
             employees,
             chefDeMission,
@@ -56,20 +61,20 @@ let MissionsService = class MissionsService {
     }
     findAll() {
         return this.missionRepo.find({
-            relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+            relations: { truck: true, client: true, siteSupervisor: true, worksite: true, employees: true, chefDeMission: true },
             order: { scheduledDate: 'DESC' },
         });
     }
     findByTruck(truckId) {
         return this.missionRepo.find({
             where: { truck: { id: truckId }, status: mission_entity_1.MissionStatus.IN_PROGRESS },
-            relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+            relations: { truck: true, client: true, siteSupervisor: true, worksite: true, employees: true, chefDeMission: true },
         });
     }
     async findOne(id) {
         const mission = await this.missionRepo.findOne({
             where: { id },
-            relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+            relations: { truck: true, client: true, siteSupervisor: true, worksite: true, employees: true, chefDeMission: true },
         });
         if (!mission)
             throw new common_1.NotFoundException(`Mission ${id} non trouvée`);
@@ -86,6 +91,11 @@ let MissionsService = class MissionsService {
             const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
             if (client)
                 mission.client = client;
+        }
+        if (dto.siteSupervisorId) {
+            const supervisor = await this.siteSupervisorRepo.findOne({ where: { id: dto.siteSupervisorId } });
+            if (supervisor)
+                mission.siteSupervisor = supervisor;
         }
         if (dto.worksiteId) {
             const worksite = await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } });
@@ -170,7 +180,9 @@ exports.MissionsService = MissionsService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(client_entity_1.Client)),
     __param(3, (0, typeorm_1.InjectRepository)(worksite_entity_1.Worksite)),
     __param(4, (0, typeorm_1.InjectRepository)(employee_entity_1.Employee)),
+    __param(5, (0, typeorm_1.InjectRepository)(site_supervisor_entity_1.SiteSupervisor)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

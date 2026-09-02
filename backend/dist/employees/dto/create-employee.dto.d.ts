@@ -5,6 +5,9 @@ export declare class CreateEmployeeDto {
     password?: string;
     monthlySalary?: number;
     paidLeaveBalance?: number;
+    paidLeaveN?: number;
+    paidLeaveN1?: number;
+    hireDate?: string;
     rttBalance?: number;
     badgeNumber?: string;
     roleId?: string;

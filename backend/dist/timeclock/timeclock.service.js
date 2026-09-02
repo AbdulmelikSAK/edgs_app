@@ -85,6 +85,71 @@ let TimeclockService = class TimeclockService {
             order: { timestamp: 'ASC' },
         });
     }
+    async validateEntry(id, status, validationNote, newTimestamp, validatedBy) {
+        const entry = await this.timeEntryRepo.findOne({ where: { id }, relations: { employee: true } });
+        if (!entry)
+            throw new common_1.NotFoundException('Pointage non trouvé');
+        entry.validationStatus = status;
+        if (validationNote !== undefined)
+            entry.validationNote = validationNote;
+        if (newTimestamp)
+            entry.timestamp = new Date(newTimestamp);
+        entry.validatedAt = new Date();
+        if (validatedBy)
+            entry.validatedBy = validatedBy;
+        return this.timeEntryRepo.save(entry);
+    }
+    async validateBatch(employeeId, startDate, endDate, validatedBy) {
+        const query = this.timeEntryRepo.createQueryBuilder('entry');
+        query.where('entry.validationStatus = :pending', { pending: 'pending' });
+        if (employeeId) {
+            query.andWhere('entry.employeeId = :employeeId', { employeeId });
+        }
+        if (startDate && endDate) {
+            query.andWhere('entry.timestamp BETWEEN :startDate AND :endDate', {
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+            });
+        }
+        const entries = await query.getMany();
+        for (const entry of entries) {
+            entry.validationStatus = 'validated';
+            entry.validatedAt = new Date();
+            if (validatedBy)
+                entry.validatedBy = validatedBy;
+            await this.timeEntryRepo.save(entry);
+        }
+        return { updated: entries.length };
+    }
+    async findFlaggedForEmployee(employeeId) {
+        return this.timeEntryRepo.find({
+            where: [
+                { employee: { id: employeeId }, validationStatus: 'rejected' },
+                { employee: { id: employeeId }, validationStatus: 'modified' },
+            ],
+            order: { timestamp: 'DESC' },
+            take: 20,
+        });
+    }
+    async findAllWithFilters(employeeId, startDate, endDate, status) {
+        const query = this.timeEntryRepo.createQueryBuilder('entry')
+            .leftJoinAndSelect('entry.employee', 'employee')
+            .leftJoinAndSelect('entry.mission', 'mission')
+            .leftJoinAndSelect('entry.truck', 'truck');
+        if (employeeId) {
+            query.andWhere('employee.id = :employeeId', { employeeId });
+        }
+        if (startDate && endDate) {
+            query.andWhere('entry.timestamp BETWEEN :startDate AND :endDate', {
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+            });
+        }
+        if (status) {
+            query.andWhere('entry.validationStatus = :status', { status });
+        }
+        return query.orderBy('entry.timestamp', 'DESC').getMany();
+    }
 };
 exports.TimeclockService = TimeclockService;
 exports.TimeclockService = TimeclockService = __decorate([

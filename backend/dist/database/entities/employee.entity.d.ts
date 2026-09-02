@@ -11,6 +11,9 @@ export declare class Employee {
     hourlyRate: number;
     monthlySalary: number;
     paidLeaveBalance: number;
+    paidLeaveN: number;
+    paidLeaveN1: number;
+    hireDate: string;
     rttBalance: number;
     phone: string | null;
     email: string | null;

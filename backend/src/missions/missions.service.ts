@@ -43,8 +43,8 @@ export class MissionsService {
       worksite: worksite ?? undefined,
       employees,
       chefDeMission,
-    });
-    return this.missionRepo.save(mission);
+    } as any);
+    return this.missionRepo.save(mission as any);
   }
 
   findAll(): Promise<Mission[]> {

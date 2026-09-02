@@ -41,6 +41,35 @@ let StockItemsController = class StockItemsController {
         await this.itemRepo.update(id, body);
         return this.itemRepo.findOneBy({ id });
     }
+    async replenish(id, body) {
+        const item = await this.itemRepo.findOneBy({ id });
+        if (!item)
+            throw new common_1.NotFoundException('Article non trouvé');
+        const qty = Number(body.quantity) || 0;
+        const stockBefore = Number(item.quantity || 0);
+        const stockAfter = stockBefore + qty;
+        item.quantity = stockAfter;
+        if (body.unitPrice !== undefined) {
+            item.unitPrice = Number(body.unitPrice);
+        }
+        await this.itemRepo.save(item);
+        return { item, stockBefore, stockAfter };
+    }
+    async consume(id, body) {
+        const item = await this.itemRepo.findOneBy({ id });
+        if (!item)
+            throw new common_1.NotFoundException('Article non trouvé');
+        const qty = Math.abs(Number(body.quantity) || 0);
+        const stockBefore = Number(item.quantity || 0);
+        if (stockBefore < qty) {
+            throw new common_1.BadRequestException('Stock du dépôt insuffisant');
+        }
+        const stockAfter = stockBefore - qty;
+        item.quantity = stockAfter;
+        await this.itemRepo.save(item);
+        const alert = stockAfter <= (item.minThreshold || 10);
+        return { item, alert, stockBefore, stockAfter, totalCost: qty * (item.unitPrice || 0) };
+    }
     async remove(id) {
         const item = await this.itemRepo.findOneBy({ id });
         await this.itemRepo.delete(id);
@@ -77,6 +106,22 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], StockItemsController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)(':id/replenish'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], StockItemsController.prototype, "replenish", null);
+__decorate([
+    (0, common_1.Post)(':id/consume'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], StockItemsController.prototype, "consume", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),

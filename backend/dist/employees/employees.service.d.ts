@@ -14,4 +14,7 @@ export declare class EmployeesService {
     findOne(id: string): Promise<Employee>;
     update(id: string, dto: UpdateEmployeeDto): Promise<Employee>;
     remove(id: string): Promise<void>;
+    performAnnualLeaveRollover(): Promise<{
+        updated: number;
+    }>;
 }

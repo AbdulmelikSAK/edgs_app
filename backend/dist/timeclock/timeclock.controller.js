@@ -29,11 +29,23 @@ let TimeclockController = class TimeclockController {
     syncBatch(entries) {
         return this.timeclockService.syncBatch(entries);
     }
+    findAllWithFilters(employeeId, startDate, endDate, status) {
+        return this.timeclockService.findAllWithFilters(employeeId, startDate, endDate, status);
+    }
     findByEmployee(id, date) {
         return this.timeclockService.findByEmployee(id, date);
     }
     findByMission(id) {
         return this.timeclockService.findByMission(id);
+    }
+    validateBatch(body) {
+        return this.timeclockService.validateBatch(body.employeeId, body.startDate, body.endDate, body.validatedBy);
+    }
+    validateEntry(id, body) {
+        return this.timeclockService.validateEntry(id, body.status, body.validationNote, body.newTimestamp, body.validatedBy);
+    }
+    findFlaggedForEmployee(id) {
+        return this.timeclockService.findFlaggedForEmployee(id);
     }
 };
 exports.TimeclockController = TimeclockController;
@@ -52,6 +64,16 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TimeclockController.prototype, "syncBatch", null);
 __decorate([
+    (0, common_1.Get)('all'),
+    __param(0, (0, common_1.Query)('employeeId')),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __param(3, (0, common_1.Query)('status')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], TimeclockController.prototype, "findAllWithFilters", null);
+__decorate([
     (0, common_1.Get)('employee/:id'),
     (0, swagger_1.ApiQuery)({ name: 'date', required: false, description: 'YYYY-MM-DD' }),
     __param(0, (0, common_1.Param)('id')),
@@ -67,6 +89,28 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TimeclockController.prototype, "findByMission", null);
+__decorate([
+    (0, common_1.Post)('validate-batch'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TimeclockController.prototype, "validateBatch", null);
+__decorate([
+    (0, common_1.Post)(':id/validate'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], TimeclockController.prototype, "validateEntry", null);
+__decorate([
+    (0, common_1.Get)('employee/:id/flagged'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TimeclockController.prototype, "findFlaggedForEmployee", null);
 exports.TimeclockController = TimeclockController = __decorate([
     (0, swagger_1.ApiTags)('timeclock'),
     (0, swagger_1.ApiBearerAuth)(),
