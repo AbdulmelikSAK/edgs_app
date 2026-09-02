@@ -104,6 +104,22 @@ interface Employee {
   paidLeaveN?: number;
   paidLeaveN1?: number;
   hireDate?: string;
+  exitDate?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  ssNumber?: string;
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  contractType?: string;
+  contractStartDate?: string;
+  contractEndDate?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  baseMonthlyHours?: number;
+  functionTitle?: string;
+  medicalVisitDate?: string;
+  photoUrl?: string;
   rttBalance?: number;
 }
 
@@ -350,6 +366,113 @@ function App() {
   const [missionSearchQuery, setMissionSearchQuery] = useState('');
   const [missionStatusFilter, setMissionStatusFilter] = useState('');
 
+  // Facturation hebdomadaire des métrés
+  const [billingWeek, setBillingWeek] = useState<number>(getISOWeekAndYear(new Date()).week);
+  const [billingYear, setBillingYear] = useState<number>(getISOWeekAndYear(new Date()).year);
+
+  // GED & Types de documents privés (Backoffice)
+  const [customDocTypes, setCustomDocTypes] = useState<Array<{ id: string; title: string; entityType: 'EMPLOYEE' | 'TRUCK' }>>(() => {
+    const saved = localStorage.getItem('edgs_doc_types');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: '1', title: 'Carte Grise (PDF)', entityType: 'TRUCK' },
+      { id: '2', title: 'Attestation d\'Assurance', entityType: 'TRUCK' },
+      { id: '3', title: 'Contrôle Technique', entityType: 'TRUCK' },
+      { id: '4', title: 'RIB bancaire', entityType: 'EMPLOYEE' },
+      { id: '5', title: 'Pièce d\'identité / Passeport', entityType: 'EMPLOYEE' },
+      { id: '6', title: 'Permis de Conduire / Permis BE', entityType: 'EMPLOYEE' },
+      { id: '7', title: 'DPAE / Déclaration préalable', entityType: 'EMPLOYEE' },
+      { id: '8', title: 'Contrat de Travail & Avenants', entityType: 'EMPLOYEE' },
+      { id: '9', title: 'Fiche Visite Médicale', entityType: 'EMPLOYEE' },
+      { id: '10', title: 'Attestation Remise EPI', entityType: 'EMPLOYEE' }
+    ];
+  });
+
+  const [attachedEntityDocs, setAttachedEntityDocs] = useState<Array<{ id: string; entityType: 'EMPLOYEE' | 'TRUCK'; entityId: string; docTypeTitle: string; fileName: string; fileUrl: string; createdAt: string }>>(() => {
+    const saved = localStorage.getItem('edgs_attached_docs');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [];
+  });
+
+  const [newDocTypeTitle, setNewDocTypeTitle] = useState('');
+  const [newDocTypeEntity, setNewDocTypeEntity] = useState<'EMPLOYEE' | 'TRUCK'>('EMPLOYEE');
+  const [selectedEntityForDoc, setSelectedEntityForDoc] = useState<{ entityType: 'EMPLOYEE' | 'TRUCK'; entityId: string; entityName: string } | null>(null);
+  const [docUploadTypeTitle, setDocUploadTypeTitle] = useState('');
+  const [docUploadFile, setDocUploadFile] = useState<File | null>(null);
+
+  const handleAddCustomDocType = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDocTypeTitle.trim()) return;
+    const newType = {
+      id: String(Date.now()),
+      title: newDocTypeTitle.trim(),
+      entityType: newDocTypeEntity
+    };
+    const updated = [...customDocTypes, newType];
+    setCustomDocTypes(updated);
+    localStorage.setItem('edgs_doc_types', JSON.stringify(updated));
+    setNewDocTypeTitle('');
+  };
+
+  const handleDeleteCustomDocType = (id: string) => {
+    const updated = customDocTypes.filter(d => d.id !== id);
+    setCustomDocTypes(updated);
+    localStorage.setItem('edgs_doc_types', JSON.stringify(updated));
+  };
+
+  const handleUploadEntityDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEntityForDoc || !docUploadTypeTitle || !docUploadFile) {
+      alert('Veuillez sélectionner le type de document et le fichier à joindre.');
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('file', docUploadFile);
+      const res = await fetchWithAuth(`${API_BASE_URL}/announcements/upload-document`, {
+        method: 'POST',
+        body: formData
+      });
+      let fileUrl = '';
+      if (res.ok) {
+        const data = await res.json();
+        fileUrl = data.url;
+      } else {
+        fileUrl = URL.createObjectURL(docUploadFile);
+      }
+
+      const newDoc = {
+        id: String(Date.now()),
+        entityType: selectedEntityForDoc.entityType,
+        entityId: selectedEntityForDoc.entityId,
+        docTypeTitle: docUploadTypeTitle,
+        fileName: docUploadFile.name,
+        fileUrl: fileUrl || 'https://via.placeholder.com/300?text=Document+PDF',
+        createdAt: new Date().toISOString()
+      };
+      const updated = [newDoc, ...attachedEntityDocs];
+      setAttachedEntityDocs(updated);
+      localStorage.setItem('edgs_attached_docs', JSON.stringify(updated));
+      setSelectedEntityForDoc(null);
+      setDocUploadTypeTitle('');
+      setDocUploadFile(null);
+      alert('Document rattaché avec succès !');
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de l\'envoi du document.');
+    }
+  };
+
+  const handleDeleteAttachedDoc = (docId: string) => {
+    const updated = attachedEntityDocs.filter(d => d.id !== docId);
+    setAttachedEntityDocs(updated);
+    localStorage.setItem('edgs_attached_docs', JSON.stringify(updated));
+  };
+
   // Dynamic stocks state
   const [stockItems, setStockItems] = useState<any[]>([]);
   const [newStockItem, setNewStockItem] = useState({ name: '', unit: 'pcs', quantity: '', unitPrice: '' });
@@ -471,10 +594,26 @@ function App() {
     paidLeaveN: '30',
     paidLeaveN1: '0',
     hireDate: '',
+    exitDate: '',
+    birthDate: '',
+    birthPlace: '',
+    ssNumber: '',
+    address: '',
+    postalCode: '',
+    city: '',
+    contractType: 'CDI',
+    contractStartDate: '',
+    contractEndDate: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    baseMonthlyHours: '151.67',
+    functionTitle: 'Sableur',
+    medicalVisitDate: '',
+    photoUrl: '',
     rttBalance: '0',
     phone: '',
     email: '',
-    qualification: 'Chauffeur Poids Lourd',
+    qualification: 'Salarié EDGS',
   });
   const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
 
@@ -1166,6 +1305,23 @@ function App() {
         phone: newEmployee.phone,
         email: newEmployee.email,
         qualification: newEmployee.qualification,
+        hireDate: newEmployee.hireDate || undefined,
+        exitDate: newEmployee.exitDate || undefined,
+        birthDate: newEmployee.birthDate || undefined,
+        birthPlace: newEmployee.birthPlace || undefined,
+        ssNumber: newEmployee.ssNumber || undefined,
+        address: newEmployee.address || undefined,
+        postalCode: newEmployee.postalCode || undefined,
+        city: newEmployee.city || undefined,
+        contractType: newEmployee.contractType,
+        contractStartDate: newEmployee.contractStartDate || undefined,
+        contractEndDate: newEmployee.contractEndDate || undefined,
+        emergencyContactName: newEmployee.emergencyContactName || undefined,
+        emergencyContactPhone: newEmployee.emergencyContactPhone || undefined,
+        baseMonthlyHours: Number(newEmployee.baseMonthlyHours) || 151.67,
+        functionTitle: newEmployee.functionTitle,
+        medicalVisitDate: newEmployee.medicalVisitDate || undefined,
+        photoUrl: newEmployee.photoUrl || undefined,
       };
 
       if (newEmployee.password) {
@@ -1195,10 +1351,26 @@ function App() {
           paidLeaveN: '30',
           paidLeaveN1: '0',
           hireDate: '',
+          exitDate: '',
+          birthDate: '',
+          birthPlace: '',
+          ssNumber: '',
+          address: '',
+          postalCode: '',
+          city: '',
+          contractType: 'CDI',
+          contractStartDate: '',
+          contractEndDate: '',
+          emergencyContactName: '',
+          emergencyContactPhone: '',
+          baseMonthlyHours: '151.67',
+          functionTitle: 'Sableur',
+          medicalVisitDate: '',
+          photoUrl: '',
           rttBalance: '0',
           phone: '',
           email: '',
-          qualification: 'Chauffeur Poids Lourd',
+          qualification: 'Salarié EDGS',
         });
         setEditingEmployeeId(null);
         loadAllData();
@@ -2193,16 +2365,10 @@ function App() {
             Diffusion Documents Mobile
           </div>
 
-          {/* TAB 12: DEVIS */}
-          <div className={`nav-item ${activeTab === 'quotes' ? 'active' : ''}`} onClick={() => setActiveTab('quotes')}>
-            <FileSpreadsheet size={18} />
-            Gestion des Devis
-          </div>
-
-          {/* TAB 13: FACTURES */}
+          {/* TAB: FACTURES & METRES */}
           <div className={`nav-item ${activeTab === 'invoices' ? 'active' : ''}`} onClick={() => setActiveTab('invoices')}>
             <Receipt size={18} />
-            Facturation
+            Facturation (Métrés Semaine)
           </div>
 
           {/* TAB 14: AUDIT */}
@@ -4094,58 +4260,88 @@ function App() {
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Plaque</th>
-                        <th>Modèle</th>
-                        <th>PIN</th>
+                        <th>Plaque & Modèle</th>
                         <th>Kilométrage</th>
                         <th>CT / Assurance</th>
+                        <th>Documents Privés GED</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {trucks.map(t => (
-                        <tr key={t.id}>
-                          <td style={{ fontWeight: '700' }}>{t.plateNumber}</td>
-                          <td>{t.model} ({t.year})</td>
-                          <td style={{ fontFamily: 'monospace' }}>{t.pinCode || '--'}</td>
-                          <td>{(t.mileage || 0).toLocaleString()} km</td>
-                          <td>
-                            <div style={{ fontSize: '12px' }}>
-                              CT: {t.controlTechniqueDate ? new Date(t.controlTechniqueDate).toLocaleDateString('fr-FR') : '--'}
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                              Assur: {t.insuranceExpirationDate ? new Date(t.insuranceExpirationDate).toLocaleDateString('fr-FR') : '--'}
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '6px 12px', fontSize: '13px' }} 
-                                onClick={() => {
-                                  setEditingTruckId(t.id);
-                                  setNewTruck({
-                                    plateNumber: t.plateNumber,
-                                    model: t.model || '',
-                                    year: String(t.year || ''),
-                                    pinCode: t.pinCode || '',
-                                    stockAlertThreshold: String(t.stockAlertThreshold || 10),
-                                    controlTechniqueDate: t.controlTechniqueDate ? t.controlTechniqueDate.split('T')[0] : '',
-                                    insuranceExpirationDate: t.insuranceExpirationDate ? t.insuranceExpirationDate.split('T')[0] : '',
-                                    lastServiceDate: t.lastServiceDate ? t.lastServiceDate.split('T')[0] : '',
-                                    mileage: String(t.mileage || 0),
-                                  });
-                                }}
-                              >
-                                Modifier
-                              </button>
-                              <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteTruck(t.id)}>
-                                Supprimer
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {trucks.map(t => {
+                        const docs = attachedEntityDocs.filter(d => d.entityType === 'TRUCK' && d.entityId === t.id);
+                        return (
+                          <tr key={t.id}>
+                            <td>
+                              <strong style={{ fontSize: '15px' }}>{t.plateNumber}</strong>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.model} ({t.year})</div>
+                            </td>
+                            <td>{(t.mileage || 0).toLocaleString()} km</td>
+                            <td>
+                              <div style={{ fontSize: '12px' }}>
+                                CT: {t.controlTechniqueDate ? new Date(t.controlTechniqueDate).toLocaleDateString('fr-FR') : '--'}
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                Assur: {t.insuranceExpirationDate ? new Date(t.insuranceExpirationDate).toLocaleDateString('fr-FR') : '--'}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {docs.map(doc => (
+                                  <div key={doc.id} style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>📄 <strong>{doc.docTypeTitle}:</strong></span>
+                                    <a href={doc.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+                                      {doc.fileName}
+                                    </a>
+                                    <button 
+                                      type="button" 
+                                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                                      onClick={() => handleDeleteAttachedDoc(doc.id)}
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                                <button 
+                                  type="button" 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '2px 8px', fontSize: '11px', alignSelf: 'flex-start', marginTop: '4px' }}
+                                  onClick={() => setSelectedEntityForDoc({ entityType: 'TRUCK', entityId: t.id, entityName: `${t.plateNumber} (${t.model})` })}
+                                >
+                                  ➕ Rattacher un document
+                                </button>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '6px 12px', fontSize: '13px' }} 
+                                  onClick={() => {
+                                    setEditingTruckId(t.id);
+                                    setNewTruck({
+                                      plateNumber: t.plateNumber,
+                                      model: t.model || '',
+                                      year: String(t.year || ''),
+                                      pinCode: t.pinCode || '',
+                                      stockAlertThreshold: String(t.stockAlertThreshold || 10),
+                                      controlTechniqueDate: t.controlTechniqueDate ? t.controlTechniqueDate.split('T')[0] : '',
+                                      insuranceExpirationDate: t.insuranceExpirationDate ? t.insuranceExpirationDate.split('T')[0] : '',
+                                      lastServiceDate: t.lastServiceDate ? t.lastServiceDate.split('T')[0] : '',
+                                      mileage: String(t.mileage || 0),
+                                    });
+                                  }}
+                                >
+                                  Modifier
+                                </button>
+                                <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteTruck(t.id)}>
+                                  Supprimer
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -4534,146 +4730,272 @@ function App() {
           </div>
         )}
 
-        {/* TAB 11: EMPLOYEES */}
+        {/* TAB: EMPLOYEES (FICHES SALARIES RH & GED) */}
         {activeTab === 'employees' && (
           <div>
             <div style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Fiches Salariés</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Fiches du personnel contenant le **coût horaire chargé** pour le calcul automatique de la rentabilité.</p>
+              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Fiches Salariés & Dossiers RH</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Gestion administrative des salariés, suivi des visites médicales et rattachement des documents privés (Backoffice).</p>
+            </div>
+
+            {/* Document Types Management Header */}
+            <div className="glass-card" style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>⚙️ Types de Documents Personnalisés (GED Privée)</h3>
+              <form onSubmit={handleAddCustomDocType} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, minWidth: '220px' }}>
+                  <label className="form-label" style={{ fontSize: '12px' }}>Nouveau Type de Document (ex: Permis BE, DPAE, Carte Grise...)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Saisissez un libellé libre..." 
+                    value={newDocTypeTitle}
+                    onChange={e => setNewDocTypeTitle(e.target.value)}
+                    required
+                  />
+                </div>
+                <div style={{ width: '180px' }}>
+                  <label className="form-label" style={{ fontSize: '12px' }}>Cible / Entité</label>
+                  <select 
+                    className="form-input" 
+                    value={newDocTypeEntity}
+                    onChange={e => setNewDocTypeEntity(e.target.value as any)}
+                  >
+                    <option value="EMPLOYEE">👥 Salariés</option>
+                    <option value="TRUCK">🚚 Parc Véhicules</option>
+                  </select>
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ padding: '0 16px', height: '42px' }}>
+                  ➕ Ajouter ce type
+                </button>
+              </form>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '14px' }}>
+                {customDocTypes.map(dt => (
+                  <span key={dt.id} className={`badge ${dt.entityType === 'EMPLOYEE' ? 'badge-info' : 'badge-warning'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
+                    {dt.entityType === 'EMPLOYEE' ? '👤' : '🚚'} {dt.title}
+                    <button 
+                      type="button"
+                      style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold', marginLeft: '4px' }}
+                      onClick={() => handleDeleteCustomDocType(dt.id)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="grid-3">
+              {/* Form Salarié */}
               <div className="glass-card">
                 <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>
-                  {editingEmployeeId ? 'Modifier le Salarié' : 'Ajouter un Salarié'}
+                  {editingEmployeeId ? 'Modifier la Fiche Salarié' : 'Créer un Salarié'}
                 </h3>
                 <form onSubmit={handleCreateOrUpdateEmployee}>
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Prénom *</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={newEmployee.firstName}
+                        onChange={e => setNewEmployee({ ...newEmployee, firstName: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Nom *</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={newEmployee.lastName}
+                        onChange={e => setNewEmployee({ ...newEmployee, lastName: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Fonction / Métier</label>
+                      <select 
+                        className="form-input"
+                        value={newEmployee.functionTitle}
+                        onChange={e => setNewEmployee({ ...newEmployee, functionTitle: e.target.value })}
+                      >
+                        <option value="Sableur">Sableur</option>
+                        <option value="Bouchardeur">Bouchardeur</option>
+                        <option value="Ponceur">Ponceur</option>
+                        <option value="Hydrodécapeur">Hydrodécapeur</option>
+                        <option value="Chef d'Équipe">Chef d'Équipe</option>
+                        <option value="Second">Second / Aide</option>
+                        <option value="Autre">Autre</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Coût Horaire Chargé (€/h) *</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        value={newEmployee.hourlyRate}
+                        onChange={e => setNewEmployee({ ...newEmployee, hourlyRate: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Date d'embauche</label>
+                      <input 
+                        type="date" 
+                        className="form-input" 
+                        value={newEmployee.hireDate}
+                        onChange={e => setNewEmployee({ ...newEmployee, hireDate: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Date de sortie (Optionnel)</label>
+                      <input 
+                        type="date" 
+                        className="form-input" 
+                        value={newEmployee.exitDate}
+                        onChange={e => setNewEmployee({ ...newEmployee, exitDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Date de naissance</label>
+                      <input 
+                        type="date" 
+                        className="form-input" 
+                        value={newEmployee.birthDate}
+                        onChange={e => setNewEmployee({ ...newEmployee, birthDate: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Lieu de naissance</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Ville (Dép)"
+                        value={newEmployee.birthPlace}
+                        onChange={e => setNewEmployee({ ...newEmployee, birthPlace: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <div className="form-group">
-                    <label className="form-label">Prénom</label>
+                    <label className="form-label">N° Sécurité Sociale (N° SS)</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="Jean" 
-                      value={newEmployee.firstName}
-                      onChange={e => setNewEmployee({ ...newEmployee, firstName: e.target.value })}
-                      required
+                      placeholder="1 85 06 84 123 456 78"
+                      value={newEmployee.ssNumber}
+                      onChange={e => setNewEmployee({ ...newEmployee, ssNumber: e.target.value })}
                     />
                   </div>
+
                   <div className="form-group">
-                    <label className="form-label">Nom</label>
+                    <label className="form-label">Adresse postale complète</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="Dupont" 
-                      value={newEmployee.lastName}
-                      onChange={e => setNewEmployee({ ...newEmployee, lastName: e.target.value })}
-                      required
+                      placeholder="15 Rue de l'Usine, 84600 Grillon"
+                      value={newEmployee.address}
+                      onChange={e => setNewEmployee({ ...newEmployee, address: e.target.value })}
                     />
                   </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Type de contrat</label>
+                      <select 
+                        className="form-input"
+                        value={newEmployee.contractType}
+                        onChange={e => setNewEmployee({ ...newEmployee, contractType: e.target.value })}
+                      >
+                        <option value="CDI">CDI</option>
+                        <option value="CDD">CDD</option>
+                        <option value="Intérim">Intérim</option>
+                        <option value="Autre">Autre</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Base mensuelle (Heures)</label>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        value={newEmployee.baseMonthlyHours}
+                        onChange={e => setNewEmployee({ ...newEmployee, baseMonthlyHours: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Contact Urgence (Nom)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Époux / Parent"
+                        value={newEmployee.emergencyContactName}
+                        onChange={e => setNewEmployee({ ...newEmployee, emergencyContactName: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Contact Urgence (Tél)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="06 XX XX XX XX"
+                        value={newEmployee.emergencyContactPhone}
+                        onChange={e => setNewEmployee({ ...newEmployee, emergencyContactPhone: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <div className="form-group">
-                    <label className="form-label">Numéro de Badge (Optionnel)</label>
+                    <label className="form-label">Échéance Visite Médicale</label>
                     <input 
-                      type="text" 
+                      type="date" 
                       className="form-input" 
-                      placeholder="e.g. BDG-982" 
-                      value={newEmployee.badgeNumber}
-                      onChange={e => setNewEmployee({ ...newEmployee, badgeNumber: e.target.value })}
+                      value={newEmployee.medicalVisitDate}
+                      onChange={e => setNewEmployee({ ...newEmployee, medicalVisitDate: e.target.value })}
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Identifiant (Nom d'utilisateur)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="jdupont" 
-                      value={newEmployee.username}
-                      onChange={e => setNewEmployee({ ...newEmployee, username: e.target.value })}
-                    />
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Identifiant de connexion</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="jdupont" 
+                        value={newEmployee.username}
+                        onChange={e => setNewEmployee({ ...newEmployee, username: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Mot de passe</label>
+                      <input 
+                        type="password" 
+                        className="form-input" 
+                        placeholder={editingEmployeeId ? "(Inchangé)" : "123456"} 
+                        value={newEmployee.password}
+                        onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Mot de passe par défaut (Min 6 caractères)</label>
-                    <input 
-                      type="password" 
-                      className="form-input" 
-                      placeholder={editingEmployeeId ? "(Inchangé si vide)" : "Par défaut: 123456"} 
-                      value={newEmployee.password}
-                      onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Salaire Mensuel (Optionnel)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      placeholder="e.g. 2500" 
-                      value={newEmployee.monthlySalary}
-                      onChange={e => setNewEmployee({ ...newEmployee, monthlySalary: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Solde Congés Payés (jours)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      placeholder="e.g. 25" 
-                      value={newEmployee.paidLeaveBalance}
-                      onChange={e => setNewEmployee({ ...newEmployee, paidLeaveBalance: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Solde RTT (jours)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      placeholder="e.g. 10" 
-                      value={newEmployee.rttBalance}
-                      onChange={e => setNewEmployee({ ...newEmployee, rttBalance: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Coût Horaire Chargé (€/h)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      placeholder="45" 
-                      value={newEmployee.hourlyRate}
-                      onChange={e => setNewEmployee({ ...newEmployee, hourlyRate: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Téléphone</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newEmployee.phone}
-                      onChange={e => setNewEmployee({ ...newEmployee, phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Email</label>
-                    <input 
-                      type="email" 
-                      className="form-input" 
-                      value={newEmployee.email}
-                      onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Qualification / Rôle</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newEmployee.qualification}
-                      onChange={e => setNewEmployee({ ...newEmployee, qualification: e.target.value })}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                     <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                      {editingEmployeeId ? 'Enregistrer' : 'Créer'}
+                      {editingEmployeeId ? 'Enregistrer Salarié' : 'Créer Salarié'}
                     </button>
                     {editingEmployeeId && (
-                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingEmployeeId(null); setNewEmployee({ firstName: '', lastName: '', badgeNumber: '', username: '', password: '', hourlyRate: '35', monthlySalary: '', paidLeaveBalance: '0', paidLeaveN: '30', paidLeaveN1: '0', hireDate: '', rttBalance: '0', phone: '', email: '', qualification: 'Chauffeur Poids Lourd' }); }}>
+                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingEmployeeId(null); setNewEmployee({ firstName: '', lastName: '', badgeNumber: '', username: '', password: '', hourlyRate: '35', monthlySalary: '', paidLeaveBalance: '0', paidLeaveN: '30', paidLeaveN1: '0', hireDate: '', exitDate: '', birthDate: '', birthPlace: '', ssNumber: '', address: '', postalCode: '', city: '', contractType: 'CDI', contractStartDate: '', contractEndDate: '', emergencyContactName: '', emergencyContactPhone: '', baseMonthlyHours: '151.67', functionTitle: 'Sableur', medicalVisitDate: '', photoUrl: '', rttBalance: '0', phone: '', email: '', qualification: 'Salarié EDGS' }); }}>
                         Annuler
                       </button>
                     )}
@@ -4681,77 +5003,179 @@ function App() {
                 </form>
               </div>
 
+              {/* Table Salariés & Documents Privés */}
               <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Liste du Personnel</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Liste du Personnel & Documents Privés</h3>
                 <div className="table-container">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Identité</th>
-                        <th>Badge</th>
-                        <th>PIN</th>
-                        <th>Coût Horaire Chargé</th>
-                        <th>Contact</th>
-                        <th>Statut</th>
+                        <th>Salarié & Métier</th>
+                        <th>Contrat</th>
+                        <th>Visite Médicale</th>
+                        <th>Documents Privés GED</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {employees.map(emp => (
-                        <tr key={emp.id}>
-                          <td style={{ fontWeight: '600' }}>{emp.firstName} {emp.lastName}</td>
-                          <td>{emp.badgeNumber}</td>
-                          <td style={{ fontFamily: 'monospace' }}>{emp.pin || '--'}</td>
-                          <td style={{ fontWeight: '700' }}>{emp.hourlyRate || 35} € / h</td>
-                          <td>
-                            <div style={{ fontSize: '12px' }}>{emp.phone || '--'}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{emp.email || '--'}</div>
-                          </td>
-                          <td>
-                            <span className={`badge ${emp.isActive !== false ? 'badge-success' : 'badge-danger'}`}>
-                              {emp.isActive !== false ? 'Actif' : 'Inactif'}
-                            </span>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                className="btn btn-secondary" 
-                                style={{ padding: '6px 12px', fontSize: '13px' }} 
-                                onClick={() => {
-                                  setEditingEmployeeId(emp.id);
-                                  setNewEmployee({
-                                    firstName: emp.firstName,
-                                    lastName: emp.lastName,
-                                    badgeNumber: emp.badgeNumber,
-                                    username: emp.username || '',
-                                    password: '',
-                                    hourlyRate: String(emp.hourlyRate || 35),
-                                    monthlySalary: emp.monthlySalary ? String(emp.monthlySalary) : '',
-                                    paidLeaveBalance: String(emp.paidLeaveBalance || 0),
-                                    paidLeaveN: String(emp.paidLeaveN || 30),
-                                    paidLeaveN1: String(emp.paidLeaveN1 || 0),
-                                    hireDate: emp.hireDate ? new Date(emp.hireDate).toISOString().slice(0, 10) : '',
-                                    rttBalance: String(emp.rttBalance || 0),
-                                    phone: emp.phone || '',
-                                    email: emp.email || '',
-                                    qualification: emp.qualification || 'Chauffeur Poids Lourd',
-                                  });
-                                }}
-                              >
-                                Modifier
-                              </button>
-                              <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteEmployee(emp.id)}>
-                                Désactiver
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {employees.map(emp => {
+                        const docs = attachedEntityDocs.filter(d => d.entityType === 'EMPLOYEE' && d.entityId === emp.id);
+                        return (
+                          <tr key={emp.id}>
+                            <td>
+                              <strong style={{ fontSize: '15px' }}>{emp.firstName} {emp.lastName}</strong>
+                              <div style={{ fontSize: '12px', color: 'var(--primary)' }}>
+                                🛠️ {emp.functionTitle || emp.qualification || 'Salarié'} ({emp.hourlyRate || 35}€/h)
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>📞 {emp.phone || 'Pas de tél'}</div>
+                            </td>
+                            <td>
+                              <span className="badge badge-info">{emp.contractType || 'CDI'}</span>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                Base: {emp.baseMonthlyHours || 151.67}h/mois
+                              </div>
+                            </td>
+                            <td>
+                              {emp.medicalVisitDate ? (
+                                <span className="badge badge-success">
+                                  📅 {new Date(emp.medicalVisitDate).toLocaleDateString('fr-FR')}
+                                </span>
+                              ) : (
+                                <span className="badge badge-warning">Non programmée</span>
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {docs.map(doc => (
+                                  <div key={doc.id} style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>📄 <strong>{doc.docTypeTitle}:</strong></span>
+                                    <a href={doc.fileUrl} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
+                                      {doc.fileName}
+                                    </a>
+                                    <button 
+                                      type="button" 
+                                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                                      onClick={() => handleDeleteAttachedDoc(doc.id)}
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                                <button 
+                                  type="button" 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '2px 8px', fontSize: '11px', alignSelf: 'flex-start', marginTop: '4px' }}
+                                  onClick={() => setSelectedEntityForDoc({ entityType: 'EMPLOYEE', entityId: emp.id, entityName: `${emp.firstName} ${emp.lastName}` })}
+                                >
+                                  ➕ Rattacher un document
+                                </button>
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '6px 12px', fontSize: '13px' }} 
+                                  onClick={() => {
+                                    setEditingEmployeeId(emp.id);
+                                    setNewEmployee({
+                                      firstName: emp.firstName,
+                                      lastName: emp.lastName,
+                                      badgeNumber: emp.badgeNumber || '',
+                                      username: emp.username || '',
+                                      password: '',
+                                      hourlyRate: String(emp.hourlyRate || 35),
+                                      monthlySalary: emp.monthlySalary ? String(emp.monthlySalary) : '',
+                                      paidLeaveBalance: String(emp.paidLeaveBalance || 0),
+                                      paidLeaveN: String(emp.paidLeaveN || 30),
+                                      paidLeaveN1: String(emp.paidLeaveN1 || 0),
+                                      hireDate: emp.hireDate ? new Date(emp.hireDate).toISOString().slice(0, 10) : '',
+                                      exitDate: emp.exitDate ? new Date(emp.exitDate).toISOString().slice(0, 10) : '',
+                                      birthDate: emp.birthDate ? new Date(emp.birthDate).toISOString().slice(0, 10) : '',
+                                      birthPlace: emp.birthPlace || '',
+                                      ssNumber: emp.ssNumber || '',
+                                      address: emp.address || '',
+                                      postalCode: emp.postalCode || '',
+                                      city: emp.city || '',
+                                      contractType: emp.contractType || 'CDI',
+                                      contractStartDate: emp.contractStartDate ? new Date(emp.contractStartDate).toISOString().slice(0, 10) : '',
+                                      contractEndDate: emp.contractEndDate ? new Date(emp.contractEndDate).toISOString().slice(0, 10) : '',
+                                      emergencyContactName: emp.emergencyContactName || '',
+                                      emergencyContactPhone: emp.emergencyContactPhone || '',
+                                      baseMonthlyHours: String(emp.baseMonthlyHours || 151.67),
+                                      functionTitle: emp.functionTitle || 'Sableur',
+                                      medicalVisitDate: emp.medicalVisitDate ? new Date(emp.medicalVisitDate).toISOString().slice(0, 10) : '',
+                                      photoUrl: emp.photoUrl || '',
+                                      rttBalance: String(emp.rttBalance || 0),
+                                      phone: emp.phone || '',
+                                      email: emp.email || '',
+                                      qualification: emp.qualification || 'Salarié EDGS',
+                                    });
+                                  }}
+                                >
+                                  Modifier
+                                </button>
+                                <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteEmployee(emp.id)}>
+                                  Désactiver
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
+
+            {/* Modal Upload Document Privé */}
+            {selectedEntityForDoc && (
+              <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="glass-card" style={{ width: '450px', backgroundColor: '#0f172a', border: '1px solid #3b82f6', padding: '24px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
+                    📄 Rattacher un document pour {selectedEntityForDoc.entityName}
+                  </h3>
+                  <form onSubmit={handleUploadEntityDoc}>
+                    <div className="form-group">
+                      <label className="form-label">Type de Document</label>
+                      <select 
+                        className="form-input" 
+                        value={docUploadTypeTitle} 
+                        onChange={e => setDocUploadTypeTitle(e.target.value)}
+                        required
+                      >
+                        <option value="">Sélectionner un type de document...</option>
+                        {customDocTypes
+                          .filter(d => d.entityType === selectedEntityForDoc.entityType)
+                          .map(d => (
+                            <option key={d.id} value={d.title}>{d.title}</option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Fichier (PDF / Image)</label>
+                      <input 
+                        type="file" 
+                        className="form-input" 
+                        onChange={e => setDocUploadFile(e.target.files ? e.target.files[0] : null)}
+                        required
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+                      <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                        Enregistrer le document
+                      </button>
+                      <button type="button" className="btn btn-secondary" onClick={() => setSelectedEntityForDoc(null)}>
+                        Annuler
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -5012,117 +5436,167 @@ function App() {
           </div>
         )}
 
-        {/* TAB 13: INVOICES */}
+        {/* TAB: FACTURATION (RELEVE DES METRES PAR SEMAINE) */}
         {activeTab === 'invoices' && (
           <div>
-            <div style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Facturation</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Émettez les factures et gérez le suivi des encaissements.</p>
-            </div>
-
-            <div className="grid-3" style={{ marginBottom: '32px' }}>
-              <div className="glass-card">
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Créer une Facture</h3>
-                <form onSubmit={handleCreateInvoice}>
-                  <div className="form-group">
-                    <label className="form-label">Client</label>
-                    <select 
-                      className="form-input" 
-                      value={newInvoiceForm.clientId}
-                      onChange={e => setNewInvoiceForm({ ...newInvoiceForm, clientId: e.target.value })}
-                      required
-                    >
-                      <option value="">Sélectionner un client...</option>
-                      {clients.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">N° Facture (e.g. FAC-2026-01)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="FAC-2026-01" 
-                      value={newInvoiceForm.invoiceNumber}
-                      onChange={e => setNewInvoiceForm({ ...newInvoiceForm, invoiceNumber: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Lignes de facture</label>
-                    <textarea 
-                      className="form-input" 
-                      placeholder='[{"description":"Facture finale", "quantity":1, "unitPrice":5200}]'
-                      rows={3}
-                      value={newInvoiceForm.linesText}
-                      onChange={e => setNewInvoiceForm({ ...newInvoiceForm, linesText: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Total HT (€)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={newInvoiceForm.totalHT}
-                      onChange={e => setNewInvoiceForm({ ...newInvoiceForm, totalHT: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Échéance de paiement</label>
-                    <input 
-                      type="date" 
-                      className="form-input" 
-                      value={newInvoiceForm.dueDate}
-                      onChange={e => setNewInvoiceForm({ ...newInvoiceForm, dueDate: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                    Enregistrer la Facture
-                  </button>
-                </form>
+            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Relève des Métrés & Facturation</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>Métrés réalisés par chantier sur la semaine choisie pour saisir vos factures dans votre outil externe.</p>
               </div>
 
-              <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Suivi Factures</h3>
-                <div className="table-container">
-                  <table className="custom-table">
-                    <thead>
+              {/* Week Navigation */}
+              <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ padding: '6px 12px' }}
+                  onClick={() => {
+                    if (billingWeek === 1) {
+                      setBillingWeek(52);
+                      setBillingYear(prev => prev - 1);
+                    } else {
+                      setBillingWeek(prev => prev - 1);
+                    }
+                  }}
+                >
+                  ← Semaine Précédente
+                </button>
+
+                <div style={{ textAlign: 'center', minWidth: '160px' }}>
+                  <div style={{ fontWeight: '800', fontSize: '16px', color: 'var(--primary)' }}>
+                    Semaine {billingWeek} - {billingYear}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    Chantiers en cours / terminés
+                  </div>
+                </div>
+
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ padding: '6px 12px' }}
+                  onClick={() => {
+                    if (billingWeek >= 52) {
+                      setBillingWeek(1);
+                      setBillingYear(prev => prev + 1);
+                    } else {
+                      setBillingWeek(prev => prev + 1);
+                    }
+                  }}
+                >
+                  Semaine Suivante →
+                </button>
+
+                <button 
+                  className="btn btn-primary" 
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                  onClick={() => {
+                    const now = getISOWeekAndYear(new Date());
+                    setBillingWeek(now.week);
+                    setBillingYear(now.year);
+                  }}
+                >
+                  Semaine En Cours
+                </button>
+              </div>
+            </div>
+
+            <div className="glass-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '700' }}>
+                  Métrés réalisés en Semaine {billingWeek} ({billingYear})
+                </h3>
+                <button 
+                  className="btn btn-secondary" 
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  onClick={() => {
+                    const csvRows = [
+                      ['Client', 'Chantier', 'Type Prestation', 'Statut', 'Métré Prévu', 'Métré Réalisé Semaine', 'Prix HT Estimé'],
+                      ...missions.map(m => [
+                        m.clientName || 'NC',
+                        m.title,
+                        m.type,
+                        m.status,
+                        `${m.surfaceArea || 0} ${m.estimatedUnit || 'm²'}`,
+                        `${m.surfaceArea || 0} ${m.estimatedUnit || 'm²'}`,
+                        `${m.estimatedPrice || 0} €`
+                      ])
+                    ];
+                    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map(e => e.join(";")).join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `releve_metres_semaine_${billingWeek}_${billingYear}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                >
+                  <Download size={16} /> Exporter la Relève (CSV)
+                </button>
+              </div>
+
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Client & Localisation</th>
+                      <th>Chantier & Prestation</th>
+                      <th>Statut</th>
+                      <th>Chef de Chantier</th>
+                      <th>Métré Prévu</th>
+                      <th>Métré Réalisé la Semaine</th>
+                      <th>Prix Estimé HT</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {missions.length === 0 ? (
                       <tr>
-                        <th>N° Facture</th>
-                        <th>Client</th>
-                        <th>Date Échéance</th>
-                        <th>Total TTC</th>
-                        <th>Statut</th>
-                        <th>Actions</th>
+                        <td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                          Aucun chantier enregistré pour cette semaine.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {invoices.map(inv => (
-                        <tr key={inv.id}>
-                          <td style={{ fontWeight: '700' }}>{inv.invoiceNumber}</td>
-                          <td>{inv.client?.name}</td>
-                          <td>{new Date(inv.dueDate).toLocaleDateString('fr-FR')}</td>
-                          <td style={{ fontWeight: '600' }}>{(inv.totalHT * (1 + (inv.vatRate || 20) / 100)).toLocaleString('fr-FR')} €</td>
+                    ) : (
+                      missions.map(m => (
+                        <tr key={m.id}>
                           <td>
-                            <span className={`badge ${inv.status === 'Payé' ? 'badge-success' : inv.status === 'Retard' ? 'badge-danger' : 'badge-warning'}`}>
-                              {inv.status}
+                            <strong style={{ color: '#38bdf8' }}>{m.clientName || 'Client inconnu'}</strong>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>📍 {m.worksiteAddress || 'Non renseigné'}</div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: '700' }}>{m.title}</div>
+                            <span className="badge badge-info" style={{ marginTop: '4px' }}>{m.type}</span>
+                          </td>
+                          <td>
+                            <span className={`badge ${m.status === 'completed' ? 'badge-success' : 'badge-warning'}`}>
+                              {m.status === 'completed' ? 'Terminé' : 'En cours'}
                             </span>
                           </td>
+                          <td>{m.chefDeMission ? `${m.chefDeMission.firstName} ${m.chefDeMission.lastName}` : '--'}</td>
+                          <td style={{ fontWeight: '600' }}>{m.surfaceArea ? `${m.surfaceArea} ${m.estimatedUnit || 'm²'}` : '--'}</td>
                           <td>
-                            {inv.status !== 'Payé' && (
-                              <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => handleUpdateInvoiceStatus(inv.id, 'Payé')}>
-                                Marquer comme Payée
-                              </button>
-                            )}
+                            <span style={{ fontSize: '15px', fontWeight: '800', color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '6px' }}>
+                              {m.surfaceArea ? `${m.surfaceArea} ${m.estimatedUnit || 'm²'}` : '0 m²'}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: '700' }}>{m.estimatedPrice ? `${m.estimatedPrice} €` : '--'}</td>
+                          <td>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '6px 12px', fontSize: '12px' }}
+                              onClick={() => {
+                                navigator.clipboard.writeText(`Client: ${m.clientName} | Chantier: ${m.title} | Métré: ${m.surfaceArea || 0} ${m.estimatedUnit || 'm²'} | Montant: ${m.estimatedPrice || 0}€`);
+                                alert(`Copié pour votre outil de facturation !`);
+                              }}
+                            >
+                              📋 Copier Données
+                            </button>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
