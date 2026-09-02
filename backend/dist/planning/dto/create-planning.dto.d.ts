@@ -4,5 +4,6 @@ export declare class CreatePlanningDto {
     dayOfWeek: number;
     missionId: string;
     employeeIds?: string[];
+    teamLeaderId?: string;
     notes?: string;
 }

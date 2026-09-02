@@ -32,6 +32,11 @@ export class CreatePlanningDto {
   @IsUUID(undefined, { each: true })
   employeeIds?: string[];
 
+  @ApiPropertyOptional({ example: 'uuid-chef' })
+  @IsOptional()
+  @IsUUID()
+  teamLeaderId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

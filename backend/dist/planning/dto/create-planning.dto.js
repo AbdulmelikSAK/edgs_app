@@ -19,6 +19,7 @@ class CreatePlanningDto {
     dayOfWeek;
     missionId;
     employeeIds;
+    teamLeaderId;
     notes;
 }
 exports.CreatePlanningDto = CreatePlanningDto;
@@ -56,6 +57,12 @@ __decorate([
     (0, class_validator_1.IsUUID)(undefined, { each: true }),
     __metadata("design:type", Array)
 ], CreatePlanningDto.prototype, "employeeIds", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'uuid-chef' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreatePlanningDto.prototype, "teamLeaderId", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),

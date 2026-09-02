@@ -20,6 +20,7 @@ let WeeklyPlanning = class WeeklyPlanning {
     dayOfWeek;
     mission;
     employees;
+    teamLeaderId;
     notes;
     createdAt;
     updatedAt;
@@ -51,6 +52,10 @@ __decorate([
     (0, typeorm_1.JoinTable)({ name: 'planning_employees' }),
     __metadata("design:type", Array)
 ], WeeklyPlanning.prototype, "employees", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, type: 'varchar' }),
+    __metadata("design:type", String)
+], WeeklyPlanning.prototype, "teamLeaderId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
     __metadata("design:type", String)

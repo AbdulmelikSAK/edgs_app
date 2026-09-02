@@ -24,6 +24,9 @@ export class WeeklyPlanning {
   @JoinTable({ name: 'planning_employees' })
   employees: Employee[];
 
+  @Column({ nullable: true, type: 'varchar' })
+  teamLeaderId?: string;
+
   @Column({ nullable: true, type: 'text' })
   notes: string;
 

@@ -7,6 +7,7 @@ export declare class WeeklyPlanning {
     dayOfWeek: number;
     mission: Mission;
     employees: Employee[];
+    teamLeaderId?: string;
     notes: string;
     createdAt: Date;
     updatedAt: Date;
