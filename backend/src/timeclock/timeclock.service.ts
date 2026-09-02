@@ -22,11 +22,37 @@ export class TimeclockService {
     const mission = dto.missionId ? await this.missionRepo.findOne({ where: { id: dto.missionId } }) : null;
     const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
 
+    const isBadWeather = dto.type === ('intemperie' as any) || dto.type === TimeEntryType.INTEMPERIE;
+
+    // If intempérie, mark day entries for employee as intempérie 7h
+    if (isBadWeather) {
+      const todayStart = new Date(dto.timestamp || new Date());
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(dto.timestamp || new Date());
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const existingTodayEntries = await this.timeEntryRepo.find({
+        where: {
+          employee: { id: dto.employeeId },
+          timestamp: Between(todayStart, todayEnd),
+        },
+      });
+
+      for (const oldEntry of existingTodayEntries) {
+        oldEntry.isBadWeather = true;
+        oldEntry.entryCategory = 'INTEMPERIE';
+        await this.timeEntryRepo.save(oldEntry);
+      }
+    }
+
     const entry = this.timeEntryRepo.create({
       employee,
       mission: mission ?? undefined,
       truck: truck ?? undefined,
       type: dto.type,
+      entryCategory: isBadWeather ? 'INTEMPERIE' : 'TRAVAIL',
+      isBadWeather,
+      hoursWorked: isBadWeather ? 7.0 : undefined,
       timestamp: dto.timestamp ? new Date(dto.timestamp) : new Date(),
       latitude: dto.latitude,
       longitude: dto.longitude,

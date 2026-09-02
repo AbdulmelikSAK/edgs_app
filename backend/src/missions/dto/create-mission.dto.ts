@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsDateString, IsNumber, IsUUID, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class CreateMissionDto {
   @ApiProperty({ example: 'Sablage façade immeuble A' })
@@ -46,31 +46,50 @@ export class CreateMissionDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  estimatedUnit?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   notes?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsUUID()
   truckId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsUUID()
   clientId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsUUID()
+  siteSupervisorId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsUUID()
   worksiteId?: string;
 
   @ApiPropertyOptional({ type: [String], example: ['uuid-1', 'uuid-2'] })
   @IsOptional()
   @IsArray()
-  @IsUUID(undefined, { each: true })
   employeeIds?: string[];
 
   @ApiPropertyOptional({ example: 'uuid-leader' })
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsUUID()
   chefDeMissionId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  attachedFiles?: string[];
 }

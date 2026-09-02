@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Employee = void 0;
 const typeorm_1 = require("typeorm");
 const role_entity_1 = require("./role.entity");
+const employee_document_entity_1 = require("./employee-document.entity");
 let Employee = class Employee {
     id;
     firstName;
@@ -22,16 +23,33 @@ let Employee = class Employee {
     badgeNumber;
     isActive;
     hourlyRate;
-    monthlySalary;
     paidLeaveBalance;
     paidLeaveN;
     paidLeaveN1;
-    hireDate;
     rttBalance;
+    monthlySalary;
+    hireDate;
+    exitDate;
+    birthDate;
+    birthPlace;
+    ssNumber;
+    address;
+    postalCode;
+    city;
+    contractType;
+    contractStartDate;
+    contractEndDate;
+    amendmentsJson;
+    emergencyContactName;
+    emergencyContactPhone;
+    baseMonthlyHours;
+    functionTitle;
+    medicalVisitDate;
+    photoUrl;
     phone;
     email;
     qualification;
-    documents;
+    employeeDocuments;
     role;
     createdAt;
     updatedAt;
@@ -74,10 +92,6 @@ __decorate([
     __metadata("design:type", Number)
 ], Employee.prototype, "hourlyRate", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, nullable: true }),
-    __metadata("design:type", Number)
-], Employee.prototype, "monthlySalary", void 0);
-__decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
     __metadata("design:type", Number)
 ], Employee.prototype, "paidLeaveBalance", void 0);
@@ -90,13 +104,85 @@ __decorate([
     __metadata("design:type", Number)
 ], Employee.prototype, "paidLeaveN1", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00, nullable: true }),
+    __metadata("design:type", Number)
+], Employee.prototype, "rttBalance", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], Employee.prototype, "monthlySalary", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'date', nullable: true }),
     __metadata("design:type", String)
 ], Employee.prototype, "hireDate", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0.00 }),
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "exitDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "birthDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "birthPlace", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "ssNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "address", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "postalCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "city", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, default: 'CDI' }),
+    __metadata("design:type", String)
+], Employee.prototype, "contractType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "contractStartDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "contractEndDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "amendmentsJson", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "emergencyContactName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "emergencyContactPhone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 151.67 }),
     __metadata("design:type", Number)
-], Employee.prototype, "rttBalance", void 0);
+], Employee.prototype, "baseMonthlyHours", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "functionTitle", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "medicalVisitDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Employee.prototype, "photoUrl", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', nullable: true }),
     __metadata("design:type", Object)
@@ -110,9 +196,9 @@ __decorate([
     __metadata("design:type", String)
 ], Employee.prototype, "qualification", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
-    __metadata("design:type", String)
-], Employee.prototype, "documents", void 0);
+    (0, typeorm_1.OneToMany)(() => employee_document_entity_1.EmployeeDocument, (doc) => doc.employee, { cascade: true }),
+    __metadata("design:type", Array)
+], Employee.prototype, "employeeDocuments", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => role_entity_1.Role, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),

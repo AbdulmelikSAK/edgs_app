@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateClientDto {
@@ -23,7 +23,6 @@ export class CreateClientDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEmail()
   email?: string;
 
   @ApiPropertyOptional()
@@ -45,4 +44,14 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   countryCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  contacts?: Array<{ firstName: string; lastName: string; role?: string; phone?: string; email?: string }>;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  siteSupervisors?: Array<{ firstName: string; lastName: string; phone?: string; email?: string }>;
 }

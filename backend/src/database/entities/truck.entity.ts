@@ -18,6 +18,9 @@ export class Truck {
   @Column({ nullable: true })
   type: string;
 
+  @Column({ nullable: true, default: 'VEHICLE' })
+  equipmentCategory: string; // VEHICLE or COMPRESSOR
+
   @Column({ nullable: true })
   year: number;
 
@@ -33,6 +36,15 @@ export class Truck {
   @Column({ type: 'int', default: 0 })
   mileage: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  operatingHours: number; // For compressors
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 20.0 })
+  fuelConsumptionRate: number; // 20L/hour default for compressor
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  lastServiceHours: number; // Last service hours mark for 500h maintenance alert
+
   @Column({ type: 'timestamp', nullable: true })
   insuranceExpirationDate: Date;
 
@@ -43,7 +55,7 @@ export class Truck {
   lastServiceDate: Date;
 
   @Column({ nullable: true })
-  registrationCardUrl: string;
+  registrationCardUrl: string; // Carte grise PDF
 
   @Column({ nullable: true })
   insuranceCardUrl: string;

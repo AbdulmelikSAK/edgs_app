@@ -5,11 +5,15 @@ export declare class Truck {
     pinCode: string;
     model: string;
     type: string;
+    equipmentCategory: string;
     year: number;
     currentStock: number;
     stockAlertThreshold: number;
     isActive: boolean;
     mileage: number;
+    operatingHours: number;
+    fuelConsumptionRate: number;
+    lastServiceHours: number;
     insuranceExpirationDate: Date;
     controlTechniqueDate: Date;
     lastServiceDate: Date;

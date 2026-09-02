@@ -22,6 +22,7 @@ var TimeEntryType;
     TimeEntryType["MISSION_END"] = "mission_end";
     TimeEntryType["PAUSE_START"] = "pause_start";
     TimeEntryType["PAUSE_END"] = "pause_end";
+    TimeEntryType["INTEMPERIE"] = "intemperie";
 })(TimeEntryType || (exports.TimeEntryType = TimeEntryType = {}));
 var TimeEntryStatus;
 (function (TimeEntryStatus) {
@@ -36,6 +37,9 @@ let TimeEntry = class TimeEntry {
     truck;
     mission;
     type;
+    entryCategory;
+    isBadWeather;
+    hoursWorked;
     timestamp;
     latitude;
     longitude;
@@ -74,6 +78,18 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: TimeEntryType }),
     __metadata("design:type", String)
 ], TimeEntry.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimeEntry.prototype, "entryCategory", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], TimeEntry.prototype, "isBadWeather", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, nullable: true }),
+    __metadata("design:type", Number)
+], TimeEntry.prototype, "hoursWorked", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'timestamp' }),
     __metadata("design:type", Date)

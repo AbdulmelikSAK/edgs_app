@@ -15,7 +15,7 @@ export declare class AuthController {
             role: import("../database/entities/role.entity").RoleName;
             mustChangePassword: boolean;
             paidLeaveBalance: number;
-            rttBalance: number;
+            rttBalance: number | undefined;
         };
     }>;
     changePassword(req: any, dto: ChangePasswordDto): Promise<{

@@ -44,6 +44,7 @@ let Mission = class Mission {
     fuelConsumption;
     sandBagsUsed;
     notes;
+    attachedFilesJson;
     truck;
     client;
     siteSupervisor;
@@ -134,6 +135,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
     __metadata("design:type", String)
 ], Mission.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, type: 'text' }),
+    __metadata("design:type", String)
+], Mission.prototype, "attachedFilesJson", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => truck_entity_1.Truck, { nullable: true }),
     (0, typeorm_1.JoinColumn)(),

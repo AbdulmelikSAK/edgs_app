@@ -10,6 +10,7 @@ export enum TimeEntryType {
   MISSION_END = 'mission_end',
   PAUSE_START = 'pause_start',
   PAUSE_END = 'pause_end',
+  INTEMPERIE = 'intemperie',
 }
 
 export enum TimeEntryStatus {
@@ -38,6 +39,15 @@ export class TimeEntry {
 
   @Column({ type: 'enum', enum: TimeEntryType })
   type: TimeEntryType;
+
+  @Column({ nullable: true })
+  entryCategory: string; // TRAVAIL, INTEMPERIE, ABSENCE, MALADIE, CONGE
+
+  @Column({ default: false })
+  isBadWeather: boolean;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  hoursWorked: number;
 
   @Column({ type: 'timestamp' })
   timestamp: Date;

@@ -22,12 +22,15 @@ class CreateMissionDto {
     scheduledDate;
     estimatedPrice;
     surfaceArea;
+    estimatedUnit;
     notes;
     truckId;
     clientId;
+    siteSupervisorId;
     worksiteId;
     employeeIds;
     chefDeMissionId;
+    attachedFiles;
 }
 exports.CreateMissionDto = CreateMissionDto;
 __decorate([
@@ -83,22 +86,38 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], CreateMissionDto.prototype, "estimatedUnit", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateMissionDto.prototype, "notes", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' ? undefined : value)),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateMissionDto.prototype, "truckId", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' ? undefined : value)),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateMissionDto.prototype, "clientId", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' ? undefined : value)),
+    (0, class_validator_1.IsUUID)(),
+    __metadata("design:type", String)
+], CreateMissionDto.prototype, "siteSupervisorId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' ? undefined : value)),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateMissionDto.prototype, "worksiteId", void 0);
@@ -106,13 +125,19 @@ __decorate([
     (0, swagger_1.ApiPropertyOptional)({ type: [String], example: ['uuid-1', 'uuid-2'] }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsUUID)(undefined, { each: true }),
     __metadata("design:type", Array)
 ], CreateMissionDto.prototype, "employeeIds", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ example: 'uuid-leader' }),
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' ? undefined : value)),
     (0, class_validator_1.IsUUID)(),
     __metadata("design:type", String)
 ], CreateMissionDto.prototype, "chefDeMissionId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], CreateMissionDto.prototype, "attachedFiles", void 0);
 //# sourceMappingURL=create-mission.dto.js.map

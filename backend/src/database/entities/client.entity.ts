@@ -1,4 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { ClientContact } from './client-contact.entity';
+import { SiteSupervisor } from './site-supervisor.entity';
 
 @Entity('clients')
 export class Client {
@@ -34,6 +36,12 @@ export class Client {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @OneToMany(() => ClientContact, (contact) => contact.client, { cascade: true })
+  contacts: ClientContact[];
+
+  @OneToMany(() => SiteSupervisor, (supervisor) => supervisor.client)
+  siteSupervisors: SiteSupervisor[];
 
   @CreateDateColumn()
   createdAt: Date;

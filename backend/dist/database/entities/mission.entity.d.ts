@@ -30,6 +30,7 @@ export declare class Mission {
     fuelConsumption: number;
     sandBagsUsed: number;
     notes: string;
+    attachedFilesJson: string;
     truck: Truck;
     client: Client;
     siteSupervisor: SiteSupervisor;

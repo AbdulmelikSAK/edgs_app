@@ -35,6 +35,8 @@ export class MissionsService {
       ? await this.employeeRepo.findOne({ where: { id: dto.chefDeMissionId } }) 
       : null;
 
+    const attachedFilesJson = dto.attachedFiles ? JSON.stringify(dto.attachedFiles) : undefined;
+
     const mission = this.missionRepo.create({
       ...dto,
       truck: truck ?? undefined,
@@ -43,6 +45,7 @@ export class MissionsService {
       worksite: worksite ?? undefined,
       employees,
       chefDeMission,
+      attachedFilesJson,
     } as any);
     return this.missionRepo.save(mission as any);
   }

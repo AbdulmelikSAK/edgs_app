@@ -1,3 +1,5 @@
+import { ClientContact } from './client-contact.entity';
+import { SiteSupervisor } from './site-supervisor.entity';
 export declare class Client {
     id: string;
     code: string;
@@ -10,6 +12,8 @@ export declare class Client {
     city: string;
     countryCode: string;
     isActive: boolean;
+    contacts: ClientContact[];
+    siteSupervisors: SiteSupervisor[];
     createdAt: Date;
     updatedAt: Date;
 }

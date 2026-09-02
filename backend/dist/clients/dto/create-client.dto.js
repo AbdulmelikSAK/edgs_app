@@ -22,6 +22,8 @@ class CreateClientDto {
     zipCode;
     city;
     countryCode;
+    contacts;
+    siteSupervisors;
 }
 exports.CreateClientDto = CreateClientDto;
 __decorate([
@@ -50,7 +52,6 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)(),
     __metadata("design:type", String)
 ], CreateClientDto.prototype, "email", void 0);
 __decorate([
@@ -77,4 +78,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateClientDto.prototype, "countryCode", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], CreateClientDto.prototype, "contacts", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], CreateClientDto.prototype, "siteSupervisors", void 0);
 //# sourceMappingURL=create-client.dto.js.map

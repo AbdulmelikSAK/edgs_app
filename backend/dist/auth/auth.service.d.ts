@@ -19,7 +19,7 @@ export declare class AuthService {
             role: import("../database/entities/role.entity").RoleName;
             mustChangePassword: boolean;
             paidLeaveBalance: number;
-            rttBalance: number;
+            rttBalance: number | undefined;
         };
     }>;
     changePassword(employeeId: string, newPassword: string): Promise<{

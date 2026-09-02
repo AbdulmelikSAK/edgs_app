@@ -18,11 +18,15 @@ let Truck = class Truck {
     pinCode;
     model;
     type;
+    equipmentCategory;
     year;
     currentStock;
     stockAlertThreshold;
     isActive;
     mileage;
+    operatingHours;
+    fuelConsumptionRate;
+    lastServiceHours;
     insuranceExpirationDate;
     controlTechniqueDate;
     lastServiceDate;
@@ -54,6 +58,10 @@ __decorate([
     __metadata("design:type", String)
 ], Truck.prototype, "type", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true, default: 'VEHICLE' }),
+    __metadata("design:type", String)
+], Truck.prototype, "equipmentCategory", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", Number)
 ], Truck.prototype, "year", void 0);
@@ -73,6 +81,18 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 0 }),
     __metadata("design:type", Number)
 ], Truck.prototype, "mileage", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Truck.prototype, "operatingHours", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 20.0 }),
+    __metadata("design:type", Number)
+], Truck.prototype, "fuelConsumptionRate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Truck.prototype, "lastServiceHours", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'timestamp', nullable: true }),
     __metadata("design:type", Date)

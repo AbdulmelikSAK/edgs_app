@@ -17,10 +17,14 @@ class CreateTruckDto {
     plateNumber;
     pinCode;
     model;
+    equipmentCategory;
     year;
     currentStock;
     stockAlertThreshold;
     mileage;
+    operatingHours;
+    fuelConsumptionRate;
+    lastServiceHours;
     insuranceExpirationDate;
     controlTechniqueDate;
     lastServiceDate;
@@ -45,6 +49,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTruckDto.prototype, "model", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'VEHICLE' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTruckDto.prototype, "equipmentCategory", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ example: 2020 }),
     (0, class_validator_1.IsOptional)(),
@@ -76,6 +86,27 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], CreateTruckDto.prototype, "mileage", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 1500 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateTruckDto.prototype, "operatingHours", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 20.0 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateTruckDto.prototype, "fuelConsumptionRate", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 1000 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateTruckDto.prototype, "lastServiceHours", void 0);
 __decorate([
     (0, swagger_1.ApiPropertyOptional)(),
     (0, class_validator_1.IsOptional)(),

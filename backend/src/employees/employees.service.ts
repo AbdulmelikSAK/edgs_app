@@ -66,8 +66,8 @@ export class EmployeesService {
       qualification: dto.qualification,
       documents: dto.documents,
       role: role ?? undefined,
-    });
-    return this.employeeRepo.save(employee);
+    } as any);
+    return this.employeeRepo.save(employee as any);
   }
 
   findAll(): Promise<Employee[]> {

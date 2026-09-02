@@ -75,6 +75,9 @@ export class Mission {
   @Column({ nullable: true, type: 'text' })
   notes: string;
 
+  @Column({ nullable: true, type: 'text' })
+  attachedFilesJson: string; // JSON array of attached file URLs
+
   @ManyToOne(() => Truck, { nullable: true })
   @JoinColumn()
   truck: Truck;

@@ -7,7 +7,8 @@ export declare enum TimeEntryType {
     MISSION_START = "mission_start",
     MISSION_END = "mission_end",
     PAUSE_START = "pause_start",
-    PAUSE_END = "pause_end"
+    PAUSE_END = "pause_end",
+    INTEMPERIE = "intemperie"
 }
 export declare enum TimeEntryStatus {
     PENDING = "pending",
@@ -21,6 +22,9 @@ export declare class TimeEntry {
     truck: Truck;
     mission: Mission;
     type: TimeEntryType;
+    entryCategory: string;
+    isBadWeather: boolean;
+    hoursWorked: number;
     timestamp: Date;
     latitude: number;
     longitude: number;
