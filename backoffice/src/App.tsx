@@ -31,7 +31,14 @@ import {
   Send,
   Lock,
   ChevronRight,
-  Info
+  Info,
+  Phone,
+  Printer,
+  Upload,
+  X,
+  Edit3,
+  CheckSquare,
+  XSquare
 } from 'lucide-react';
 
 // Interfaces matching TypeORM entities
@@ -45,6 +52,15 @@ interface Client {
   zipCode?: string;
   city?: string;
   countryCode?: string;
+}
+
+interface SiteSupervisor {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  client?: Client;
 }
 
 interface Worksite {
@@ -84,6 +100,9 @@ interface Employee {
   username?: string;
   monthlySalary?: number;
   paidLeaveBalance?: number;
+  paidLeaveN?: number;
+  paidLeaveN1?: number;
+  hireDate?: string;
   rttBalance?: number;
 }
 
@@ -112,12 +131,19 @@ interface Mission {
   estimatedPrice?: number;
   actualPrice?: number;
   surfaceArea?: number;
+  estimatedUnit?: string;
+  actualQuantity?: number;
+  actualUnit?: string;
+  totalMaterialCost?: number;
   fuelConsumption?: number;
   sandBagsUsed?: number;
   truck?: Truck;
   client?: Client;
+  siteSupervisor?: SiteSupervisor;
   worksite?: Worksite;
   notes?: string;
+  chefDeMission?: Employee;
+  employees?: Employee[];
 }
 
 interface Quote {
@@ -181,7 +207,7 @@ const getDateOfISOWeek = (w: number, y: number) => {
 
 function App() {
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'missions' | 'planning' | 'gps' | 'photos' | 'reports' | 'trucks' | 'assignments' | 'stock' | 'equipment' | 'employees' | 'quotes' | 'invoices' | 'audit' | 'leaves'
+    'dashboard' | 'create_mission' | 'missions' | 'site_supervisors' | 'time_validation' | 'planning' | 'gps' | 'photos' | 'reports' | 'trucks' | 'assignments' | 'stock' | 'equipment' | 'employees' | 'quotes' | 'invoices' | 'audit' | 'leaves'
   >('dashboard');
   
   // Auth state
@@ -234,9 +260,53 @@ function App() {
   const [photosList, setPhotosList] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
 
+  // Conducteurs de travaux & validation des heures & métrés
+  const [siteSupervisors, setSiteSupervisors] = useState<SiteSupervisor[]>([]);
+  const [newSupervisor, setNewSupervisor] = useState({ firstName: '', lastName: '', phone: '', email: '', clientId: '' });
+  const [editingSupervisorId, setEditingSupervisorId] = useState<string | null>(null);
+
+  const [timeEntries, setTimeEntries] = useState<any[]>([]);
+  const [timeFilterEmployee, setTimeFilterEmployee] = useState('');
+  const [timeFilterStartDate, setTimeFilterStartDate] = useState('');
+  const [timeFilterEndDate, setTimeFilterEndDate] = useState('');
+  const [timeFilterStatus, setTimeFilterStatus] = useState('');
+
+  const [timeModalOpen, setTimeModalOpen] = useState(false);
+  const [timeModalEntry, setTimeModalEntry] = useState<any>(null);
+  const [timeModalStatus, setTimeModalStatus] = useState<'rejected' | 'modified'>('rejected');
+  const [timeModalNote, setTimeModalNote] = useState('');
+  const [timeModalNewTime, setTimeModalNewTime] = useState('');
+
+  // Métrés modal
+  const [showMeterModal, setShowMeterModal] = useState(false);
+  const [meterModalMission, setMeterModalMission] = useState<Mission | null>(null);
+  const [meterModalQty, setMeterModalQty] = useState('');
+  const [meterModalUnit, setMeterModalUnit] = useState('m²');
+
+  // Stock Replenish modal
+  const [showReplenishModal, setShowReplenishModal] = useState(false);
+  const [replenishItem, setReplenishItem] = useState<any>(null);
+  const [replenishQty, setReplenishQty] = useState('');
+  const [replenishUnitPrice, setReplenishUnitPrice] = useState('');
+  const [replenishMinThreshold, setReplenishMinThreshold] = useState('');
+
+  // Drag and Drop Planning Modal
+  const [draggedMission, setDraggedMission] = useState<Mission | null>(null);
+  const [showDropPlanningModal, setShowDropPlanningModal] = useState(false);
+  const [dropTargetEmployee, setDropTargetEmployee] = useState<Employee | null>(null);
+  const [dropMission, setDropMission] = useState<Mission | null>(null);
+  const [dropStartDate, setDropStartDate] = useState('');
+  const [dropEndDate, setDropEndDate] = useState('');
+  const [dropChefDeMissionId, setDropChefDeMissionId] = useState('');
+  const [dropTeamEmployeeIds, setDropTeamEmployeeIds] = useState<string[]>([]);
+
+  // Mission search filter
+  const [missionSearchQuery, setMissionSearchQuery] = useState('');
+  const [missionStatusFilter, setMissionStatusFilter] = useState('');
+
   // Dynamic stocks state
   const [stockItems, setStockItems] = useState<any[]>([]);
-  const [newStockItem, setNewStockItem] = useState({ name: '', unit: 'pcs' });
+  const [newStockItem, setNewStockItem] = useState({ name: '', unit: 'pcs', quantity: '', unitPrice: '' });
   const [selectedTruckForStock, setSelectedTruckForStock] = useState<string>('');
   const [stockItemToAssign, setStockItemToAssign] = useState<string>('');
   const [assignQuantity, setAssignQuantity] = useState<string>('1');
@@ -260,6 +330,8 @@ function App() {
     estimatedPrice: '',
     truckId: '',
     surfaceArea: '',
+    estimatedUnit: 'm²',
+    siteSupervisorId: '',
   });
   const [missionPhotoFiles, setMissionPhotoFiles] = useState<File[]>([]);
   const [photoInputKey, setPhotoInputKey] = useState(Date.now());
@@ -338,6 +410,9 @@ function App() {
     hourlyRate: '35',
     monthlySalary: '',
     paidLeaveBalance: '0',
+    paidLeaveN: '30',
+    paidLeaveN1: '0',
+    hireDate: '',
     rttBalance: '0',
     phone: '',
     email: '',
@@ -535,7 +610,9 @@ function App() {
         invoicesRes,
         assignmentsRes,
         auditRes,
-        leavesRes
+        leavesRes,
+        siteSupervisorsRes,
+        timeclockRes
       ] = await Promise.all([
         fetchWithAuth(API_BASE_URL + '/missions'),
         fetchWithAuth(API_BASE_URL + '/trucks'),
@@ -551,7 +628,9 @@ function App() {
         fetchWithAuth(API_BASE_URL + '/billing/invoices'),
         fetchWithAuth(API_BASE_URL + '/trucks/assignments/all'),
         fetchWithAuth(API_BASE_URL + '/audit').catch(() => null), // Fail-safe
-        fetchWithAuth(API_BASE_URL + '/leave-requests').catch(() => null)
+        fetchWithAuth(API_BASE_URL + '/leave-requests').catch(() => null),
+        fetchWithAuth(API_BASE_URL + '/site-supervisors').catch(() => null),
+        fetchWithAuth(API_BASE_URL + '/timeclock/all').catch(() => null),
       ]);
 
       const mData = await missionsRes.json();
@@ -571,6 +650,12 @@ function App() {
       setInvoices(await invoicesRes.json());
       if (leavesRes && leavesRes.ok) {
         setLeaveRequests(await leavesRes.json());
+      }
+      if (siteSupervisorsRes && siteSupervisorsRes.ok) {
+        setSiteSupervisors(await siteSupervisorsRes.json());
+      }
+      if (timeclockRes && timeclockRes.ok) {
+        setTimeEntries(await timeclockRes.json());
       }
       
       if (assignmentsRes.ok) {
@@ -701,16 +786,20 @@ function App() {
   const handleCreateMission = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const selectedClientObj = clients.find(c => c.name === newMission.clientName);
       const payload = {
         title: newMission.title,
         type: newMission.type,
         clientName: newMission.clientName,
+        clientId: selectedClientObj?.id,
         worksiteAddress: newMission.worksiteAddress,
         description: newMission.description,
         scheduledDate: new Date(newMission.scheduledDate).toISOString(),
         estimatedPrice: Number(newMission.estimatedPrice),
         truckId: newMission.truckId || undefined,
         surfaceArea: Number(newMission.surfaceArea) || undefined,
+        estimatedUnit: newMission.estimatedUnit || 'm²',
+        siteSupervisorId: newMission.siteSupervisorId || undefined,
       };
 
       const res = await fetchWithAuth(API_BASE_URL + '/missions', {
@@ -745,9 +834,12 @@ function App() {
           estimatedPrice: '',
           truckId: '',
           surfaceArea: '',
+          estimatedUnit: 'm²',
+          siteSupervisorId: '',
         });
         setMissionPhotoFiles([]);
         setPhotoInputKey(Date.now());
+        setActiveTab('missions');
         loadAllData();
       }
     } catch (err) {
@@ -977,6 +1069,9 @@ function App() {
           hourlyRate: '35',
           monthlySalary: '',
           paidLeaveBalance: '0',
+          paidLeaveN: '30',
+          paidLeaveN1: '0',
+          hireDate: '',
           rttBalance: '0',
           phone: '',
           email: '',
@@ -1201,7 +1296,7 @@ function App() {
         body: JSON.stringify(newStockItem),
       });
       if (res.ok) {
-        setNewStockItem({ name: '', unit: 'pcs' });
+        setNewStockItem({ name: '', unit: 'pcs', quantity: '', unitPrice: '' });
         loadAllData();
       }
     } catch (err) {
@@ -1249,6 +1344,216 @@ function App() {
         method: 'DELETE',
       });
       loadAllData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Conducteur de travaux handlers
+  const handleCreateOrUpdateSupervisor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        firstName: newSupervisor.firstName,
+        lastName: newSupervisor.lastName,
+        phone: newSupervisor.phone,
+        email: newSupervisor.email,
+        clientId: newSupervisor.clientId || undefined,
+      };
+
+      const url = editingSupervisorId 
+        ? `${API_BASE_URL}/site-supervisors/${editingSupervisorId}`
+        : `${API_BASE_URL}/site-supervisors`;
+      const method = editingSupervisorId ? 'PATCH' : 'POST';
+
+      const res = await fetchWithAuth(url, {
+        method,
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setNewSupervisor({ firstName: '', lastName: '', phone: '', email: '', clientId: '' });
+        setEditingSupervisorId(null);
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteSupervisor = async (id: string) => {
+    if (!window.confirm('Voulez-vous vraiment supprimer ce conducteur de travaux ?')) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/site-supervisors/${id}`, { method: 'DELETE' });
+      if (res.ok) loadAllData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Validation d'heures handlers
+  const handleValidateTimeEntry = async (id: string, status: string, validationNote?: string, newTimestamp?: string) => {
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/timeclock/${id}/validate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          status,
+          validationNote,
+          newTimestamp,
+          validatedBy: user?.firstName || 'Admin',
+        }),
+      });
+      if (res.ok) {
+        setTimeModalOpen(false);
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleBatchValidateTimeEntries = async () => {
+    if (!window.confirm('Voulez-vous vraiment valider tous les pointages affichés ?')) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/timeclock/validate-batch`, {
+        method: 'POST',
+        body: JSON.stringify({
+          employeeId: timeFilterEmployee || undefined,
+          startDate: timeFilterStartDate || undefined,
+          endDate: timeFilterEndDate || undefined,
+          validatedBy: user?.firstName || 'Admin',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`${data.updated} pointages ont été validés.`);
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleExportTimeCSV = () => {
+    if (!timeEntries || timeEntries.length === 0) {
+      alert('Aucune heure à exporter.');
+      return;
+    }
+    const headers = ['ID', 'Employe', 'Type', 'Date_Et_Heure', 'Statut_Validation', 'Note_Motif'];
+    const rows = timeEntries.map(entry => [
+      entry.id,
+      entry.employee ? `${entry.employee.firstName} ${entry.employee.lastName}` : 'Inconnu',
+      entry.type,
+      new Date(entry.timestamp).toLocaleString('fr-FR'),
+      entry.validationStatus || 'pending',
+      `"${(entry.validationNote || '').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `heures_employes_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrintTimeSheet = () => {
+    window.print();
+  };
+
+  // Métrés correction handler
+  const handleSaveMeterCorrection = async () => {
+    if (!meterModalMission) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/missions/${meterModalMission.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          actualQuantity: Number(meterModalQty),
+          actualUnit: meterModalUnit,
+        }),
+      });
+      if (res.ok) {
+        setShowMeterModal(false);
+        setMeterModalMission(null);
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Stock Replenishment handler
+  const handleSaveReplenishment = async () => {
+    if (!replenishItem) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/stock-items/${replenishItem.id}/replenish`, {
+        method: 'POST',
+        body: JSON.stringify({
+          quantity: Number(replenishQty),
+          unitPrice: Number(replenishUnitPrice),
+        }),
+      });
+      if (res.ok) {
+        if (replenishMinThreshold) {
+          await fetchWithAuth(`${API_BASE_URL}/stock-items/${replenishItem.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ minThreshold: Number(replenishMinThreshold) }),
+          });
+        }
+        setShowReplenishModal(false);
+        setReplenishItem(null);
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Annual Leave Rollover
+  const handleAnnualLeaveRollover = async () => {
+    if (!window.confirm('Voulez-vous effectuer la bascule annuelle des congés payés au 1er Avril ? (Le solde N passe en N-1, et N est recalculé avec ancienneté/prorata)')) return;
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/employees/leave-rollover`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Bascule des congés effectuée pour ${data.updated} salariés !`);
+        loadAllData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Save Dragged Planning
+  const handleSaveDropPlanning = async () => {
+    if (!dropMission || !dropTargetEmployee || !dropStartDate) return;
+    try {
+      const start = new Date(dropStartDate);
+      const end = dropEndDate ? new Date(dropEndDate) : start;
+      
+      const employeeIds = Array.from(new Set([dropTargetEmployee.id, ...(dropChefDeMissionId ? [dropChefDeMissionId] : []), ...dropTeamEmployeeIds]));
+
+      const payload = {
+        missionId: dropMission.id,
+        chefDeMissionId: dropChefDeMissionId || dropTargetEmployee.id,
+        employeeIds,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      };
+
+      const res = await fetchWithAuth(`${API_BASE_URL}/planning`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setShowDropPlanningModal(false);
+        setDropMission(null);
+        setDropTargetEmployee(null);
+        loadAllData();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -1636,11 +1941,29 @@ function App() {
             <LayoutDashboard size={18} />
             Tableau de Bord
           </div>
+
+          {/* TAB: CREER UN CHANTIER */}
+          <div className={`nav-item ${activeTab === 'create_mission' ? 'active' : ''}`} onClick={() => setActiveTab('create_mission')}>
+            <Plus size={18} />
+            Créer un chantier
+          </div>
           
-          {/* TAB 2: MISSIONS & CHANTIERS */}
+          {/* TAB 2: LISTE DES CHANTIERS */}
           <div className={`nav-item ${activeTab === 'missions' ? 'active' : ''}`} onClick={() => setActiveTab('missions')}>
             <Briefcase size={18} />
-            Missions & Chantiers
+            Liste des chantiers
+          </div>
+
+          {/* TAB: CONDUCTEURS DE TRAVAUX */}
+          <div className={`nav-item ${activeTab === 'site_supervisors' ? 'active' : ''}`} onClick={() => setActiveTab('site_supervisors')}>
+            <UserCheck size={18} />
+            Conducteurs de travaux
+          </div>
+
+          {/* TAB: VALIDATION DES HEURES */}
+          <div className={`nav-item ${activeTab === 'time_validation' ? 'active' : ''}`} onClick={() => setActiveTab('time_validation')}>
+            <Clock size={18} />
+            Validation des Heures
           </div>
 
           {/* TAB 3: PLANNING WEEK */}
@@ -1780,6 +2103,109 @@ function App() {
               </div>
             </div>
 
+            {/* ALERTS GRID: Métrés Ecarts & Seuils de Stock */}
+            <div className="grid-2" style={{ marginBottom: '32px' }}>
+              {/* Alertes Écarts de Métrés */}
+              <div className="glass-card">
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b' }}>
+                  <AlertTriangle size={20} /> Alertes Écarts de Métrés (Chantiers)
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '250px', overflowY: 'auto' }}>
+                  {missions.filter(m => m.actualQuantity !== undefined && m.actualQuantity !== null && Number(m.actualQuantity) !== Number(m.surfaceArea)).map(m => {
+                    const prev = Number(m.surfaceArea || 0);
+                    const real = Number(m.actualQuantity);
+                    const diff = real - prev;
+                    const pct = prev > 0 ? ((diff / prev) * 100).toFixed(1) : '0';
+                    return (
+                      <div key={m.id} style={{ padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'rgba(245, 158, 11, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: '700', fontSize: '14px' }}>{m.title}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            Prévu: {prev} {m.estimatedUnit || 'm²'} | Réalisé: <strong style={{ color: diff > 0 ? '#ef4444' : '#10b981' }}>{real} {m.actualUnit || m.estimatedUnit || 'm²'} ({diff > 0 ? '+' : ''}{pct}%)</strong>
+                          </div>
+                        </div>
+                        <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => { setMeterModalMission(m); setMeterModalQty(String(m.actualQuantity || '')); setMeterModalUnit(m.actualUnit || m.estimatedUnit || 'm²'); setShowMeterModal(true); }}>
+                          Corriger
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {missions.filter(m => m.actualQuantity !== undefined && m.actualQuantity !== null && Number(m.actualQuantity) !== Number(m.surfaceArea)).length === 0 && (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+                      Aucun écart de métré détecté sur les chantiers.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Alertes Seuils de Stock */}
+              <div className="glass-card">
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}>
+                  <Package size={20} /> Alertes Stock du Dépôt (Seuil Minimum)
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '250px', overflowY: 'auto' }}>
+                  {stockItems.filter(item => Number(item.quantity || 0) <= Number(item.minThreshold || 10)).map(item => (
+                    <div key={item.id} style={{ padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', backgroundColor: 'rgba(239, 68, 68, 0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '14px' }}>{item.name}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          En Stock: <strong style={{ color: '#ef4444' }}>{item.quantity || 0} {item.unit}</strong> (Seuil min: {item.minThreshold || 10})
+                        </div>
+                      </div>
+                      <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => { setReplenishItem(item); setReplenishQty(''); setReplenishUnitPrice(String(item.unitPrice || '')); setReplenishMinThreshold(String(item.minThreshold || 10)); setShowReplenishModal(true); }}>
+                        Réapprovisionner
+                      </button>
+                    </div>
+                  ))}
+                  {stockItems.filter(item => Number(item.quantity || 0) <= Number(item.minThreshold || 10)).length === 0 && (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+                      Tous les niveaux de stock du dépôt sont conformes.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Récapitulatif Heures Hebdo par Salarié */}
+            <div className="glass-card" style={{ marginBottom: '32px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={20} color="var(--primary)" /> Récapitulatif Total Heures par Salarié (Cette Semaine)
+              </h3>
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Salarié</th>
+                      <th>Qualification</th>
+                      <th>Nombre de Pointages</th>
+                      <th>Pointages Validés</th>
+                      <th>En Attente / Refusés</th>
+                      <th>Solde Congés N-1</th>
+                      <th>Solde Congés N</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employees.map(emp => {
+                      const empEntries = timeEntries.filter(t => t.employee?.id === emp.id);
+                      const validatedCount = empEntries.filter(t => t.validationStatus === 'validated').length;
+                      const pendingCount = empEntries.filter(t => t.validationStatus === 'pending' || t.validationStatus === 'rejected').length;
+                      return (
+                        <tr key={emp.id}>
+                          <td style={{ fontWeight: '700' }}>{emp.firstName} {emp.lastName}</td>
+                          <td>{emp.qualification || 'Salarié'}</td>
+                          <td>{empEntries.length}</td>
+                          <td style={{ color: '#10b981', fontWeight: '600' }}>{validatedCount}</td>
+                          <td style={{ color: pendingCount > 0 ? '#f59e0b' : 'var(--text-muted)' }}>{pendingCount}</td>
+                          <td style={{ fontWeight: '600' }}>{emp.paidLeaveN1 ?? 0} j</td>
+                          <td style={{ fontWeight: '700', color: 'var(--primary)' }}>{emp.paidLeaveN ?? 30} j</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div className="grid-2" style={{ marginBottom: '32px' }}>
               {/* Warnings and Alerts */}
               <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1861,29 +2287,29 @@ function App() {
           </div>
         )}
 
-        {/* TAB 2: MISSIONS & CHANTIERS */}
-        {activeTab === 'missions' && (
+        {/* TAB: CREER UN CHANTIER */}
+        {activeTab === 'create_mission' && (
           <div>
             <div style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Missions & Chantiers</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Créez et suivez le statut des interventions.</p>
+              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Créer un nouveau Chantier</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Renseignez toutes les informations de l'intervention et joignez les documents requis.</p>
             </div>
 
-            <div className="grid-3" style={{ marginBottom: '32px' }}>
-              <div className="glass-card">
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Créer une Mission</h3>
-                <form onSubmit={handleCreateMission}>
+            <div className="glass-card" style={{ maxWidth: '800px' }}>
+              <form onSubmit={handleCreateMission}>
+                <div className="grid-2">
                   <div className="form-group">
                     <label className="form-label">Titre du Chantier</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="e.g. Sablage parking Mairie" 
+                      placeholder="e.g. Sablage pont de la Cèze" 
                       value={newMission.title}
                       onChange={e => setNewMission({ ...newMission, title: e.target.value })}
                       required
                     />
                   </div>
+
                   <div className="form-group">
                     <label className="form-label">Type de Prestation</label>
                     <select 
@@ -1897,6 +2323,9 @@ function App() {
                       <option value="DEPOT">Dépôt (Travail au dépôt)</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="grid-2">
                   <div className="form-group">
                     <label className="form-label">Client</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -1908,7 +2337,11 @@ function App() {
                           if (e.target.value === '__NEW_CLIENT__') {
                             openCreateClientModal();
                           } else {
-                            setNewMission({ ...newMission, clientName: e.target.value });
+                            setNewMission({ 
+                              ...newMission, 
+                              clientName: e.target.value,
+                              siteSupervisorId: '' // reset when client changes
+                            });
                           }
                         }}
                         required
@@ -1933,17 +2366,39 @@ function App() {
                       </button>
                     </div>
                   </div>
+
                   <div className="form-group">
-                    <label className="form-label">Adresse (Texte Libre)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="Adresse complète" 
-                      value={newMission.worksiteAddress}
-                      onChange={e => setNewMission({ ...newMission, worksiteAddress: e.target.value })}
-                      required
-                    />
+                    <label className="form-label">Conducteur de Travaux (du Client)</label>
+                    <select 
+                      className="form-input"
+                      value={newMission.siteSupervisorId}
+                      onChange={e => setNewMission({ ...newMission, siteSupervisorId: e.target.value })}
+                    >
+                      <option value="">Sélectionner un conducteur de travaux...</option>
+                      {siteSupervisors
+                        .filter(s => !newMission.clientName || s.client?.name === newMission.clientName)
+                        .map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.firstName} {s.lastName} {s.phone ? `(${s.phone})` : ''}
+                          </option>
+                        ))}
+                    </select>
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Adresse du Chantier</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="12 Route de Valréas, 84600 Grillon" 
+                    value={newMission.worksiteAddress}
+                    onChange={e => setNewMission({ ...newMission, worksiteAddress: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="grid-3">
                   <div className="form-group">
                     <label className="form-label">Date planifiée</label>
                     <input 
@@ -1954,115 +2409,548 @@ function App() {
                       required
                     />
                   </div>
+
                   <div className="form-group">
-                    <label className="form-label">Surface Estimée (m²)</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={newMission.surfaceArea}
-                      onChange={e => setNewMission({ ...newMission, surfaceArea: e.target.value })}
-                      required
-                    />
+                    <label className="form-label">Métré Prévu</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        style={{ flex: 1 }}
+                        placeholder="150"
+                        value={newMission.surfaceArea}
+                        onChange={e => setNewMission({ ...newMission, surfaceArea: e.target.value })}
+                        required
+                      />
+                      <select 
+                        className="form-input"
+                        style={{ width: '100px' }}
+                        value={newMission.estimatedUnit}
+                        onChange={e => setNewMission({ ...newMission, estimatedUnit: e.target.value })}
+                      >
+                        <option value="m²">m²</option>
+                        <option value="ml">ml</option>
+                        <option value="pièce">pièce</option>
+                      </select>
+                    </div>
                   </div>
+
                   <div className="form-group">
                     <label className="form-label">Prix Estimé (€ HT)</label>
                     <input 
                       type="number" 
                       className="form-input" 
+                      placeholder="4500"
                       value={newMission.estimatedPrice}
                       onChange={e => setNewMission({ ...newMission, estimatedPrice: e.target.value })}
                       required
                     />
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Documents & Pièces Jointes (Plans, Consignes...)</label>
+                  <input 
+                    key={photoInputKey}
+                    type="file" 
+                    multiple
+                    className="form-input" 
+                    onChange={e => setMissionPhotoFiles(e.target.files ? Array.from(e.target.files) : [])}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Description / Consignes particulières</label>
+                  <textarea 
+                    className="form-input" 
+                    rows={4} 
+                    placeholder="Inscrire toutes les consignes de sécurité et détails techniques..."
+                    value={newMission.description}
+                    onChange={e => setNewMission({ ...newMission, description: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('missions')}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Plus size={18} /> Créer le Chantier
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: LISTE DES CHANTIERS */}
+        {activeTab === 'missions' && (
+          <div>
+            <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Liste des Chantiers</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>Recherche instantanée et suivi des métrés / conducteurs de travaux.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setActiveTab('create_mission')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Plus size={18} /> Nouveau Chantier
+              </button>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="glass-card" style={{ marginBottom: '24px', padding: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '250px', display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0 12px' }}>
+                <Search size={18} color="var(--text-muted)" style={{ marginRight: '8px' }} />
+                <input 
+                  type="text"
+                  placeholder="Rechercher par titre, client, conducteur de travaux..."
+                  style={{ border: 'none', background: 'transparent', outline: 'none', color: 'var(--text-main)', padding: '10px 0', width: '100%' }}
+                  value={missionSearchQuery}
+                  onChange={e => setMissionSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <select 
+                className="form-input"
+                style={{ width: '200px', marginBottom: 0 }}
+                value={missionStatusFilter}
+                onChange={e => setMissionStatusFilter(e.target.value)}
+              >
+                <option value="">Tous les statuts</option>
+                <option value="planned">Planifiée</option>
+                <option value="in_progress">En cours</option>
+                <option value="completed">Terminée</option>
+                <option value="cancelled">Annulée</option>
+              </select>
+            </div>
+
+            {/* Missions List Table */}
+            <div className="glass-card">
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Chantier / Type</th>
+                      <th>Client</th>
+                      <th>Conducteur de Travaux</th>
+                      <th>Métré Prévu vs Réalisé</th>
+                      <th>Coût Matériaux</th>
+                      <th>Statut</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {missions
+                      .filter(m => {
+                        const q = missionSearchQuery.toLowerCase();
+                        const matchQ = !q || m.title.toLowerCase().includes(q) || 
+                          (m.clientName && m.clientName.toLowerCase().includes(q)) || 
+                          (m.siteSupervisor && `${m.siteSupervisor.firstName} ${m.siteSupervisor.lastName}`.toLowerCase().includes(q));
+                        const matchStatus = !missionStatusFilter || m.status === missionStatusFilter;
+                        return matchQ && matchStatus;
+                      })
+                      .map(m => {
+                        const supervisor = m.siteSupervisor;
+                        const prevQty = m.surfaceArea || 0;
+                        const realQty = m.actualQuantity;
+                        const unit = m.actualUnit || m.estimatedUnit || 'm²';
+                        const isDiff = realQty !== undefined && realQty !== null && Number(realQty) !== Number(prevQty);
+
+                        return (
+                          <tr key={m.id}>
+                            <td>
+                              <div style={{ fontWeight: '700' }}>{m.title}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{m.worksiteAddress}</div>
+                              <span className="badge badge-info" style={{ marginTop: '4px' }}>{m.type || 'Sablage'}</span>
+                            </td>
+
+                            <td>
+                              <div style={{ fontWeight: '600' }}>{m.clientName || m.client?.name || '--'}</div>
+                            </td>
+
+                            <td>
+                              {supervisor ? (
+                                <div>
+                                  <div style={{ fontWeight: '600' }}>{supervisor.firstName} {supervisor.lastName}</div>
+                                  {supervisor.phone && (
+                                    <a 
+                                      href={`tel:${supervisor.phone}`} 
+                                      className="btn btn-secondary" 
+                                      style={{ padding: '2px 8px', fontSize: '11px', marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                                    >
+                                      <Phone size={12} /> {supervisor.phone}
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Non assigné</span>
+                              )}
+                            </td>
+
+                            <td>
+                              <div style={{ fontSize: '13px' }}>
+                                Prévu: {prevQty} {m.estimatedUnit || 'm²'}
+                              </div>
+                              {realQty !== undefined && realQty !== null ? (
+                                <div style={{ fontSize: '13px', fontWeight: '700', color: isDiff ? '#f59e0b' : '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  Réalisé: {realQty} {unit}
+                                  {isDiff && <AlertTriangle size={14} color="#f59e0b" />}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Non saisi</div>
+                              )}
+                            </td>
+
+                            <td>
+                              <span style={{ fontWeight: '600', color: 'var(--primary)' }}>
+                                {m.totalMaterialCost !== undefined ? `${Number(m.totalMaterialCost).toLocaleString('fr-FR')} €` : '0 €'}
+                              </span>
+                            </td>
+
+                            <td>
+                              <select 
+                                className="form-input" 
+                                style={{ padding: '6px 12px', width: 'auto', fontSize: '13px' }}
+                                value={m.status}
+                                onChange={(e) => handleUpdateMissionStatus(m.id, e.target.value)}
+                              >
+                                <option value="planned">Planifiée</option>
+                                <option value="in_progress">En cours</option>
+                                <option value="completed">Terminée</option>
+                                <option value="cancelled">Annulée</option>
+                              </select>
+                            </td>
+
+                            <td>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  onClick={() => {
+                                    setMeterModalMission(m);
+                                    setMeterModalQty(String(m.actualQuantity || m.surfaceArea || ''));
+                                    setMeterModalUnit(m.actualUnit || m.estimatedUnit || 'm²');
+                                    setShowMeterModal(true);
+                                  }}
+                                >
+                                  <Edit3 size={14} /> Métré
+                                </button>
+                                <button className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '12px' }} onClick={() => handleDeleteMission(m.id)}>
+                                  Supprimer
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: CONDUCTEURS DE TRAVAUX */}
+        {activeTab === 'site_supervisors' && (
+          <div>
+            <div style={{ marginBottom: '32px' }}>
+              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Conducteurs de Travaux</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Gestion des référents clients sur le terrain.</p>
+            </div>
+
+            <div className="grid-3" style={{ marginBottom: '32px' }}>
+              {/* Form */}
+              <div className="glass-card">
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>
+                  {editingSupervisorId ? 'Modifier Conducteur' : 'Ajouter un Conducteur de Travaux'}
+                </h3>
+                <form onSubmit={handleCreateOrUpdateSupervisor}>
                   <div className="form-group">
-                    <label className="form-label">Camion Assigné</label>
+                    <label className="form-label">Client Associé</label>
                     <select 
-                      className="form-input" 
-                      value={newMission.truckId}
-                      onChange={e => setNewMission({ ...newMission, truckId: e.target.value })}
+                      className="form-input"
+                      value={newSupervisor.clientId}
+                      onChange={e => setNewSupervisor({ ...newSupervisor, clientId: e.target.value })}
+                      required
                     >
-                      <option value="">Sélectionner un véhicule...</option>
-                      {trucks.map(t => (
-                        <option key={t.id} value={t.id}>{t.plateNumber} ({t.model})</option>
+                      <option value="">Sélectionner un client...</option>
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
+
                   <div className="form-group">
-                    <label className="form-label">Pièces Jointes / Documents (Optionnel)</label>
+                    <label className="form-label">Prénom</label>
                     <input 
-                      key={photoInputKey}
-                      type="file" 
-                      multiple
-                      className="form-input" 
-                      onChange={e => setMissionPhotoFiles(e.target.files ? Array.from(e.target.files) : [])}
+                      type="text"
+                      className="form-input"
+                      placeholder="Jean"
+                      value={newSupervisor.firstName}
+                      onChange={e => setNewSupervisor({ ...newSupervisor, firstName: e.target.value })}
+                      required
                     />
                   </div>
+
                   <div className="form-group">
-                    <label className="form-label">Description / Instructions</label>
-                    <textarea 
-                      className="form-input" 
-                      rows={3} 
-                      value={newMission.description}
-                      onChange={e => setNewMission({ ...newMission, description: e.target.value })}
+                    <label className="form-label">Nom</label>
+                    <input 
+                      type="text"
+                      className="form-input"
+                      placeholder="Dupont"
+                      value={newSupervisor.lastName}
+                      onChange={e => setNewSupervisor({ ...newSupervisor, lastName: e.target.value })}
+                      required
                     />
                   </div>
-                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                    Planifier la Mission
-                  </button>
+
+                  <div className="form-group">
+                    <label className="form-label">Téléphone Direct</label>
+                    <input 
+                      type="tel"
+                      className="form-input"
+                      placeholder="06 12 34 56 78"
+                      value={newSupervisor.phone}
+                      onChange={e => setNewSupervisor({ ...newSupervisor, phone: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Email (Optionnel)</label>
+                    <input 
+                      type="email"
+                      className="form-input"
+                      placeholder="j.dupont@client.fr"
+                      value={newSupervisor.email}
+                      onChange={e => setNewSupervisor({ ...newSupervisor, email: e.target.value })}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {editingSupervisorId && (
+                      <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setEditingSupervisorId(null); setNewSupervisor({ firstName: '', lastName: '', phone: '', email: '', clientId: '' }); }}>
+                        Annuler
+                      </button>
+                    )}
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+                      {editingSupervisorId ? 'Enregistrer' : 'Ajouter'}
+                    </button>
+                  </div>
                 </form>
               </div>
 
-              {/* Missions list */}
+              {/* Table */}
               <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Chantiers Enregistrés</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Liste des Conducteurs de Travaux</h3>
                 <div className="table-container">
                   <table className="custom-table">
                     <thead>
                       <tr>
-                        <th>Titre / Type</th>
-                        <th>Client / Adresse</th>
-                        <th>Date</th>
-                        <th>Statut</th>
-                        <th>Surface</th>
+                        <th>Nom & Prénom</th>
+                        <th>Client</th>
+                        <th>Téléphone</th>
+                        <th>Email</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {missions.map(m => (
-                        <tr key={m.id}>
+                      {siteSupervisors.map(s => (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: '700' }}>{s.firstName} {s.lastName}</td>
+                          <td>{s.client?.name || '--'}</td>
                           <td>
-                            <div style={{ fontWeight: '600' }}>{m.title}</div>
-                            <span className="badge badge-info" style={{ marginTop: '4px' }}>{m.type || 'Sablage'}</span>
+                            {s.phone ? (
+                              <a href={`tel:${s.phone}`} style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: '600' }}>
+                                📞 {s.phone}
+                              </a>
+                            ) : '--'}
                           </td>
+                          <td>{s.email || '--'}</td>
                           <td>
-                            <div>{m.clientName || m.client?.name || '--'}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{m.worksiteAddress || m.worksite?.address || '--'}</div>
-                          </td>
-                          <td>{new Date(m.scheduledDate).toLocaleDateString('fr-FR')}</td>
-                          <td>
-                            <select 
-                              className="form-input" 
-                              style={{ padding: '6px 12px', width: 'auto', fontSize: '13px' }}
-                              value={m.status}
-                              onChange={(e) => handleUpdateMissionStatus(m.id, e.target.value)}
-                            >
-                              <option value="planned">Planifiée</option>
-                              <option value="in_progress">En cours</option>
-                              <option value="completed">Terminée</option>
-                              <option value="cancelled">Annulée</option>
-                            </select>
-                          </td>
-                          <td>{m.surfaceArea ? `${m.surfaceArea} m²` : '--'}</td>
-                          <td>
-                            <button className="btn btn-danger" style={{ padding: '6px 12px', backgroundColor: '#dc2626', color: '#fff' }} onClick={() => handleDeleteMission(m.id)}>
-                              Supprimer
-                            </button>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px 8px', fontSize: '12px' }}
+                                onClick={() => {
+                                  setEditingSupervisorId(s.id);
+                                  setNewSupervisor({
+                                    firstName: s.firstName,
+                                    lastName: s.lastName,
+                                    phone: s.phone || '',
+                                    email: s.email || '',
+                                    clientId: s.client?.id || '',
+                                  });
+                                }}
+                              >
+                                Modifier
+                              </button>
+                              <button className="btn btn-danger" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => handleDeleteSupervisor(s.id)}>
+                                Supprimer
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: VALIDATION DES HEURES */}
+        {activeTab === 'time_validation' && (
+          <div>
+            <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Validation des Heures des Salariés</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>Validez, corrigez ou refusez les pointages avec explication pour l'application mobile.</p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button className="btn btn-secondary" onClick={handleExportTimeCSV} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Download size={18} /> Export CSV
+                </button>
+                <button className="btn btn-secondary" onClick={handlePrintTimeSheet} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Printer size={18} /> Imprimer Fiche d'Heure
+                </button>
+                <button className="btn btn-primary" onClick={handleBatchValidateTimeEntries} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckSquare size={18} /> Tout Valider (Sélection)
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="glass-card" style={{ marginBottom: '24px', padding: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <label className="form-label" style={{ fontSize: '12px' }}>Filtrer par Salarié</label>
+                <select className="form-input" style={{ marginBottom: 0 }} value={timeFilterEmployee} onChange={e => setTimeFilterEmployee(e.target.value)}>
+                  <option value="">Tous les salariés</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ width: '180px' }}>
+                <label className="form-label" style={{ fontSize: '12px' }}>Date Début</label>
+                <input type="date" className="form-input" style={{ marginBottom: 0 }} value={timeFilterStartDate} onChange={e => setTimeFilterStartDate(e.target.value)} />
+              </div>
+
+              <div style={{ width: '180px' }}>
+                <label className="form-label" style={{ fontSize: '12px' }}>Date Fin</label>
+                <input type="date" className="form-input" style={{ marginBottom: 0 }} value={timeFilterEndDate} onChange={e => setTimeFilterEndDate(e.target.value)} />
+              </div>
+
+              <div style={{ width: '180px' }}>
+                <label className="form-label" style={{ fontSize: '12px' }}>Statut Validation</label>
+                <select className="form-input" style={{ marginBottom: 0 }} value={timeFilterStatus} onChange={e => setTimeFilterStatus(e.target.value)}>
+                  <option value="">Tous les statuts</option>
+                  <option value="pending">En attente</option>
+                  <option value="validated">Validé</option>
+                  <option value="modified">Corrigé</option>
+                  <option value="rejected">Refusé</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Time Entries Table */}
+            <div className="glass-card">
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Salarié</th>
+                      <th>Type de Pointage</th>
+                      <th>Horodatage</th>
+                      <th>Statut Validation</th>
+                      <th>Motif / Explication</th>
+                      <th>Validé par</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {timeEntries
+                      .filter(entry => {
+                        const matchEmp = !timeFilterEmployee || entry.employee?.id === timeFilterEmployee;
+                        const matchStatus = !timeFilterStatus || entry.validationStatus === timeFilterStatus;
+                        const tDate = entry.timestamp ? new Date(entry.timestamp).toISOString().slice(0,10) : '';
+                        const matchStart = !timeFilterStartDate || tDate >= timeFilterStartDate;
+                        const matchEnd = !timeFilterEndDate || tDate <= timeFilterEndDate;
+                        return matchEmp && matchStatus && matchStart && matchEnd;
+                      })
+                      .map(entry => {
+                        const status = entry.validationStatus || 'pending';
+                        return (
+                          <tr key={entry.id}>
+                            <td style={{ fontWeight: '700' }}>
+                              {entry.employee ? `${entry.employee.firstName} ${entry.employee.lastName}` : 'Inconnu'}
+                            </td>
+
+                            <td>
+                              <span className={`badge ${entry.type === 'START' ? 'badge-success' : 'badge-info'}`}>
+                                {entry.type === 'START' ? 'Prise de poste (Start)' : 'Fin de journée (End)'}
+                              </span>
+                            </td>
+
+                            <td>{new Date(entry.timestamp).toLocaleString('fr-FR')}</td>
+
+                            <td>
+                              {status === 'validated' && <span className="badge badge-success">Validé</span>}
+                              {status === 'pending' && <span className="badge badge-warning">En attente</span>}
+                              {status === 'modified' && <span className="badge badge-info">Corrigé</span>}
+                              {status === 'rejected' && <span className="badge badge-danger">Refusé</span>}
+                            </td>
+
+                            <td>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                {entry.validationNote || '--'}
+                              </span>
+                            </td>
+
+                            <td>{entry.validatedBy || '--'}</td>
+
+                            <td>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button 
+                                  className="btn btn-success" 
+                                  style={{ padding: '4px 8px', fontSize: '12px', backgroundColor: '#10b981', color: '#fff' }}
+                                  onClick={() => handleValidateTimeEntry(entry.id, 'validated')}
+                                >
+                                  Valider
+                                </button>
+                                <button 
+                                  className="btn btn-secondary" 
+                                  style={{ padding: '4px 8px', fontSize: '12px' }}
+                                  onClick={() => {
+                                    setTimeModalEntry(entry);
+                                    setTimeModalStatus('modified');
+                                    setTimeModalNote(entry.validationNote || '');
+                                    setTimeModalNewTime(new Date(entry.timestamp).toISOString().slice(0, 16));
+                                    setTimeModalOpen(true);
+                                  }}
+                                >
+                                  Corriger
+                                </button>
+                                <button 
+                                  className="btn btn-danger" 
+                                  style={{ padding: '4px 8px', fontSize: '12px', backgroundColor: '#ef4444', color: '#fff' }}
+                                  onClick={() => {
+                                    setTimeModalEntry(entry);
+                                    setTimeModalStatus('rejected');
+                                    setTimeModalNote(entry.validationNote || '');
+                                    setTimeModalOpen(true);
+                                  }}
+                                >
+                                  Refuser
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -3044,20 +3932,95 @@ function App() {
         {activeTab === 'stock' && (
           <div>
             <div style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Gestion des Stocks</h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Définissez les types de consommables (sacs de ciment, disques, etc.) et gérez l'inventaire embarqué dans les camions.</p>
+              <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '4px' }}>Gestion des Stocks & Dépôt</h1>
+              <p style={{ color: 'var(--text-secondary)' }}>Stock principal du dépôt, seuils d'alerte, coût d'achat et transfert vers les camions.</p>
+            </div>
+
+            {/* Base Stock Table (Depot) */}
+            <div className="glass-card" style={{ marginBottom: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Stock Principal du Dépôt</h3>
+              </div>
+
+              <div className="table-container">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Article / Consommable</th>
+                      <th>Quantité au Dépôt</th>
+                      <th>Unité</th>
+                      <th>Prix d'Achat Unitaire (€ HT)</th>
+                      <th>Seuil d'Alerte</th>
+                      <th>Statut Stock</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockItems.map(item => {
+                      const qty = item.quantity || 0;
+                      const threshold = item.minThreshold || 10;
+                      const isLow = qty <= threshold;
+                      return (
+                        <tr key={item.id}>
+                          <td style={{ fontWeight: '700' }}>{item.name}</td>
+                          <td style={{ fontSize: '16px', fontWeight: '800', color: isLow ? '#ef4444' : 'var(--text-main)' }}>
+                            {qty}
+                          </td>
+                          <td>{item.unit}</td>
+                          <td style={{ fontWeight: '600', color: 'var(--primary)' }}>
+                            {item.unitPrice ? `${Number(item.unitPrice).toLocaleString('fr-FR')} €` : '--'}
+                          </td>
+                          <td>{threshold} {item.unit}</td>
+                          <td>
+                            {isLow ? (
+                              <span className="badge badge-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <AlertTriangle size={12} /> Stock Bas !
+                              </span>
+                            ) : (
+                              <span className="badge badge-success">Stock OK</span>
+                            )}
+                          </td>
+                          <td>
+                            <button 
+                              className="btn btn-primary" 
+                              style={{ padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                              onClick={() => {
+                                setReplenishItem(item);
+                                setReplenishQty('');
+                                setReplenishUnitPrice(String(item.unitPrice || ''));
+                                setReplenishMinThreshold(String(item.minThreshold || 10));
+                                setShowReplenishModal(true);
+                              }}
+                            >
+                              <Package size={14} /> Réapprovisionner
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {stockItems.length === 0 && (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0' }}>
+                          Aucun consommable enregistré au dépôt.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="grid-3" style={{ marginBottom: '32px' }}>
+              {/* Form Create Stock Item */}
               <div className="glass-card">
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Définir un Type de Consommable</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Nouveau Consommable Dépôt</h3>
                 <form onSubmit={handleCreateStockItem}>
                   <div className="form-group">
                     <label className="form-label">Nom de l'élément</label>
                     <input 
                       type="text" 
                       className="form-input" 
-                      placeholder="e.g. Sac de ciment, Compresseur..." 
+                      placeholder="e.g. Carburant GMR, Sac de Sable" 
                       value={newStockItem.name}
                       onChange={e => setNewStockItem({ ...newStockItem, name: e.target.value })}
                       required
@@ -3065,23 +4028,46 @@ function App() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Unité de mesure</label>
-                    <input 
-                      type="text" 
+                    <select 
                       className="form-input" 
-                      placeholder="e.g. sacs, pcs" 
                       value={newStockItem.unit}
                       onChange={e => setNewStockItem({ ...newStockItem, unit: e.target.value })}
-                      required
+                    >
+                      <option value="litres">Litres</option>
+                      <option value="sacs">Sacs</option>
+                      <option value="pcs">Pièces (pcs)</option>
+                      <option value="kg">Kilogrammes (kg)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Quantité Initiale</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="100" 
+                      value={newStockItem.quantity}
+                      onChange={e => setNewStockItem({ ...newStockItem, quantity: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Prix d'Achat Unitaire (€ HT)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      placeholder="1.50" 
+                      value={newStockItem.unitPrice}
+                      onChange={e => setNewStockItem({ ...newStockItem, unitPrice: e.target.value })}
                     />
                   </div>
                   <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                    Créer l'Élément
+                    Créer l'Article
                   </button>
                 </form>
               </div>
 
+              {/* Truck Stock Allocation */}
               <div className="glass-card" style={{ gridColumn: 'span 2' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Chargement dans le Véhicule</h3>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px' }}>Transfert Dépôt vers Véhicule</h3>
                 <form onSubmit={handleAssignStockToTruck} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', marginBottom: '24px' }}>
                   <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                     <label className="form-label">Véhicule</label>
@@ -3091,23 +4077,23 @@ function App() {
                       onChange={e => setSelectedTruckForStock(e.target.value)}
                       required
                     >
-                      <option value="">Sélectionner...</option>
+                      <option value="">Sélectionner un véhicule...</option>
                       {trucks.map(t => (
                         <option key={t.id} value={t.id}>{t.plateNumber} - {t.model}</option>
                       ))}
                     </select>
                   </div>
                   <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
-                    <label className="form-label">Consommable</label>
+                    <label className="form-label">Consommable Dépôt</label>
                     <select 
                       className="form-input" 
                       value={stockItemToAssign} 
                       onChange={e => setStockItemToAssign(e.target.value)}
                       required
                     >
-                      <option value="">Sélectionner...</option>
+                      <option value="">Sélectionner un produit...</option>
                       {stockItems.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
+                        <option key={s.id} value={s.id}>{s.name} (Stock Dépôt: {s.quantity || 0} {s.unit})</option>
                       ))}
                     </select>
                   </div>
@@ -3122,7 +4108,7 @@ function App() {
                     />
                   </div>
                   <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>
-                    Charger
+                    Transferer
                   </button>
                 </form>
 
@@ -3132,7 +4118,7 @@ function App() {
                       <thead>
                         <tr>
                           <th>Nom du Consommable</th>
-                          <th>Quantité Actuelle</th>
+                          <th>Quantité Embarquée</th>
                           <th>Unité</th>
                           <th>Actions</th>
                         </tr>
@@ -3459,7 +4445,7 @@ function App() {
                       {editingEmployeeId ? 'Enregistrer' : 'Créer'}
                     </button>
                     {editingEmployeeId && (
-                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingEmployeeId(null); setNewEmployee({ firstName: '', lastName: '', badgeNumber: '', username: '', password: '', hourlyRate: '35', monthlySalary: '', paidLeaveBalance: '0', rttBalance: '0', phone: '', email: '', qualification: 'Chauffeur Poids Lourd' }); }}>
+                      <button type="button" className="btn btn-secondary" onClick={() => { setEditingEmployeeId(null); setNewEmployee({ firstName: '', lastName: '', badgeNumber: '', username: '', password: '', hourlyRate: '35', monthlySalary: '', paidLeaveBalance: '0', paidLeaveN: '30', paidLeaveN1: '0', hireDate: '', rttBalance: '0', phone: '', email: '', qualification: 'Chauffeur Poids Lourd' }); }}>
                         Annuler
                       </button>
                     )}
@@ -3514,6 +4500,9 @@ function App() {
                                     hourlyRate: String(emp.hourlyRate || 35),
                                     monthlySalary: emp.monthlySalary ? String(emp.monthlySalary) : '',
                                     paidLeaveBalance: String(emp.paidLeaveBalance || 0),
+                                    paidLeaveN: String(emp.paidLeaveN || 30),
+                                    paidLeaveN1: String(emp.paidLeaveN1 || 0),
+                                    hireDate: emp.hireDate ? new Date(emp.hireDate).toISOString().slice(0, 10) : '',
                                     rttBalance: String(emp.rttBalance || 0),
                                     phone: emp.phone || '',
                                     email: emp.email || '',
@@ -4083,6 +5072,223 @@ function App() {
           </div>
         )}
 
+        {/* MODAL VALIDATION / CORRECTION HEURES */}
+        {timeModalOpen && timeModalEntry && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '500px', padding: '32px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>
+                {timeModalStatus === 'rejected' ? 'Refuser le pointage' : 'Corriger le pointage'}
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                Salarié : <strong>{timeModalEntry.employee ? `${timeModalEntry.employee.firstName} ${timeModalEntry.employee.lastName}` : 'Inconnu'}</strong>
+              </p>
+
+              {timeModalStatus === 'modified' && (
+                <div className="form-group">
+                  <label className="form-label">Nouvel Horodatage</label>
+                  <input 
+                    type="datetime-local" 
+                    className="form-input" 
+                    value={timeModalNewTime}
+                    onChange={e => setTimeModalNewTime(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label className="form-label">Message / Explication (Envoyé à l'application mobile)</label>
+                <textarea 
+                  className="form-input" 
+                  rows={3} 
+                  placeholder="Ex: Merci d'ajuster votre heure d'arrivée car le départ camion était à 07h30..."
+                  value={timeModalNote}
+                  onChange={e => setTimeModalNote(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setTimeModalOpen(false)}>Annuler</button>
+                <button 
+                  type="button" 
+                  className={`btn ${timeModalStatus === 'rejected' ? 'btn-danger' : 'btn-primary'}`}
+                  onClick={() => handleValidateTimeEntry(timeModalEntry.id, timeModalStatus, timeModalNote, timeModalStatus === 'modified' ? new Date(timeModalNewTime).toISOString() : undefined)}
+                >
+                  {timeModalStatus === 'rejected' ? 'Confirmer le Refus' : 'Enregistrer la Correction'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CORRECTION DE METRE */}
+        {showMeterModal && meterModalMission && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '480px', padding: '32px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>
+                Saisir / Corriger le Métré Réalisé
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                Chantier : <strong>{meterModalMission.title}</strong> (Prévu : {meterModalMission.surfaceArea || '--'} {meterModalMission.estimatedUnit || 'm²'})
+              </p>
+
+              <div className="form-group">
+                <label className="form-label">Quantité Réalisée</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="number" 
+                    className="form-input" 
+                    style={{ flex: 1 }}
+                    value={meterModalQty}
+                    onChange={e => setMeterModalQty(e.target.value)}
+                    required
+                  />
+                  <select 
+                    className="form-input" 
+                    style={{ width: '100px' }}
+                    value={meterModalUnit}
+                    onChange={e => setMeterModalUnit(e.target.value)}
+                  >
+                    <option value="m²">m²</option>
+                    <option value="ml">ml</option>
+                    <option value="pièce">pièce</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowMeterModal(false)}>Annuler</button>
+                <button type="button" className="btn btn-primary" onClick={handleSaveMeterCorrection}>
+                  Finaliser & Valider Métré
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL REAPPROVISIONNEMENT STOCK */}
+        {showReplenishModal && replenishItem && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '480px', padding: '32px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>
+                Réapprovisionner le Stock (Dépôt)
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                Article : <strong>{replenishItem.name}</strong> (Actuel : {replenishItem.quantity || 0} {replenishItem.unit})
+              </p>
+
+              <div className="form-group">
+                <label className="form-label">Quantité Ajoutée</label>
+                <input 
+                  type="number" 
+                  className="form-input" 
+                  placeholder="50"
+                  value={replenishQty}
+                  onChange={e => setReplenishQty(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Prix d'Achat Payé Unitaire (€ HT)</label>
+                <input 
+                  type="number" 
+                  className="form-input" 
+                  placeholder="12.50"
+                  value={replenishUnitPrice}
+                  onChange={e => setReplenishUnitPrice(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Seuil Minimum d'Alerte</label>
+                <input 
+                  type="number" 
+                  className="form-input" 
+                  placeholder="10"
+                  value={replenishMinThreshold}
+                  onChange={e => setReplenishMinThreshold(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowReplenishModal(false)}>Annuler</button>
+                <button type="button" className="btn btn-primary" onClick={handleSaveReplenishment}>
+                  Confirmer le Réapprovisionnement
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DRAG AND DROP PLANNING */}
+        {showDropPlanningModal && dropTargetEmployee && dropMission && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px', backdropFilter: 'blur(4px)' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '520px', padding: '32px' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>
+                Assigner le Chantier via Planning
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                Chantier : <strong>{dropMission.title}</strong>
+              </p>
+
+              <div className="form-group">
+                <label className="form-label">Chef de Chantier (Déclaré pour les métrés)</label>
+                <select 
+                  className="form-input"
+                  value={dropChefDeMissionId}
+                  onChange={e => setDropChefDeMissionId(e.target.value)}
+                >
+                  {employees.map(e => (
+                    <option key={e.id} value={e.id}>{e.firstName} {e.lastName} ({e.qualification || 'Salarié'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Date Début</label>
+                  <input type="date" className="form-input" value={dropStartDate} onChange={e => setDropStartDate(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Date Fin</label>
+                  <input type="date" className="form-input" value={dropEndDate} onChange={e => setDropEndDate(e.target.value)} required />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Membres de l'équipe (Co-assignés)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto', padding: '8px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+                  {employees.map(emp => (
+                    <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={dropTeamEmployeeIds.includes(emp.id) || dropChefDeMissionId === emp.id}
+                        disabled={dropChefDeMissionId === emp.id}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setDropTeamEmployeeIds(prev => [...prev, emp.id]);
+                          } else {
+                            setDropTeamEmployeeIds(prev => prev.filter(id => id !== emp.id));
+                          }
+                        }}
+                      />
+                      {emp.firstName} {emp.lastName} {dropChefDeMissionId === emp.id ? '(Chef de chantier)' : ''}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowDropPlanningModal(false)}>Annuler</button>
+                <button type="button" className="btn btn-primary" onClick={handleSaveDropPlanning}>
+                  Enregistrer l'assignation
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

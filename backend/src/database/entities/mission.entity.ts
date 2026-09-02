@@ -4,6 +4,8 @@ import { Client } from './client.entity';
 import { Worksite } from './worksite.entity';
 import { Employee } from './employee.entity';
 
+import { SiteSupervisor } from './site-supervisor.entity';
+
 export enum MissionStatus {
   PLANNED = 'planned',
   IN_PROGRESS = 'in_progress',
@@ -50,7 +52,19 @@ export class Mission {
   actualPrice: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  surfaceArea: number;
+  surfaceArea: number; // estimated quantity
+
+  @Column({ default: 'm²' })
+  estimatedUnit: string; // m², ml, piece
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  actualQuantity: number;
+
+  @Column({ nullable: true })
+  actualUnit: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  totalMaterialCost: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   fuelConsumption: number;
@@ -68,6 +82,10 @@ export class Mission {
   @ManyToOne(() => Client, { nullable: true })
   @JoinColumn()
   client: Client;
+
+  @ManyToOne(() => SiteSupervisor, { nullable: true })
+  @JoinColumn()
+  siteSupervisor: SiteSupervisor;
 
   @ManyToOne(() => Worksite, { nullable: true })
   @JoinColumn()

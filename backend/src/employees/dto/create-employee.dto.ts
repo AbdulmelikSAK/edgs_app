@@ -30,6 +30,21 @@ export class CreateEmployeeDto {
   @IsNumber()
   paidLeaveBalance?: number;
 
+  @ApiPropertyOptional({ example: 30.00 })
+  @IsOptional()
+  @IsNumber()
+  paidLeaveN?: number;
+
+  @ApiPropertyOptional({ example: 0.00 })
+  @IsOptional()
+  @IsNumber()
+  paidLeaveN1?: number;
+
+  @ApiPropertyOptional({ example: '2026-01-01' })
+  @IsOptional()
+  @IsString()
+  hireDate?: string;
+
   @ApiPropertyOptional({ example: 10.00 })
   @IsOptional()
   @IsNumber()

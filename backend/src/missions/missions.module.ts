@@ -8,8 +8,10 @@ import { Client } from '../database/entities/client.entity';
 import { Worksite } from '../database/entities/worksite.entity';
 import { Employee } from '../database/entities/employee.entity';
 
+import { SiteSupervisor } from '../database/entities/site-supervisor.entity';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Mission, Truck, Client, Worksite, Employee])],
+  imports: [TypeOrmModule.forFeature([Mission, Truck, Client, Worksite, Employee, SiteSupervisor])],
   controllers: [MissionsController],
   providers: [MissionsService],
   exports: [MissionsService],

@@ -12,6 +12,13 @@ export enum TimeEntryType {
   PAUSE_END = 'pause_end',
 }
 
+export enum TimeEntryStatus {
+  PENDING = 'pending',
+  VALIDATED = 'validated',
+  REJECTED = 'rejected',
+  MODIFIED = 'modified',
+}
+
 @Entity('time_entries')
 export class TimeEntry {
   @PrimaryGeneratedColumn('uuid')
@@ -55,6 +62,18 @@ export class TimeEntry {
 
   @Column({ default: false })
   isSyncedFromOffline: boolean;
+
+  @Column({ type: 'enum', enum: TimeEntryStatus, default: TimeEntryStatus.PENDING })
+  validationStatus: TimeEntryStatus;
+
+  @Column({ nullable: true, type: 'text' })
+  validationNote: string;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  validatedAt: Date;
+
+  @Column({ nullable: true })
+  validatedBy: string;
 
   @CreateDateColumn()
   createdAt: Date;

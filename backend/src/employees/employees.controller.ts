@@ -34,6 +34,12 @@ export class EmployeesController {
     return this.employeesService.update(id, dto);
   }
 
+  @Post('leave-rollover')
+  @ApiOperation({ summary: 'Déclencher la bascule annuelle des congés au 1er avril' })
+  leaveRollover() {
+    return this.employeesService.performAnnualLeaveRollover();
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.employeesService.remove(id);

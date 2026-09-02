@@ -6,6 +6,7 @@ import { Truck } from '../database/entities/truck.entity';
 import { Client } from '../database/entities/client.entity';
 import { Worksite } from '../database/entities/worksite.entity';
 import { Employee } from '../database/entities/employee.entity';
+import { SiteSupervisor } from '../database/entities/site-supervisor.entity';
 import { CreateMissionDto } from './dto/create-mission.dto';
 import { UpdateMissionDto } from './dto/update-mission.dto';
 
@@ -17,12 +18,14 @@ export class MissionsService {
     @InjectRepository(Client) private clientRepo: Repository<Client>,
     @InjectRepository(Worksite) private worksiteRepo: Repository<Worksite>,
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
+    @InjectRepository(SiteSupervisor) private siteSupervisorRepo: Repository<SiteSupervisor>,
   ) {}
 
-  async create(dto: CreateMissionDto): Promise<Mission> {
+  async create(dto: any): Promise<Mission> {
     const truck = dto.truckId ? await this.truckRepo.findOne({ where: { id: dto.truckId } }) : null;
     const client = dto.clientId ? await this.clientRepo.findOne({ where: { id: dto.clientId } }) : null;
     const worksite = dto.worksiteId ? await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } }) : null;
+    const siteSupervisor = dto.siteSupervisorId ? await this.siteSupervisorRepo.findOne({ where: { id: dto.siteSupervisorId } }) : null;
     
     const employees = dto.employeeIds && dto.employeeIds.length > 0 
       ? await this.employeeRepo.findBy({ id: In(dto.employeeIds) }) 
@@ -36,6 +39,7 @@ export class MissionsService {
       ...dto,
       truck: truck ?? undefined,
       client: client ?? undefined,
+      siteSupervisor: siteSupervisor ?? undefined,
       worksite: worksite ?? undefined,
       employees,
       chefDeMission,
@@ -45,7 +49,7 @@ export class MissionsService {
 
   findAll(): Promise<Mission[]> {
     return this.missionRepo.find({
-      relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: { truck: true, client: true, siteSupervisor: true, worksite: true, employees: true, chefDeMission: true },
       order: { scheduledDate: 'DESC' },
     });
   }
@@ -53,14 +57,14 @@ export class MissionsService {
   findByTruck(truckId: string): Promise<Mission[]> {
     return this.missionRepo.find({
       where: { truck: { id: truckId }, status: MissionStatus.IN_PROGRESS },
-      relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: { truck: true, client: true, siteSupervisor: true, worksite: true, employees: true, chefDeMission: true },
     });
   }
 
   async findOne(id: string): Promise<Mission> {
     const mission = await this.missionRepo.findOne({
       where: { id },
-      relations: { truck: true, client: true, worksite: true, employees: true, chefDeMission: true },
+      relations: { truck: true, client: true, siteSupervisor: true, worksite: true, employees: true, chefDeMission: true },
     });
     if (!mission) throw new NotFoundException(`Mission ${id} non trouvée`);
     return mission;
@@ -76,6 +80,10 @@ export class MissionsService {
     if (dto.clientId) {
       const client = await this.clientRepo.findOne({ where: { id: dto.clientId } });
       if (client) mission.client = client;
+    }
+    if ((dto as any).siteSupervisorId) {
+      const supervisor = await this.siteSupervisorRepo.findOne({ where: { id: (dto as any).siteSupervisorId } });
+      if (supervisor) mission.siteSupervisor = supervisor;
     }
     if (dto.worksiteId) {
       const worksite = await this.worksiteRepo.findOne({ where: { id: dto.worksiteId } });

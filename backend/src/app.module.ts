@@ -23,6 +23,7 @@ import { ProductionModule } from './production/production.module';
 import { EquipmentModule } from './equipment/equipment.module';
 import { BillingModule } from './billing/billing.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
+import { SiteSupervisorsModule } from './site-supervisors/site-supervisors.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
     EquipmentModule,
     BillingModule,
     LeaveRequestsModule,
+    SiteSupervisorsModule,
   ],
   providers: [
     SeederService,

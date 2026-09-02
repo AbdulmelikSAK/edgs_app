@@ -36,6 +36,15 @@ export class Employee {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
   paidLeaveBalance: number;
 
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 30.00 })
+  paidLeaveN: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
+  paidLeaveN1: number;
+
+  @Column({ type: 'date', nullable: true })
+  hireDate: string;
+
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
   rttBalance: number;
 
