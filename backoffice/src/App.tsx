@@ -18,6 +18,7 @@ import {
   LogOut,
   ImageIcon,
   UserCheck,
+  Building2,
   Wrench,
   Users,
   FileSpreadsheet,
@@ -307,6 +308,43 @@ function App() {
   const [dropEndDate, setDropEndDate] = useState('');
   const [dropChefDeMissionId, setDropChefDeMissionId] = useState('');
   const [dropTeamEmployeeIds, setDropTeamEmployeeIds] = useState<string[]>([]);
+
+  // Autocomplétion d'adresse & recherche client
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [extraMissionFiles, setExtraMissionFiles] = useState<File[]>([]);
+
+  const handleAddressChange = async (query: string) => {
+    setNewMission(prev => ({ ...prev, worksiteAddress: query }));
+    if (query.trim().length >= 3) {
+      try {
+        const res = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
+        if (res.ok) {
+          const data = await res.json();
+          setAddressSuggestions(data.features || []);
+          setShowAddressDropdown(true);
+        }
+      } catch (e) {
+        console.error('Erreur autocomplétion adresse:', e);
+      }
+    } else {
+      setAddressSuggestions([]);
+      setShowAddressDropdown(false);
+    }
+  };
+
+  const selectAddressSuggestion = (feature: any) => {
+    const fullAddress = feature.properties.label;
+    const [lon, lat] = feature.geometry.coordinates;
+    setNewMission(prev => ({
+      ...prev,
+      worksiteAddress: fullAddress,
+      latitude: lat,
+      longitude: lon
+    }));
+    setShowAddressDropdown(false);
+  };
 
   // Mission search filter
   const [missionSearchQuery, setMissionSearchQuery] = useState('');
@@ -2075,6 +2113,12 @@ function App() {
             Liste des chantiers
           </div>
 
+          {/* TAB: CLIENTS & CONTACTS */}
+          <div className={`nav-item ${activeTab === 'clients' ? 'active' : ''}`} onClick={() => setActiveTab('clients')}>
+            <Building2 size={18} />
+            Fiches Clients & Contacts
+          </div>
+
           {/* TAB: CONDUCTEURS DE TRAVAUX */}
           <div className={`nav-item ${activeTab === 'site_supervisors' ? 'active' : ''}`} onClick={() => setActiveTab('site_supervisors')}>
             <UserCheck size={18} />
@@ -2141,6 +2185,12 @@ function App() {
           <div className={`nav-item ${activeTab === 'leaves' ? 'active' : ''}`} onClick={() => setActiveTab('leaves')}>
             <Calendar size={18} />
             Demandes de Congés
+          </div>
+
+          {/* TAB: ANNOUNCEMENTS & DOCUMENTS */}
+          <div className={`nav-item ${activeTab === 'announcements' ? 'active' : ''}`} onClick={() => setActiveTab('announcements')}>
+            <FileSpreadsheet size={18} />
+            Diffusion Documents Mobile
           </div>
 
           {/* TAB 12: DEVIS */}
@@ -2449,6 +2499,7 @@ function App() {
                       <option value="Sablage">Sablage</option>
                       <option value="Bouchardage">Bouchardage</option>
                       <option value="Ponçage">Ponçage</option>
+                      <option value="Hydrodécapage">Hydrodécapage</option>
                       <option value="DEPOT">Dépôt (Travail au dépôt)</option>
                     </select>
                   </div>
@@ -2457,6 +2508,14 @@ function App() {
                 <div className="grid-2">
                   <div className="form-group">
                     <label className="form-label">Client</label>
+                    <input 
+                      type="text"
+                      className="form-input"
+                      style={{ marginBottom: '6px', fontSize: '13px' }}
+                      placeholder="🔎 Filtrer / Rechercher le client..."
+                      value={clientSearchQuery}
+                      onChange={e => setClientSearchQuery(e.target.value)}
+                    />
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <select 
                         className="form-input" 
@@ -2479,11 +2538,17 @@ function App() {
                         <option value="__NEW_CLIENT__" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
                           ➕ -- Ajouter un nouveau client --
                         </option>
-                        {clients.map(c => (
-                          <option key={c.id} value={c.name}>
-                            {c.code ? `[${c.code}] ` : ''}{c.name} {c.city ? `(${c.city})` : ''}
-                          </option>
-                        ))}
+                        {clients
+                          .filter(c => 
+                            !clientSearchQuery || 
+                            c.name.toLowerCase().includes(clientSearchQuery.toLowerCase()) || 
+                            (c.city && c.city.toLowerCase().includes(clientSearchQuery.toLowerCase()))
+                          )
+                          .map(c => (
+                            <option key={c.id} value={c.name}>
+                              {c.code ? `[${c.code}] ` : ''}{c.name} {c.city ? `(${c.city})` : ''}
+                            </option>
+                          ))}
                       </select>
                       <button 
                         type="button" 
@@ -2515,16 +2580,50 @@ function App() {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Adresse du Chantier</label>
+                <div className="form-group" style={{ position: 'relative' }}>
+                  <label className="form-label">Adresse du Chantier (Autocomplétion GPS)</label>
                   <input 
                     type="text" 
                     className="form-input" 
-                    placeholder="12 Route de Valréas, 84600 Grillon" 
+                    placeholder="Saisissez au moins 3 caractères (ex: 12 Route de Valréas...)" 
                     value={newMission.worksiteAddress}
-                    onChange={e => setNewMission({ ...newMission, worksiteAddress: e.target.value })}
+                    onChange={e => handleAddressChange(e.target.value)}
                     required
                   />
+                  {showAddressDropdown && addressSuggestions.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #3b82f6',
+                      borderRadius: '8px',
+                      zIndex: 9999,
+                      marginTop: '4px',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)'
+                    }}>
+                      {addressSuggestions.map((item, idx) => (
+                        <div 
+                          key={idx}
+                          style={{
+                            padding: '10px 14px',
+                            borderBottom: idx === addressSuggestions.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            color: '#f8fafc'
+                          }}
+                          onMouseDown={() => selectAddressSuggestion(item)}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          📍 <strong>{item.properties.label}</strong> ({item.properties.postcode} {item.properties.city})
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid-3">
