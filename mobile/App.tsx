@@ -2367,6 +2367,10 @@ export default function App() {
                 </View>
               )}
             </View>
+          </ScrollView>
+        </View>
+      )}
+
       {/* SCREEN 9: ANNOUNCEMENTS / DOCUMENTS DIFFUSION */}
       {currentScreen === 'announcements' && (
         <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
