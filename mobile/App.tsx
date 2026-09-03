@@ -963,6 +963,62 @@ export default function App() {
     Alert.alert('Pointage', 'Reprise de l\'activité enregistrée.');
   };
 
+  // Declare Bad Weather (Intempérie 7h)
+  const handleIntemperie = () => {
+    Alert.alert(
+      'Déclaration Intempérie',
+      'Êtes-vous sûr de vouloir déclarer une journée d\'intempérie ? Cela mettra fin à votre journée et enregistrera 7 heures d\'intempérie.',
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Oui, confirmer',
+          onPress: async () => {
+            setDayStarted(false);
+            setIsPaused(false);
+            const coords = await getGpsCoords();
+            const payload = {
+              employeeId: employee.id,
+              truckId: truck?.id,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              timestamp: new Date().toISOString(),
+              type: 'intemperie',
+              notes: 'Journée intempérie (7h)'
+            };
+
+            if (!isOffline) {
+              try {
+                await fetch(`${serverUrl}/timeclock`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify(payload)
+                });
+              } catch (e) {
+                console.error(e);
+              }
+            } else {
+              db.runSync(
+                "INSERT INTO pending_sync (type, payload, createdAt) VALUES ('intemperie', ?, ?)",
+                [JSON.stringify(payload), new Date().toISOString()]
+              );
+              loadCachedData();
+            }
+            Alert.alert('Intempérie', 'Journée d\'intempérie enregistrée (7h00). Fin de journée effectuée.');
+            setCurrentScreen('login');
+            setEmployee(null);
+            setToken(null);
+          }
+        }
+      ]
+    );
+  };
+
   // Start active mission
   const startMission = async () => {
     if (!activeMission) return;
@@ -1682,18 +1738,40 @@ export default function App() {
                 </Text>
                 
                 {!isPaused ? (
-                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <View style={{ gap: 10 }}>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <TouchableOpacity
+                        style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#b45309', paddingVertical: 12 }]}
+                        onPress={() => startPause('repas')}
+                      >
+                        <Text style={[styles.btnLargeText, { fontSize: 12 }]}>PAUSE REPAS</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#475569', paddingVertical: 12 }]}
+                        onPress={() => startPause('technique')}
+                      >
+                        <Text style={[styles.btnLargeText, { fontSize: 12 }]}>PAUSE TECHNIQUE</Text>
+                      </TouchableOpacity>
+                    </View>
+
                     <TouchableOpacity
-                      style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#b45309', paddingVertical: 12 }]}
-                      onPress={() => startPause('repas')}
+                      style={[
+                        styles.btnLargeSecondary, 
+                        { 
+                          backgroundColor: 'rgba(2, 132, 199, 0.15)', 
+                          borderColor: '#38bdf8', 
+                          borderWidth: 1, 
+                          paddingVertical: 12,
+                          flexDirection: 'row',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          gap: 8
+                        }
+                      ]}
+                      onPress={handleIntemperie}
                     >
-                      <Text style={[styles.btnLargeText, { fontSize: 12 }]}>PAUSE REPAS</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.btnLargeSecondary, { flex: 1, backgroundColor: '#475569', paddingVertical: 12 }]}
-                      onPress={() => startPause('technique')}
-                    >
-                      <Text style={[styles.btnLargeText, { fontSize: 12 }]}>PAUSE TECHNIQUE</Text>
+                      <Icon name="alert" size={20} color="#38bdf8" />
+                      <Text style={[styles.btnLargeText, { fontSize: 13, color: '#38bdf8' }]}>🌧️ DÉCLARER INTEMPÉRIE (7H)</Text>
                     </TouchableOpacity>
                   </View>
                 ) : (
