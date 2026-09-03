@@ -1570,8 +1570,8 @@ export default function App() {
                       </Text>
                     </TouchableOpacity>
 
-                    {/* Proposer l'option Dépôt UNIQUEMENT si aucune mission n'est planifiée */}
-                    {!activeMission && (
+                    {/* Proposer l'option Dépôt si aucune mission backend n'est planifiée */}
+                    {(!activeMission || activeMission?.id === 'depot-virtual' || activeMission?.type === 'DEPOT') && (
                       <TouchableOpacity
                         style={[
                           styles.modeBtn,
@@ -1625,7 +1625,7 @@ export default function App() {
                     setCurrentScreen('mission_detail');
                   }}
                 >
-                  <Icon name="calendar" size={32} color="#3b82f6" />
+                  <Icon name="file-text" size={32} color="#3b82f6" />
                   <Text style={styles.actionCardTitle}>Planning & Chantiers</Text>
                   <Text style={styles.actionCardDesc}>
                     {activeMission ? activeMission.title : 'Mon Agenda'}
@@ -1634,11 +1634,14 @@ export default function App() {
 
                 <TouchableOpacity 
                   style={styles.actionCard}
-                  onPress={() => setCurrentScreen('leaves')}
+                  onPress={() => {
+                    fetchLeaveRequests();
+                    setCurrentScreen('leaves');
+                  }}
                 >
                   <Icon name="calendar" size={32} color="#10b981" />
                   <Text style={styles.actionCardTitle}>Congés & RTT</Text>
-                  <Text style={styles.actionCardDesc}>Demandes</Text>
+                  <Text style={styles.actionCardDesc}>Demandes & Soldes</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -1651,6 +1654,18 @@ export default function App() {
                   <Icon name="file-text" size={32} color="#f59e0b" />
                   <Text style={styles.actionCardTitle}>Documents Diffusés</Text>
                   <Text style={styles.actionCardDesc}>Notes direction & GED</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => {
+                    fetchTimeHistory();
+                    setCurrentScreen('time_tracking');
+                  }}
+                >
+                  <Icon name="history" size={32} color="#ec4899" />
+                  <Text style={styles.actionCardTitle}>Suivi des Heures</Text>
+                  <Text style={styles.actionCardDesc}>Semaines & Mois</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1692,22 +1707,16 @@ export default function App() {
               </View>
 
               <View style={styles.actionsGrid}>
-                 <TouchableOpacity 
-                  style={styles.actionCard}
-                  onPress={() => {
-                    if (truck.id === '00000000-0000-0000-0000-000000000000') {
-                      Alert.alert('Aucun Véhicule', "Aucun véhicule ne vous est assigné aujourd'hui. Vous ne pouvez pas gérer de stock.");
-                    } else {
-                      setCurrentScreen('stock');
-                    }
-                  }}
-                >
-                  <Icon name="package" size={32} color="#f59e0b" />
-                  <Text style={styles.actionCardTitle}>Gérer Sable</Text>
-                  <Text style={styles.actionCardDesc}>
-                    {truck.id === '00000000-0000-0000-0000-000000000000' ? 'Aucun véhicule' : `${truck.currentStock} sacs à bord`}
-                  </Text>
-                </TouchableOpacity>
+                {truck.id !== '00000000-0000-0000-0000-000000000000' && truck.id !== 'depot' && (
+                  <TouchableOpacity 
+                    style={styles.actionCard}
+                    onPress={() => setCurrentScreen('stock')}
+                  >
+                    <Icon name="package" size={32} color="#f59e0b" />
+                    <Text style={styles.actionCardTitle}>Gérer Sable</Text>
+                    <Text style={styles.actionCardDesc}>{`${truck.currentStock} sacs à bord`}</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity 
                   style={styles.actionCard}
@@ -1715,7 +1724,7 @@ export default function App() {
                     setCurrentScreen('mission_detail');
                   }}
                 >
-                  <Icon name="calendar" size={32} color="#3b82f6" />
+                  <Icon name="file-text" size={32} color="#3b82f6" />
                   <Text style={styles.actionCardTitle}>Planning & Chantiers</Text>
                   <Text style={styles.actionCardDesc}>
                     {activeMission ? activeMission.title : 'Mon Agenda'}
@@ -1724,11 +1733,38 @@ export default function App() {
 
                 <TouchableOpacity 
                   style={styles.actionCard}
-                  onPress={() => setCurrentScreen('leaves')}
+                  onPress={() => {
+                    fetchLeaveRequests();
+                    setCurrentScreen('leaves');
+                  }}
                 >
                   <Icon name="calendar" size={32} color="#10b981" />
                   <Text style={styles.actionCardTitle}>Congés & RTT</Text>
-                  <Text style={styles.actionCardDesc}>Demandes</Text>
+                  <Text style={styles.actionCardDesc}>Demandes & Soldes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => {
+                    fetchAnnouncements();
+                    setCurrentScreen('announcements');
+                  }}
+                >
+                  <Icon name="file-text" size={32} color="#f59e0b" />
+                  <Text style={styles.actionCardTitle}>Documents Diffusés</Text>
+                  <Text style={styles.actionCardDesc}>Notes direction & GED</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.actionCard}
+                  onPress={() => {
+                    fetchTimeHistory();
+                    setCurrentScreen('time_tracking');
+                  }}
+                >
+                  <Icon name="history" size={32} color="#ec4899" />
+                  <Text style={styles.actionCardTitle}>Suivi des Heures</Text>
+                  <Text style={styles.actionCardDesc}>Semaines & Mois</Text>
                 </TouchableOpacity>
               </View>
 
@@ -2790,17 +2826,21 @@ const styles = StyleSheet.create({
   },
   actionsGrid: {
     flexDirection: 'row',
-    gap: 16,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   actionCard: {
-    flex: 1,
+    width: '48%',
     backgroundColor: '#1e293b',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    minHeight: 125,
   },
   actionCardTitle: {
     fontSize: 16,
